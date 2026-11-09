@@ -1,6 +1,6 @@
 // Shared wallet + burner session for every NFT page (launchpad, collection,
 // single, studio). One signMessage derives the burner once per session.
-import { esc, shortAddr } from "../../ui/fmt.js";
+import { paintWalletPill as paintNavWallet } from "../../ui/nav.js";
 
 export const session = { wallet: null, burner: null };
 
@@ -28,14 +28,10 @@ export async function ensureBurner() {
 
 export const addr = () => (session.wallet ? session.wallet.publicKey.toBase58() : null);
 
-// The wallet pill every NFT page shows top-right; onChange repaints the page.
+// The nav wallet slot on every NFT page: silent restore of an approved wallet,
+// then onChange repaints whatever the page gates on the wallet.
 export function paintWalletPill(el, onChange) {
-  const paint = () => {
-    const a = addr();
-    el.innerHTML = a ? "<span>" + esc(shortAddr(a)) + "</span>" : '<span class="lnk">Connect wallet</span>';
-    if (!a) el.querySelector(".lnk").onclick = () =>
-      connectWallet().then(() => { paint(); onChange && onChange(); }).catch((e) => alert(e.message));
-  };
+  const paint = () => paintNavWallet(el, addr(), () => connectWallet().then(() => { paint(); onChange && onChange(); }));
   paint();
   if (!addr()) restoreWallet().then((w) => { if (w) { paint(); onChange && onChange(); } });
 }

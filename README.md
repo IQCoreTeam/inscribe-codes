@@ -68,20 +68,21 @@ src/
   views/            route-level controllers only (one per screen)
     home.js
     token/          board, markets, chart modal, launch layer
-    nft/            launchpad, collection page, viewer, studio wizard
+    nft/            launchpad desk, collection page, viewer, single mint, studio wizard (art helper)
   chain/            everything that signs or derives keys
     wallets.js      Wallet Standard discovery + adapter
     burner.js       derivation (message string identical to iqlabs.dev), fund, sweep
     rpc.js          endpoints per chain, setRpcUrl pool wiring
     launch/         pumpfun.js, pons.js (external launch services)
   services/         plain HTTP clients, no chain code
-    nft-backend.js  nft.iqlabs.dev
+    nft-backend.js  nft.iqlabs.dev (same-origin /__nft proxy when served from localhost)
     gateway.js      gateway.iqlabs.dev
     markets.js      dexscreener / geckoterminal
   ui/               shared presentational pieces (window chrome, modal, progress, ticker)
   styles/
 public/             fonts, img, favicon (static bytes only)
 tests/              node test harness, mirrors src/
+scripts/dev.mjs     local static server + NFT backend proxy (no deps)
 design/             design export, reference only
 ```
 
@@ -100,9 +101,15 @@ Coding rules, including the SDK high-level-only policy, live in `CLAUDE.md` and 
 | 0 | DONE: scaffold, `?view=` routing, design tokens, chain/services layers | design export under `design/` |
 | 1 | DONE: home with live data (hero, recent, doors, both top-3 panels) | verified headless against live services |
 | 2 | DONE: token side, both chains (markets + chart modal + launch layer: text / ascii / image / file / MY INSCRIPTIONS, pump.fun and Pons launches, token registry row) | engines are faithful ports of the proven iq6900 flows |
-| 3 | DONE: NFT side (launchpad home + collection page with sealed/minted grid and the full mint flow, asset viewer with the from-chain recovery proof, single 1/1 mint, 4-step studio wizard with generate / hand-craft / folder producers) | engines are faithful ports of the proven iq6900 flows |
-| 4 | REMAINING: Firebase project + `inscribe.codes` domain (owner), backend CORS additions (`CORS_ORIGIN` on nft.iqlabs.dev + gateway), then a real-wallet pass over the mint/launch flows | firebase.json is ready; local testing needs Chrome --disable-web-security until CORS lands |
+| 3 | DONE: NFT side, re-ported 1:1 from `NFT Launchpad Flow v5` + `Art Helper v5` (desk with collections / market / my nfts + activity column, collection page with sealed/minted grid and the inline mint states, 3-column asset viewer with the from-chain recovery proof, single 1/1 mint, 8-screen launch wizard: choice, details, items via generate / hand-craft / folder, check, mint settings, deploy, progress, live) | engines are faithful ports of the proven iq6900 flows; every screen rendered headless, console clean |
+| 4 | REMAINING: hosting (Cloudflare Pages or Firebase; `firebase.json` is ready) + `inscribe.codes` domain (owner), backend CORS additions (`CORS_ORIGIN` on nft.iqlabs.dev + gateway), then a real-wallet pass over the mint/launch flows | local dev goes through `scripts/dev.mjs`, which proxies the NFT backend |
 | 5 | Launch, then the iq6900 cleanup below | redirects first, removals after |
+
+## Local development
+
+```
+node scripts/dev.mjs        # http://localhost:8099, proxies nft.iqlabs.dev at /__nft (its CORS allowlist has no localhost)
+```
 
 ## iq6900 / iqlabs.dev cleanup after this site deploys
 

@@ -1,30 +1,35 @@
-// launch_collection.exe: the 4-step creator wizard (NAME / NETWORK / ITEMS /
-// PRICE + DEPLOY) with the three item producers (generate art, hand-craft 1/1s,
-// upload a folder). Ends in the deploy engine: one funding signature, staged
-// progress, resume on interruption.
-import { esc, fmtSol } from "../../ui/fmt.js";
+// Launch a collection (design/NFT Launchpad Flow v5 + Art Helper v5): the
+// creator wizard. Steps: 0 what are you launching, 1 details, 2 items (art
+// helper: generate / hand-craft / folder), 3 check, 4 mint settings, 5 deploy,
+// 6 progress, 7 live. Ends in the deploy engine: one funding signature,
+// staged progress, resume on interruption.
+import { esc, fmtSol, shortAddr } from "../../ui/fmt.js";
+import { typeLabels } from "../../ui/tty.js";
 import { call } from "../../services/nft-backend.js";
 import { connect as rpcConnect, explorerTx } from "../../chain/rpc.js";
 import { fileToBitmap, bitmapToImageData, compositeImageData, compositeDataUrl } from "../../ui/image.js";
-import { session, addr, connectWallet, ensureBurner } from "./session.js";
+import { session, addr, connectWallet, ensureBurner, paintWalletPill } from "./session.js";
 
 const st = {
-  step: 1, producer: "generate",
+  step: 0, producer: "generate",
   name: "", symbol: "", slug: "", slugState: null, description: "",
-  logoBitmap: null, bannerBitmap: null,
-  layers: [], supply: 100, generated: null, // generated: {items, previews}
-  handItems: [],
-  folderItems: null, folderReport: "",
+  logoBitmap: null, bannerBitmap: null, logoUrl: "", bannerUrl: "",
+  layers: [], sel: 0, supply: 100, mainPicks: null, generated: null, confirm: false, showMeta: false,
+  handItems: [], selItem: 0,
+  folderItems: null, folderReport: null,
   priceSol: "0.01", depositSol: "0", royaltyPct: "5", sequential: false,
-  deploying: false, error: null, result: null, progress: 0, label: "",
+  deploying: false, pct: 0, phase: "", log: [], error: null, result: null,
 };
 
 export function open(root) {
-  st.step = 1; st.error = null; st.result = null; st.deploying = false;
+  st.step = 0; st.error = null; st.result = null; st.deploying = false; st.generated = null; st.confirm = false;
   paint(root);
 }
 
-const STEPS = ["NAME", "NETWORK", "ITEMS", "MINT TERMS"];
+const STEPS = ["1 · DETAILS", "2 · ITEMS", "3 · CHECK", "4 · MINT", "5 · DEPLOY", "6 · PROGRESS"];
+const TITLES = ["Launch a collection", "Details", "Items", "Check files", "Mint settings", "Deploy", "deploying…", "Live"];
+const MODE_LABEL = { generate: "generated", handcraft: "hand-crafted", folder: "uploaded" };
+const DEPLOY_FEE = (n) => 10_000_000 + n * 300_000; // backend quotes the exact value at stage
 
 function items() {
   if (st.producer === "generate") return st.generated && st.generated.items;
@@ -35,279 +40,441 @@ function items() {
 function paint(root) {
   const modal = root.querySelector("#nf_modal");
   if (!modal) return;
-  const body =
-    st.result ? doneHtml() :
-    st.deploying ? progressHtml() :
-    st.step === 1 ? nameHtml() :
-    st.step === 2 ? networkHtml() :
-    st.step === 3 ? itemsHtml() :
-    termsHtml();
+  const step = st.result ? 7 : st.deploying ? 6 : st.step;
+  const body = [choiceHtml, detailsHtml, itemsHtml, checkHtml, settingsHtml, deployHtml, progressHtml, doneHtml][step]();
+  const wide = step === 0 || step === 2;
   modal.innerHTML = `
-<div class="ns_backdrop" style="position:fixed;inset:0;z-index:30;background:rgba(0,0,0,.9);display:flex;align-items:flex-start;justify-content:center;padding:26px 16px;overflow:auto">
-  <div class="win" style="width:860px;max-width:100%;background:var(--bg)">
-    <div class="wh"><span>launch_collection.exe</span>
-      <span class="sm">${STEPS.map((s, i) => `<span style="color:${i + 1 === st.step && !st.deploying && !st.result ? "var(--acc)" : "var(--mut)"}">${i + 1}·${s}</span>`).join(" ")}</span>
-      <span class="lnk ns_close" style="padding:0 8px">x</span></div>
-    <div style="padding:20px 22px">${body}</div>
+<div class="nf-overlay" id="ns_overlay">
+  <div class="nf-wiz ${wide ? "wide" : ""}">
+    ${step >= 1 && step <= 6 ? `<div class="nf-stepper">${STEPS.map((s, i) => `<div class="${i + 1 === step ? "on" : ""}">${s}</div>`).join("")}</div>` : ""}
+    <div class="win nf-wizwin">
+      <div class="wh"><span>${TITLES[step]}</span>${step >= 1 && step <= 5 ? `<span>step ${step} / 6</span>` : step === 6 ? "<span>resumable</span>" : step === 7 ? "<span>authority: you</span>" : ""}<span class="wh-right wh-x ns_close">x</span></div>
+      <div class="nf-wizbody">${body}</div>
+    </div>
   </div>
+  ${st.confirm ? confirmHtml() : ""}
 </div>`;
+  typeLabels(modal);
   for (const x of modal.querySelectorAll(".ns_close")) x.onclick = () => { if (!st.deploying) modal.innerHTML = ""; };
   wire(root, modal);
 }
 
-const input = (id, value, placeholder = "", extra = "") =>
-  `<input id="${id}" value="${esc(value)}" placeholder="${esc(placeholder)}" ${extra} style="width:100%;box-sizing:border-box;background:var(--panel2);color:var(--acc);border:1px solid var(--line);font:inherit;font-size:18px;padding:9px 10px">`;
+const nav = (back, next, nextLabel = "Continue", disabled = false) =>
+  `<div class="nf-nav">${back ? '<button class="btn2 ns_back">← Back</button>' : ""}${next ? `<button class="btn ns_next" ${disabled ? "disabled" : ""}>${nextLabel}</button>` : ""}</div>`;
+const err = () => (st.error ? `<div class="cm" style="margin-top:10px;color:var(--bad)">${esc(st.error)}</div>` : "");
 
-// ── step 1: NAME ────────────────────────────────────────────────────────────
-function nameHtml() {
-  const slugMsg = st.slugState === "free" ? '<span style="color:var(--acc)">available</span>'
-    : st.slugState === "taken" ? '<span style="color:var(--bad)">already taken</span>'
-    : st.slugState === "short" ? '<span style="color:var(--mut)">3+ chars, a-z 0-9 -</span>' : "";
+// ── step 0: what are you launching ──────────────────────────────────────────
+function choiceHtml() {
+  if (!addr()) return `
+    <div class="nf-center">
+      <img src="public/img/connect_wallet.png" alt="" style="width:100%;max-width:560px;image-rendering:pixelated">
+      <div data-tty class="nf-h">Connect a wallet to launch a collection</div>
+      <div class="cm">The collection and the mint registry end up owned by your wallet, so we need it from the start.</div>
+      <button class="nf-connectbig dotbox" id="ns_connect">Connect wallet</button>
+    </div>`;
+  const card = (p, glyph, img, t, s) => `<div class="nf-card ns_pick" data-p="${p}"><div class="nf-cardimg">${img ? `<img src="${img}" alt="">` : glyph}</div><div class="nf-cardtxt"><span class="t">${t}</span><span class="s">${s}</span></div></div>`;
   return `
-    <div class="big" data-tty>Step 1: name the collection</div>
-    <div style="display:flex;gap:10px;margin-top:14px">
-      <div style="flex:1"><div class="sm">Collection name</div>${input("ns_name", st.name, "Pixel Monks")}</div>
-      <div style="flex:0 0 140px"><div class="sm">Symbol</div>${input("ns_sym", st.symbol, "MONK", 'maxlength="10"')}</div>
-    </div>
-    <div style="margin-top:10px"><div class="sm">Collection URL (set once)</div>
-      <div style="display:flex;align-items:center;gap:6px"><span class="sm" style="white-space:nowrap">inscribe.codes/?view=nft&c=</span>${input("ns_slug", st.slug, "pixel-monks")}</div>
-      <div class="sm" id="ns_slugmsg" style="margin-top:4px">${slugMsg}</div></div>
-    <div style="margin-top:10px"><div class="sm">Description</div>
-      <textarea id="ns_desc" style="width:100%;box-sizing:border-box;min-height:54px;resize:vertical;background:var(--panel2);color:var(--acc);border:1px solid var(--line);font:inherit;font-size:16px;padding:9px 10px">${esc(st.description)}</textarea></div>
-    <div style="display:flex;gap:14px;margin-top:10px" class="sm">
-      <label style="flex:1;border:1px dashed var(--acc);padding:12px;text-align:center;cursor:pointer">${st.logoBitmap ? "logo set ✓ (click to replace)" : "Logo (optional, square)"}<input id="ns_logo" type="file" accept="image/*" style="display:none"></label>
-      <label style="flex:1;border:1px dashed var(--acc);padding:12px;text-align:center;cursor:pointer">${st.bannerBitmap ? "banner set ✓ (click to replace)" : "Banner (optional, 3:1)"}<input id="ns_banner" type="file" accept="image/*" style="display:none"></label>
-    </div>
-    <div class="sm" style="margin-top:6px;color:var(--mut)">Logo and banner are inscribed on-chain at deploy, like everything else.</div>
-    ${st.error ? `<div class="sm" style="margin-top:8px;color:var(--bad)">${esc(st.error)}</div>` : ""}
-    <button class="cta ns_next" style="width:100%;margin-top:14px;text-align:center">CONTINUE</button>`;
-}
-
-// ── step 2: NETWORK ─────────────────────────────────────────────────────────
-function networkHtml() {
-  return `
-    <div class="big" data-tty>Step 2: pick the chain</div>
-    <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-top:14px">
-      <button class="ns_net" style="border:1px solid var(--acc);background:var(--panel2);padding:22px;text-align:center;cursor:pointer">
-        <div class="hero" style="font-size:22px;color:var(--acc)">SOLANA</div><div class="sm" style="margin-top:4px">live</div></button>
-      <div style="border:1px solid var(--line);padding:22px;text-align:center;opacity:.45">
-        <div class="hero" style="font-size:22px">ROBINHOOD</div><div class="sm" style="margin-top:4px">coming soon</div></div>
-      <div style="border:1px solid var(--line);padding:22px;text-align:center;opacity:.45">
-        <div class="hero" style="font-size:22px">MONAD</div><div class="sm" style="margin-top:4px">coming soon</div></div>
-    </div>
-    <div class="sm" style="margin-top:12px">Every item's image and metadata become Solana inscriptions; the NFT (Metaplex Core) just points at them.</div>
-    <div style="display:flex;gap:10px;margin-top:14px"><button class="chip ns_back">&larr; BACK</button><button class="cta ns_next" style="flex:1;text-align:center">CONTINUE ON SOLANA</button></div>`;
-}
-
-// ── step 3: ITEMS (three producers) ────────────────────────────────────────
-function itemsHtml() {
-  const tabs = [["generate", "GENERATE ART"], ["handcraft", "HAND-CRAFT 1/1s"], ["folder", "UPLOAD A FOLDER"]]
-    .map(([id, label]) => `<button class="chip ns_prod ${st.producer === id ? "live" : ""}" data-p="${id}" style="padding:8px 12px;font-size:12px">${label}</button>`).join("");
-  const got = items();
-  return `
-    <div class="big" data-tty>Step 3: the items</div>
-    <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:12px">${tabs}</div>
-    <div style="margin-top:12px">${st.producer === "generate" ? generateHtml() : st.producer === "handcraft" ? handcraftHtml() : folderHtml()}</div>
-    ${st.error ? `<div class="sm" style="margin-top:8px;color:var(--bad)">${esc(st.error)}</div>` : ""}
-    <div style="display:flex;gap:10px;margin-top:14px"><button class="chip ns_back">&larr; BACK</button>
-      <button class="cta ns_next" style="flex:1;text-align:center" ${got && got.length ? "" : "disabled"}>${got && got.length ? "CONTINUE WITH " + got.length + " ITEMS" : "ADD ITEMS FIRST"}</button></div>`;
-}
-
-function generateHtml() {
-  const combos = st.layers.length ? st.layers.reduce((n, l) => n * Math.max(1, l.traits.length), 1) : 0;
-  const over = st.layers.length && st.supply > combos;
-  return `
-    <div class="sm" style="border:1px solid var(--line);padding:10px 12px;line-height:1.7">A collection is built from stacked layers (background, body, eyes, ...). Give each layer a few trait images; every item is a unique random combination. Trait value = the file name. Shrink big art at <a href="https://squoosh.app" target="_blank" rel="noopener">squoosh.app</a> first.</div>
-    <div id="ns_layers" style="margin-top:10px;display:flex;flex-direction:column;gap:8px">
-      ${st.layers.map((l, i) => `
-        <div style="border:1px solid var(--line);padding:8px 10px" class="sm">
-          <div style="display:flex;gap:10px;align-items:center">
-            <span style="color:var(--acc)">${String(i + 1).padStart(2, "0")}</span>
-            <span class="big" style="font-size:16px;flex:1">${esc(l.name)}</span>
-            <span>${l.traits.length} trait${l.traits.length === 1 ? "" : "s"}</span>
-            <button class="lnk ns_lup" data-i="${i}">&uarr;</button><button class="lnk ns_ldn" data-i="${i}">&darr;</button>
-            <label class="lnk" style="cursor:pointer">+ images<input type="file" class="ns_ltraits" data-i="${i}" accept="image/*" multiple style="display:none"></label>
-            <button class="lnk ns_lrm" data-i="${i}" style="color:var(--bad)">remove</button>
-          </div>
-          ${l.traits.length ? `<div style="margin-top:6px;display:flex;gap:6px;flex-wrap:wrap">${l.traits.map((t) => `<span class="chip" style="font-size:10px">${esc(t.name)}</span>`).join("")}</div>` : ""}
-        </div>`).join("")}
-    </div>
-    <div style="display:flex;gap:10px;margin-top:10px;align-items:center" class="sm">
-      <input id="ns_lname" placeholder="layer name (background, body, ...)" style="flex:1;background:var(--panel2);color:var(--acc);border:1px solid var(--line);font:inherit;font-size:16px;padding:8px 10px">
-      <button class="chip" id="ns_ladd">+ ADD LAYER</button>
-    </div>
-    <div style="display:flex;gap:14px;margin-top:12px;align-items:center;flex-wrap:wrap" class="sm">
-      <span>Supply <input id="ns_supply" value="${st.supply}" style="width:80px;background:var(--panel2);color:var(--acc);border:1px solid var(--line);font:inherit;font-size:16px;padding:6px 8px"></span>
-      <span style="color:${over ? "var(--cta)" : "var(--mut)"}">${combos ? combos.toLocaleString() + " unique combinations possible" + (over ? " · supply exceeds it" : "") : ""}</span>
-      <button class="cta" id="ns_gen" style="font-size:14px;padding:8px 14px" ${st.layers.length && st.layers.every((l) => l.traits.length) ? "" : "disabled"}>GENERATE ${st.supply}</button>
-    </div>
-    ${st.generated ? `<div class="sm" style="margin-top:10px">${st.generated.items.length} items generated (unique by trait DNA). First ${st.generated.previews.length}:</div>
-      <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(72px,1fr));gap:6px;margin-top:6px">${st.generated.previews.map((u) => `<img src="${u}" alt="" style="width:100%;aspect-ratio:1;object-fit:cover;border:1px solid var(--line)">`).join("")}</div>` : ""}`;
-}
-
-function handcraftHtml() {
-  return `
-    <div class="sm" style="border:1px solid var(--line);padding:10px 12px;line-height:1.7">Each card is one 1/1: an image, a name, optional traits (one per line as <span style="color:var(--acc)">type: value</span>).</div>
-    <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:10px;margin-top:10px">
-      ${st.handItems.map((it, i) => `
-        <div style="border:1px solid var(--line);padding:8px" class="sm">
-          <img src="${it.url}" alt="" style="width:100%;aspect-ratio:1;object-fit:cover;border:1px solid var(--line)">
-          <input class="ns_hname" data-i="${i}" value="${esc(it.name)}" placeholder="name" style="width:100%;box-sizing:border-box;margin-top:6px;background:var(--panel2);color:var(--acc);border:1px solid var(--line);font:inherit;font-size:14px;padding:6px 8px">
-          <textarea class="ns_htraits" data-i="${i}" placeholder="hat: crown&#10;mood: gm" style="width:100%;box-sizing:border-box;margin-top:6px;min-height:44px;background:var(--panel2);color:var(--acc);border:1px solid var(--line);font:inherit;font-size:12px;padding:6px 8px">${esc(it.traitsText || "")}</textarea>
-          <button class="lnk ns_hrm" data-i="${i}" style="color:var(--bad);margin-top:4px">remove</button>
-        </div>`).join("")}
-      <label style="border:1px dashed var(--acc);display:grid;place-items:center;min-height:140px;cursor:pointer" class="sm">+ ADD ITEMS<input id="ns_hadd" type="file" accept="image/*" multiple style="display:none"></label>
+    <div data-tty class="nf-h">What are you launching?</div>
+    <div class="cm" style="margin-top:6px">Pick how the art comes in. Name and mint settings come next. Everything ends up fully on chain either way.</div>
+    <div class="nf-choice">
+      ${card("generate", "▦", "", "Generate art", "Stack layers, set the count, roll a full set.")}
+      ${card("handcraft", "✎", "", "Hand-craft 1 / 1", "A few unique pieces, one image each.")}
+      ${card("folder", "", "public/img/choice_upload.png", "Manual upload", "Already have the files? Drop the folder.")}
     </div>`;
 }
 
-function folderHtml() {
+// ── step 1: details ─────────────────────────────────────────────────────────
+function detailsHtml() {
+  const slugMsg = st.slugState === "free" ? `<span class="mint">available → inscribe.codes/?view=nft&c=${esc(st.slug)}</span>`
+    : st.slugState === "taken" ? '<span style="color:var(--bad)">already taken</span>'
+    : st.slugState === "short" ? "3+ chars, a-z 0-9 -" : "set once; this becomes the collection's link";
+  const img = (bm, url) => (bm ? `<img src="${url}" alt="">` : "");
   return `
-    <div class="sm" style="border:1px solid var(--line);padding:10px 12px;line-height:1.7">
-      Expected folder: <span style="color:var(--acc)">0.png, 1.png, ...</span> (or 1-based) with optional matching <span style="color:var(--acc)">0.json</span> files ({ name, description, attributes } OpenSea shape; missing json = autogenerated name). Any asset urls inside are rewritten to on-chain urls at deploy.</div>
-    <label style="display:block;border:1px dashed var(--acc);padding:26px;text-align:center;cursor:pointer;margin-top:10px" class="sm">
-      ${st.folderItems ? st.folderItems.length + " items parsed ✓ (click to re-pick)" : "Pick the folder"}
-      <input id="ns_folder" type="file" webkitdirectory multiple style="display:none">
-    </label>
-    ${st.folderReport ? `<pre class="sm" style="margin-top:10px;border:1px solid var(--line);padding:10px;white-space:pre-wrap">${esc(st.folderReport)}</pre>` : ""}`;
+    <div class="nf-form2">
+      <div><div class="fl">Collection name</div><input class="inp" id="ns_name" value="${esc(st.name)}" placeholder="Pixel Monks"></div>
+      <div><div class="fl">Symbol</div><input class="inp" id="ns_sym" value="${esc(st.symbol)}" maxlength="10" placeholder="MONK"></div>
+      <div class="span2"><div class="fl">Collection URL</div>
+        <div class="nf-handle"><span>inscribe.codes/?view=nft&c=</span><input class="inp" id="ns_slug" value="${esc(st.slug)}" placeholder="pixel-monks"></div>
+        <div class="cm" id="ns_slugmsg" style="margin-top:4px">${slugMsg}</div></div>
+      <div class="span2"><div class="fl">Description</div><textarea class="inp" id="ns_desc" style="min-height:64px;resize:vertical">${esc(st.description)}</textarea></div>
+      <div><div class="fl">Chain</div><div class="seg lab"><div class="on">◎ Solana</div><div style="opacity:.45;cursor:default" title="coming soon">▲ Robinhood · soon</div></div></div>
+      <div><div class="fl">Creator wallet</div><input class="inp" value="${esc(shortAddr(addr()))} (you)" readonly></div>
+      <div class="span2"><div class="fl">Logo + banner (optional, inscribed at deploy)</div>
+        <div class="nf-brand cm">
+          <label>${img(st.logoBitmap, st.logoUrl)}${st.logoBitmap ? "logo set · click to replace" : "+ Logo (square)"}<input id="ns_logo" type="file" accept="image/*" style="display:none"></label>
+          <label>${img(st.bannerBitmap, st.bannerUrl)}${st.bannerBitmap ? "banner set · click to replace" : "+ Banner (3 : 1)"}<input id="ns_banner" type="file" accept="image/*" style="display:none"></label>
+        </div></div>
+    </div>
+    <div class="cm" style="margin-top:10px">Name and symbol go on chain with the collection. You can still change the description before deploy.</div>
+    ${err()}
+    ${nav(true, true)}`;
 }
 
-// ── step 4: terms + deploy ──────────────────────────────────────────────────
-function termsHtml() {
-  const n = (items() || []).length;
-  const feeLamports = 10_000_000 + n * 300_000; // deployFeeBase + per item (backend quotes the exact value at stage)
+// ── step 2: items (art helper) ──────────────────────────────────────────────
+function itemsHtml() {
+  const got = items();
   return `
-    <div class="big" data-tty>Step 4: mint terms, then deploy</div>
-    <div style="display:flex;gap:10px;margin-top:14px">
-      <div style="flex:1"><div class="sm">Mint price (SOL)</div>${input("ns_price", st.priceSol)}</div>
-      <div style="flex:1"><div class="sm">Deposit (SOL, anti-snipe; counts toward price)</div>${input("ns_deposit", st.depositSol)}</div>
-      <div style="flex:1"><div class="sm">Royalties (%)</div>${input("ns_royalty", st.royaltyPct)}</div>
+    <div style="display:flex;justify-content:space-between;align-items:baseline;gap:12px;margin-bottom:12px;flex-wrap:wrap">
+      <div class="nf-h">${esc(st.name)} <span class="cm">· ${esc(st.symbol)} · ${MODE_LABEL[st.producer]}</span></div>
+      <span class="cm lnk ns_method" style="text-decoration:underline">change method</span>
     </div>
-    <label class="sm" style="display:flex;gap:8px;margin-top:10px;cursor:pointer"><input id="ns_seq" type="checkbox" ${st.sequential ? "checked" : ""}> sequential assignment (default: random with a committed shuffle)</label>
-    <div style="margin-top:12px;border:1px solid var(--line)" class="sm">
-      <div class="kv" style="padding:6px 12px"><span>items</span><span>${n}</span></div>
-      <div class="kv" style="padding:6px 12px"><span>deploy fee (covers Arweave + platform)</span><span>~${fmtSol(feeLamports)}</span></div>
-      <div class="kv" style="padding:6px 12px"><span>your signatures</span><span style="color:var(--acc)">1 funding transfer (leftover sweeps back)</span></div>
-      <div class="kv" style="padding:6px 12px;border-bottom:none"><span>buyers pay</span><span>price + their own inscription (~0.0135 SOL)</span></div>
-    </div>
-    <div class="sm" style="margin-top:8px">You stay the collection authority and the treasury; the platform never holds your keys or your money.</div>
-    ${st.error ? `<div class="sm" style="margin-top:8px;color:var(--bad)">${esc(st.error)}</div>` : ""}
-    <div style="display:flex;gap:10px;margin-top:14px"><button class="chip ns_back">&larr; BACK</button>
-      <button class="cta" id="ns_deploy" style="flex:1;text-align:center">${addr() ? "DEPLOY (1 signature)" : "CONNECT WALLET"}</button></div>`;
+    ${st.producer === "generate" ? generateHtml() : st.producer === "handcraft" ? handcraftHtml() : folderHtml()}
+    ${err()}
+    <div class="nf-nav"><button class="btn2 ns_back">← Back</button>${got && got.length ? `<button class="btn ns_next">Continue with ${got.length} items →</button>` : ""}</div>`;
 }
+
+const GHOSTS = ["Background", "Body", "Eyes", "Mouth", "Headwear"];
+const traitUrl = (t) => (t.url ||= compositeDataUrl([{ name: "", traits: [t] }], [0], 96));
+
+function generateHtml() {
+  if (st.generated) {
+    return `
+    <div class="ah-done">
+      <div style="min-width:0"><div data-tty class="ah-assembled">${st.generated.items.length} items assembled.</div><div class="cm" style="margin-top:6px">Images and details are ready. They go on chain at deploy.</div></div>
+      <button class="btn2 ns_regen" style="padding:10px 14px">← Edit layers</button>
+    </div>
+    <div class="ah-genscroll"><div class="ah-gengrid">${st.generated.previews.map((u) => `<div class="mini" style="cursor:default"><img src="${u}" alt=""></div>`).join("")}</div></div>
+    <div class="cm" style="margin-top:8px">Preview of the first ${st.generated.previews.length} of ${st.generated.items.length}. Nothing is on chain yet; that happens at deploy.</div>`;
+  }
+  if (!st.layers.length) {
+    return `
+    <div class="ah-empty">
+      <div class="lab" style="font-size:16px">Start with a layer</div>
+      <div class="cm" style="margin-top:6px">an NFT is assembled from stacked layers, for example:</div>
+      <div class="ah-ghosts">${GHOSTS.map((g) => `<div>${g}</div>`).join("")}</div>
+      <button class="btn ns_addlayer" style="margin-top:18px;padding:11px 18px;font-size:16px">+ Add your first attribute</button>
+    </div>`;
+  }
+  const L = st.layers[st.sel] || st.layers[0];
+  const combos = st.layers.reduce((n, l) => n * Math.max(1, l.traits.length), 1);
+  const ready = st.layers.every((l) => l.traits.length);
+  if (ready && (!st.mainPicks || st.mainPicks.length !== st.layers.length)) st.mainPicks = st.layers.map((l) => Math.floor(Math.random() * l.traits.length));
+  const main = ready ? compositeDataUrl(st.layers, st.mainPicks, 260) : "";
+  return `
+  <div class="ah-gw">
+    <div class="ah-col">
+      <div>
+        <div class="fl" style="display:flex;justify-content:space-between"><span>Layers</span><span>arrows · top = front</span></div>
+        <div style="display:flex;flex-direction:column;gap:6px">
+          ${st.layers.map((l, i) => `
+          <div class="lrow ${i === st.sel ? "on" : ""} ns_lsel" data-i="${i}">
+            <div class="grip">${'<span class="gdot"></span>'.repeat(6)}</div>
+            <div style="flex:1;min-width:0"><div class="n">${esc(l.name)}</div>
+              <div class="sws">${l.traits.slice(0, 6).map((t) => `<span class="sw" style="background-image:url(${traitUrl(t)})"></span>`).join("")}<span class="cm" style="margin-left:4px">${l.traits.length} image${l.traits.length === 1 ? "" : "s"}</span></div></div>
+            <div style="display:flex;flex-direction:column;gap:3px"><div class="arw ns_lup ${i === 0 ? "off" : ""}" data-i="${i}">↑</div><div class="arw ns_ldn ${i === st.layers.length - 1 ? "off" : ""}" data-i="${i}">↓</div></div>
+          </div>`).join("")}
+        </div>
+        <button class="btn2 ns_addlayer" style="margin-top:8px;padding:8px;font-size:16px;width:100%">+ Add attribute</button>
+      </div>
+      <div style="border-top:1px solid var(--line);padding-top:12px">
+        <div class="fl">Selected attribute</div>
+        <input class="inp" id="ns_lname" value="${esc(L.name)}">
+        <div style="display:flex;gap:6px;margin-top:10px">
+          <label class="ah-drop cm">+ Upload trait images (0.png, 1.png …)<input type="file" class="ns_ltraits" accept="image/*" multiple style="display:none"></label>
+          <button class="btn2 ns_lrm" style="padding:10px 12px;font-size:16px">Remove</button>
+        </div>
+        <div class="cm" style="margin-top:6px">Trait value = the file name. Its images show on the right →</div>
+      </div>
+    </div>
+    <div class="ah-col" style="gap:14px">
+      <div>
+        <div class="fl" style="display:flex;justify-content:space-between"><span>${esc(L.name)} images</span><span class="cm">${L.traits.length ? "one is picked per item" : "add a few"}</span></div>
+        <div class="ah-gal">
+          <label class="ah-tile add">+ Image<input type="file" class="ns_ltraits" accept="image/*" multiple style="display:none"></label>
+          ${L.traits.map((t, ti) => `<div class="ah-tile"><img src="${traitUrl(t)}" alt=""><div class="n">${esc(t.name)}</div><div class="x ns_trm" data-t="${ti}">×</div></div>`).join("")}
+        </div>
+      </div>
+      <div class="ah-pw">
+        <div class="ah-main">${main ? `<img src="${main}" alt="">` : '<span class="cm" style="text-align:center;padding:12px">every layer needs at least one image</span>'}</div>
+        <div>
+          <div class="fl">LAYER STACK (front → back)</div>
+          <div class="ah-legend">${st.layers.slice().reverse().map((l, ri) => { const i = st.layers.length - 1 - ri; const t = ready ? l.traits[st.mainPicks[i]] : null; return `<div><span class="sw" style="${t ? "background-image:url(" + traitUrl(t) + ")" : ""}"></span><b>${esc(l.name)}</b><span>${t ? esc(t.name) : "-"}</span></div>`; }).join("")}</div>
+          ${ready ? '<button class="btn2 ns_reroll" style="margin-top:8px;padding:6px 10px;font-size:16px">Re-roll preview</button>' : ""}
+          <div style="margin-top:16px;border-top:1px solid var(--line);padding-top:12px">
+            <div class="fl">How many to generate</div>
+            <div style="display:flex;align-items:center;gap:8px"><input class="inp" id="ns_supply" style="width:110px" value="${st.supply}"><span class="cm">of ${combos.toLocaleString("en-US")} possible</span></div>
+            <button class="btn ns_gen" style="margin-top:12px;padding:12px;font-size:16px;width:100%" ${ready ? "" : "disabled"}>Generate ${st.supply} items</button>
+          </div>
+        </div>
+      </div>
+      <div class="cm">Each item gets one random pick per layer. At deploy the image and its details are saved on chain. One signature does it for all.</div>
+    </div>
+  </div>`;
+}
+
+function handcraftHtml() {
+  const it = st.handItems[st.selItem];
+  return `
+  <div class="ah-hand">
+    <div>
+      <div class="fl">YOUR 1 / 1 ITEMS · ${st.handItems.length}</div>
+      <div class="ah-items">
+        ${st.handItems.map((h, i) => `<div class="mini ${i === st.selItem ? "on" : ""} ns_hsel" data-i="${i}"><img src="${h.url}" alt=""><div class="n">${esc(h.name)}</div></div>`).join("")}
+        <label class="mini add"><span class="lab" style="font-size:16px;opacity:.7">+ Add<br>Item</span><input id="ns_hadd" type="file" accept="image/*" multiple style="display:none"></label>
+      </div>
+      <div class="cm" style="margin-top:12px">Each card is one unique item. Drop an image, name it, add traits. Good for a small hand-made drop; use Generate art for big sets.</div>
+    </div>
+    <div class="ah-edit">
+      <div class="fl">Edit item</div>
+      ${it ? `
+      <div class="ah-prev"><img src="${it.url}" alt=""><label class="btn2">Replace image<input id="ns_hreplace" type="file" accept="image/*" style="display:none"></label></div>
+      <div style="margin-top:10px"><div class="fl">Name</div><input class="inp" id="ns_hname" value="${esc(it.name)}"></div>
+      <div style="margin-top:10px"><div class="fl">TRAITS (optional)</div>
+        <div class="ah-chips">
+          ${it.traits.map((t, ti) => `<span class="chip"><span>${esc(t.trait_type)}</span><span class="cm">${esc(t.value)}</span><span class="x ns_htrm" data-t="${ti}">×</span></span>`).join("")}
+          <input class="inp" id="ns_htt" placeholder="type" style="width:90px;padding:5px 8px"><input class="inp" id="ns_htv" placeholder="value" style="width:110px;padding:5px 8px"><button class="btn2 ns_htadd" style="padding:7px 10px;font-size:16px">+ Trait</button>
+        </div></div>
+      <button class="btn2 ns_hrm" style="margin-top:12px;padding:7px 10px;font-size:16px">Remove item</button>` : '<div class="cm">Add an item on the left to edit it here.</div>'}
+      <div class="cm" style="margin-top:8px">At deploy each image and its details are saved on chain.</div>
+    </div>
+  </div>`;
+}
+
+function folderHtml() {
+  const r = st.folderReport;
+  return `
+  <div class="ah-box">
+    <div class="lab" style="font-size:16px;display:flex;justify-content:space-between"><span>Expected folder format</span><a href="https://docs.scatter.art/creators/metadata" target="_blank" rel="noopener" class="cm">docs.scatter.art/creators/metadata</a></div>
+    <div class="cm" style="margin-top:6px;opacity:.65">Media files named by token id (0.png, 1.png, 2.png; 1-based works too). Matching metadata json use the same names (0.json, 1.json); metadata is optional, missing metadata is autogenerated. The json is the OpenSea shape: name, description, image, attributes[].</div>
+  </div>
+  ${!st.folderItems ? `
+  <label class="ah-dz" id="ns_dz">
+    <div class="lab" style="font-size:16px">${r && r.error ? r.error : "Drop a folder here to get started"}</div>
+    <div class="cm" style="margin-top:6px">images and metadata are parsed and type-checked · click to pick the folder</div>
+    <input id="ns_folder" type="file" webkitdirectory multiple style="display:none">
+  </label>` : `
+  <div class="ah-parsed"><div class="lab mint" style="font-size:16px">FOLDER PARSED · ${r.count} ITEMS · ${r.jsonBad ? "CHECK JSON" : "TYPES OK"}</div><button class="btn2 ns_fclear" style="padding:8px 12px;font-size:16px">Clear</button></div>
+  <div class="ah-rep">
+    <div><div class="fl">Parse report</div><div class="box">
+      <div class="kv"><span>media files</span><span>${r.count} ${esc(r.formats)}, ${r.base}-based</span></div>
+      <div class="kv"><span>metadata json</span><span>${r.jsons} found${r.count - r.jsons ? ", " + (r.count - r.jsons) + " missing (autogenerated)" : ""}</span></div>
+      <div class="kv"><span>numbering</span><span class="${r.gaps ? "amber" : "mint"}">${r.gaps ? r.gaps + " gaps · renumbered 1.." + r.count : "no gaps ✓"}</span></div>
+      <div class="kv"><span>urls to rewrite</span><span class="amber">${r.urls} image fields</span></div>
+      <div class="kv"><span>errors</span><span class="${r.jsonBad ? "amber" : "mint"}">${r.jsonBad || 0}</span></div>
+    </div></div>
+    <div><div class="fl">TYPE CHECK (per item json)</div><div class="box">
+      <div class="kv"><span>name</span><span class="mint">string ✓</span></div>
+      <div class="kv"><span>description</span><span class="mint">${r.withDesc} with text ✓</span></div>
+      <div class="kv"><span>image</span><span class="mint">ignored → becomes on-chain url</span></div>
+      <div class="kv"><span>attributes[]</span><span class="mint">${r.withAttrs} with trait_type / value ✓</span></div>
+    </div></div>
+  </div>
+  <div class="ah-box" style="margin-top:12px"><div class="lab amber" style="font-size:16px">Links are updated at deploy</div>
+    <div class="cm" style="margin-top:6px;opacity:.7">We inscribe each media file, then rewrite the json's image from the local name / your url to the on-chain gateway url of that inscription, then inscribe the json too. The NFT link points at the inscribed json. Attribute values are plain text, left as is. Your original links are only a staging reference; the minted token resolves fully from chain.</div></div>`}`;
+}
+
+function confirmHtml() {
+  const n = Math.min(st.supply, st.layers.reduce((c, l) => c * Math.max(1, l.traits.length), 1));
+  const samples = Array.from({ length: 5 }, () => compositeDataUrl(st.layers, st.layers.map((l) => Math.floor(Math.random() * l.traits.length)), 96));
+  const example = { name: st.name + " #1", description: st.description, image: "gateway.iqlabs.dev/img/<image inscription>.png", attributes: st.layers.map((l) => ({ trait_type: l.name, value: l.traits[0] ? l.traits[0].name : "" })) };
+  return `
+  <div class="ah-confirm">
+    <div class="win nf-wizwin" style="max-width:460px;width:100%">
+      <div class="wh"><span data-tty>Confirm</span></div>
+      <div class="nf-wizbody" style="padding:20px 22px 22px">
+        <div style="color:var(--ink)">Generate ${n.toLocaleString("en-US")} items?</div>
+        <p class="cm" style="margin:10px 0 0">// one random pick per layer, no duplicates by trait DNA. Edit layers afterwards and generate again if you want a different set.</p>
+        <div style="margin-top:12px"><span class="lnk cm ns_meta" style="color:#b9b3dd">» ${st.showMeta ? "hide" : "show"} example detail file</span>
+          ${st.showMeta ? `<div class="ah-meta">${esc(JSON.stringify(example, null, 2))}</div><div class="cm" style="margin-top:6px">One detail file like this is saved per item. The image link points at the on-chain copy.</div>` : ""}</div>
+        <div class="ah-samples">${samples.map((u) => `<div class="mini" style="cursor:default"><img src="${u}" alt=""></div>`).join("")}</div>
+        <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:18px"><button class="btn2 ns_cancelgen" style="padding:9px 16px">Cancel</button><button class="btn ns_confirmgen" style="padding:9px 16px">Generate</button></div>
+      </div>
+    </div>
+  </div>`;
+}
+
+// ── step 3: check ───────────────────────────────────────────────────────────
+function checkHtml() {
+  const its = items() || [];
+  const n = its.length;
+  const longNames = its.filter((it) => (it.name || "").length > 32).length;
+  const withTraits = its.filter((it) => it.template && it.template.attributes && it.template.attributes.length).length;
+  return `
+    <div data-tty class="nf-h">Check results</div>
+    <div style="margin-top:12px">
+      <div class="kv"><span>items</span><span>${n.toLocaleString("en-US")} · numbers 1 to ${n} · no gaps</span></div>
+      <div class="kv"><span>images</span><span>${n} · compressed to 512px webp in your browser at deploy <span class="mint">✓</span></span></div>
+      <div class="kv"><span>details</span><span>${n} json · ${withTraits} with traits <span class="mint">✓</span></span></div>
+      <div class="kv"><span>collection</span><span>${st.logoBitmap ? "logo ✓" : "no logo (first item is the cover)"} · ${st.bannerBitmap ? "banner ✓" : "no banner"}</span></div>
+      <div class="kv"><span>warnings</span><span class="${longNames ? "amber" : ""}">${longNames ? longNames + " names over 32 characters will be shortened" : "none"}</span></div>
+      <div class="kv"><span>upload</span><span>${n} images → Arweave in batches of 40 · ${n > 400 ? "roughly " + Math.ceil(n / 400) * 2 + " min" : "a couple of minutes"}</span></div>
+    </div>
+    ${nav(true, true)}`;
+}
+
+// ── step 4: mint settings ───────────────────────────────────────────────────
+function settingsHtml() {
+  const n = (items() || []).length;
+  return `
+    <div class="nf-form2">
+      <div><div class="fl">Price (SOL)</div><input class="inp" id="ns_price" value="${esc(st.priceSol)}"></div>
+      <div><div class="fl">Supply</div><input class="inp" value="${n}" readonly></div>
+      <div><div class="fl">Deposit (SOL, paid at reservation, counts toward the price)</div><input class="inp" id="ns_deposit" value="${esc(st.depositSol)}"></div>
+      <div><div class="fl">Royalties (%)</div><input class="inp" id="ns_royalty" value="${esc(st.royaltyPct)}"></div>
+      <div class="span2"><div class="fl">Payout wallet</div><input class="inp" value="${esc(shortAddr(addr()))} (you)" readonly></div>
+    </div>
+    <div class="nf-opts">
+      <div class="nf-opt"><div class="fl">Assignment</div><div class="seg lab"><div class="${st.sequential ? "" : "on"} ns_assign" data-s="0">Random</div><div class="${st.sequential ? "on" : ""} ns_assign" data-s="1">Sequential</div></div></div>
+      <div class="nf-opt"><div class="fl">Allowlist phase</div><div class="cm">Mint lists arrive with the manage update. Until then every mint is public.</div></div>
+      <div class="nf-opt"><div class="fl">Reveal</div><div class="cm">Instant. Each item is revealed the moment it is minted; delayed reveal is not offered here.</div></div>
+    </div>
+    <div class="cm" style="margin-top:10px">Platform fee is 5% of the price, paid by the minter on top. Minters also pay their own inscription (~0.0135 SOL). Nothing up front from you except the deploy fee.</div>
+    ${err()}
+    ${nav(true, true)}`;
+}
+
+// ── step 5: deploy ──────────────────────────────────────────────────────────
+function deployHtml() {
+  const n = (items() || []).length;
+  const fee = DEPLOY_FEE(n);
+  const est = fee + 20_000_000;
+  return `
+    <div data-tty class="nf-h">Deploy: one signature, we do the rest</div>
+    <div style="margin:18px 0 0;text-align:center;padding:16px 0 6px">
+      <div class="nf-bignum">≈ ${(est / 1e9).toFixed(3)} <small>SOL</small></div>
+      <div class="cm" style="margin-top:10px">Estimated for ${n} items. The exact amount is computed from your files right before the signature; anything left comes back.</div>
+    </div>
+    <details class="nf-details" style="margin-top:14px"><summary>details ▸</summary><div style="border:1px solid var(--line);margin-top:4px">
+      <div class="kv"><span>deploy fee (covers the Arweave staging + platform)</span><span>${fmtSol(fee)}</span></div>
+      <div class="kv"><span>manifest + collection.json on chain</span><span>~0.01 SOL</span></div>
+      <div class="kv"><span>collection + registry rent, tx fees</span><span>~0.01 SOL <span class="cm">unused part refunded</span></span></div>
+      <div class="kv"><span>to</span><span>your burner <span class="cm">(derived from your wallet, swept back after)</span></span></div>
+    </div></details>
+    <div class="cm" style="margin-top:10px">Your browser compresses and uploads the images first, then asks for the one signature. When it finishes, ${esc(shortAddr(addr()))} holds the collection authority and receives the mint price.</div>
+    ${err()}
+    <button class="btn ns_deploy" style="margin-top:14px;padding:14px 0;font-size:16px;width:100%">Sign and pay</button>
+    <div class="cm ns_back" style="margin-top:12px;text-align:center;cursor:pointer;text-decoration:underline">← back</div>`;
+}
+
+const BAR_W = 28;
+const bar = (p) => { const n = Math.max(0, Math.min(BAR_W, Math.round((BAR_W * p) / 100))); return "[" + "█".repeat(n) + "░".repeat(BAR_W - n) + "] " + Math.round(p) + "%"; };
 
 function progressHtml() {
   return `
-    <div class="hero" style="font-size:24px">Deploying. Keep this tab open...</div>
-    <div class="sm" style="margin-top:10px" id="ns_label">${esc(st.label || "preparing")}</div>
-    <div style="margin-top:14px;border:1px solid var(--acc);padding:3px"><div id="ns_bar" style="height:14px;background:var(--acc);width:${st.progress}%"></div></div>
-    <div class="sm" style="margin-top:10px">Every step is checkpointed: if this is interrupted, deploy again with the same handle and it resumes without paying twice.</div>`;
+    <div data-tty class="nf-h">Deploying. Keep this tab open until every item lands.</div>
+    <div class="ttybar" id="ns_bar" style="margin-top:18px">${bar(st.pct)}</div><div class="ttyspin cm" id="ns_phase" style="margin-top:6px">${esc(st.phase || "starting")}</div>
+    <div class="nf-log" id="ns_log" style="margin-top:16px">${st.log.map((l) => `<div class="${l.ok ? "ok" : ""}">&gt; ${esc(l.text)}</div>`).join("")}</div>
+    <div class="cm" style="margin-top:14px">Your browser is doing the writing. If it stops, open the launcher again with the same handle and press Sign and pay: only the missing parts are redone.</div>`;
 }
 
 function doneHtml() {
   const r = st.result;
+  const link = "inscribe.codes/?view=nft&c=" + r.slug;
   return `
-    <div style="text-align:center;padding:10px 0">
-      <div class="hero" style="font-size:42px" data-tty>LIVE.</div>
-      <div class="big" style="margin-top:8px">${esc(st.name)} · ${r.itemCount} items</div>
-      <div class="sm" style="margin-top:8px">collection ${esc(r.collection)}<br>your wallet holds the authority and receives the mint price.</div>
-      <div style="display:flex;gap:12px;justify-content:center;flex-wrap:wrap;margin-top:16px" class="sm">
-        <a class="cta" style="font-size:16px;padding:8px 14px" href="?view=nft&c=${esc(r.slug)}">OPEN THE COLLECTION PAGE</a>
-        <a href="${esc(explorerTx(r.deploySig))}" target="_blank" rel="noopener" style="align-self:center">deploy tx</a>
-      </div>
-      <div class="sm" style="margin-top:12px">Share: inscribe.codes/?view=nft&c=${esc(r.slug)}</div>
+    <div style="text-align:center;padding:14px 0 6px">
+      <div class="nf-bignum" data-tty>LIVE.</div>
+      <div class="cm" style="margin-top:12px">${esc(st.name)} · ${r.itemCount} items on chain · owner: ${esc(shortAddr(addr()))} (you)</div>
+      <div class="mint" style="margin-top:6px">✓ the unused part of the deposit swept back to your wallet</div>
+    </div>
+    <div class="nf-done3">
+      <div><div class="fl" style="margin-bottom:4px">Authority</div>Your wallet holds the collection and the registry; the mint price pays straight to it.</div>
+      <div><div class="fl" style="margin-bottom:4px">Share</div>${esc(link)}</div>
+      <div><div class="fl" style="margin-bottom:4px">Verify</div>Every item works from the chain alone: open any minted one and run it from chain.</div>
+    </div>
+    <div class="nf-btnrow lab" style="margin-top:18px">
+      <a class="btng" href="?view=nft&c=${esc(r.slug)}">Open collection page →</a>
+      <a class="btn2" href="${esc(explorerTx(r.deploySig))}" target="_blank" rel="noopener">Solscan</a>
+      <a class="btn2" href="https://x.com/intent/tweet?text=${encodeURIComponent(st.name + " is live, fully on chain: https://" + link)}" target="_blank" rel="noopener">Share on X</a>
     </div>`;
 }
 
 // ── wiring ──────────────────────────────────────────────────────────────────
 function wire(root, modal) {
   const on = (sel, fn) => { const el = modal.querySelector(sel); if (el) fn(el); };
-  for (const b of modal.querySelectorAll(".ns_back")) b.onclick = () => { st.step--; st.error = null; paint(root); };
-  for (const b of modal.querySelectorAll(".ns_prod")) b.onclick = () => { st.producer = b.dataset.p; st.error = null; paint(root); };
-  on(".ns_net", (el) => { el.onclick = () => { st.step = 3; paint(root); }; });
+  const all = (sel, fn) => { for (const el of modal.querySelectorAll(sel)) fn(el); };
+  const go = (step) => { st.step = step; st.error = null; paint(root); };
+  const back = () => go(st.step - 1);
+  const overlay = modal.querySelector("#ns_overlay");
+  overlay.onclick = (e) => { if (e.target === overlay && !st.deploying) modal.innerHTML = ""; };
+
+  on("#ns_connect", (el) => { el.onclick = () => connectWallet().then(() => { paintWalletPill(root.querySelector("#nav_wallet")); paint(root); }).catch((e) => alert(e.message)); });
+  all(".ns_pick", (el) => { el.onclick = () => { st.producer = el.dataset.p; go(1); }; });
+  all(".ns_back", (el) => { el.onclick = back; });
+  all(".ns_method", (el) => { el.onclick = () => go(0); });
+  all(".ns_next", (el) => { el.onclick = () => {
+    if (st.step === 1) {
+      if (!st.name.trim() || !st.symbol.trim() || st.slug.length < 3) { st.error = "name, symbol and a 3+ char handle are required"; return paint(root); }
+      if (st.slugState === "taken") { st.error = 'the handle "' + st.slug + '" is taken'; return paint(root); }
+    }
+    go(st.step + 1);
+  }; });
 
   // step 1
   on("#ns_name", (el) => { el.oninput = () => { st.name = el.value; }; });
   on("#ns_sym", (el) => { el.oninput = () => { st.symbol = el.value.toUpperCase(); }; });
   on("#ns_desc", (el) => { el.oninput = () => { st.description = el.value; }; });
-  on("#ns_slug", (el) => {
-    el.oninput = () => {
-      st.slug = el.value.toLowerCase().replace(/[^a-z0-9-]/g, "");
-      if (el.value !== st.slug) el.value = st.slug;
-      checkSlug(modal);
-    };
-  });
-  on("#ns_logo", (el) => { el.onchange = async () => { if (el.files[0]) { st.logoBitmap = await fileToBitmap(el.files[0]); paint(root); } }; });
-  on("#ns_banner", (el) => { el.onchange = async () => { if (el.files[0]) { st.bannerBitmap = await fileToBitmap(el.files[0]); paint(root); } }; });
+  on("#ns_slug", (el) => { el.oninput = () => { st.slug = el.value.toLowerCase().replace(/[^a-z0-9-]/g, ""); if (el.value !== st.slug) el.value = st.slug; checkSlug(modal); }; });
+  on("#ns_logo", (el) => { el.onchange = async () => { if (el.files[0]) { st.logoBitmap = await fileToBitmap(el.files[0]); st.logoUrl = URL.createObjectURL(el.files[0]); paint(root); } }; });
+  on("#ns_banner", (el) => { el.onchange = async () => { if (el.files[0]) { st.bannerBitmap = await fileToBitmap(el.files[0]); st.bannerUrl = URL.createObjectURL(el.files[0]); paint(root); } }; });
 
-  for (const b of modal.querySelectorAll(".ns_next")) b.onclick = () => {
-    if (st.step === 1) {
-      if (!st.name.trim() || !st.symbol.trim() || st.slug.length < 3) { st.error = "name, symbol and a 3+ char handle are required"; return paint(root); }
-      if (st.slugState === "taken") { st.error = 'the handle "' + st.slug + '" is taken'; return paint(root); }
-    }
-    st.step++; st.error = null; paint(root);
-  };
-
-  // step 3: generate
-  on("#ns_ladd", (el) => {
-    el.onclick = () => {
-      const name = (modal.querySelector("#ns_lname").value || "").trim();
-      if (!name) return;
-      st.layers.push({ name, traits: [] });
-      st.generated = null; paint(root);
-    };
-  });
-  for (const inp of modal.querySelectorAll(".ns_ltraits")) inp.onchange = async () => {
-    const l = st.layers[Number(inp.dataset.i)];
+  // step 2: generate
+  all(".ns_addlayer", (el) => { el.onclick = () => { st.layers.push({ name: "Attribute " + (st.layers.length + 1), traits: [] }); st.sel = st.layers.length - 1; st.mainPicks = null; paint(root); }; });
+  all(".ns_lsel", (el) => { el.onclick = (e) => { if (e.target.closest(".arw")) return; st.sel = Number(el.dataset.i); paint(root); }; });
+  all(".ns_lup", (el) => { el.onclick = () => { const i = Number(el.dataset.i); if (i > 0) { st.layers.splice(i - 1, 0, st.layers.splice(i, 1)[0]); st.sel = i - 1; st.mainPicks = null; paint(root); } }; });
+  all(".ns_ldn", (el) => { el.onclick = () => { const i = Number(el.dataset.i); if (i < st.layers.length - 1) { st.layers.splice(i + 1, 0, st.layers.splice(i, 1)[0]); st.sel = i + 1; st.mainPicks = null; paint(root); } }; });
+  on("#ns_lname", (el) => { el.oninput = () => { st.layers[st.sel].name = el.value; const row = modal.querySelector(`.ns_lsel[data-i="${st.sel}"] .n`); if (row) row.textContent = el.value; }; });
+  all(".ns_ltraits", (inp) => { inp.onchange = async () => {
+    const l = st.layers[st.sel];
     for (const f of inp.files) l.traits.push({ name: f.name.replace(/\.[^.]+$/, ""), bitmap: await fileToBitmap(f) });
-    st.generated = null; paint(root);
-  };
-  for (const b of modal.querySelectorAll(".ns_lrm")) b.onclick = () => { st.layers.splice(Number(b.dataset.i), 1); st.generated = null; paint(root); };
-  for (const b of modal.querySelectorAll(".ns_lup")) b.onclick = () => { const i = Number(b.dataset.i); if (i > 0) { st.layers.splice(i - 1, 0, st.layers.splice(i, 1)[0]); st.generated = null; paint(root); } };
-  for (const b of modal.querySelectorAll(".ns_ldn")) b.onclick = () => { const i = Number(b.dataset.i); if (i < st.layers.length - 1) { st.layers.splice(i + 1, 0, st.layers.splice(i, 1)[0]); st.generated = null; paint(root); } };
-  on("#ns_supply", (el) => { el.oninput = () => { st.supply = Math.max(1, Math.min(10000, parseInt(el.value) || 0)); }; });
-  on("#ns_gen", (el) => { el.onclick = () => { generate(); paint(root); }; });
+    st.mainPicks = null; paint(root);
+  }; });
+  all(".ns_trm", (el) => { el.onclick = () => { st.layers[st.sel].traits.splice(Number(el.dataset.t), 1); st.mainPicks = null; paint(root); }; });
+  all(".ns_lrm", (el) => { el.onclick = () => { st.layers.splice(st.sel, 1); st.sel = Math.max(0, st.sel - 1); st.mainPicks = null; paint(root); }; });
+  all(".ns_reroll", (el) => { el.onclick = () => { st.mainPicks = null; paint(root); }; });
+  on("#ns_supply", (el) => { el.oninput = () => { st.supply = Math.max(1, Math.min(10000, parseInt(el.value) || 0)); const b = modal.querySelector(".ns_gen"); if (b) b.textContent = "Generate " + st.supply + " items"; }; });
+  all(".ns_gen", (el) => { el.onclick = () => { st.confirm = true; st.showMeta = false; paint(root); }; });
+  all(".ns_cancelgen", (el) => { el.onclick = () => { st.confirm = false; paint(root); }; });
+  all(".ns_meta", (el) => { el.onclick = () => { st.showMeta = !st.showMeta; paint(root); }; });
+  all(".ns_confirmgen", (el) => { el.onclick = () => { st.confirm = false; generate(); paint(root); }; });
+  all(".ns_regen", (el) => { el.onclick = () => { st.generated = null; paint(root); }; });
 
-  // step 3: handcraft
-  on("#ns_hadd", (el) => {
-    el.onchange = async () => {
-      for (const f of el.files) {
-        const bitmap = await fileToBitmap(f);
-        st.handItems.push({ bitmap, url: URL.createObjectURL(f), name: f.name.replace(/\.[^.]+$/, ""), traitsText: "", traits: [] });
-      }
-      paint(root);
-    };
-  });
-  for (const el of modal.querySelectorAll(".ns_hname")) el.oninput = () => { st.handItems[Number(el.dataset.i)].name = el.value; };
-  for (const el of modal.querySelectorAll(".ns_htraits")) el.oninput = () => {
-    const it = st.handItems[Number(el.dataset.i)];
-    it.traitsText = el.value;
-    it.traits = el.value.split("\n").map((line) => line.split(":")).filter((p) => p.length >= 2 && p[0].trim())
-      .map((p) => ({ trait_type: p[0].trim(), value: p.slice(1).join(":").trim() }));
-  };
-  for (const b of modal.querySelectorAll(".ns_hrm")) b.onclick = () => { st.handItems.splice(Number(b.dataset.i), 1); paint(root); };
+  // step 2: hand-craft
+  on("#ns_hadd", (el) => { el.onchange = async () => {
+    for (const f of el.files) st.handItems.push({ bitmap: await fileToBitmap(f), url: URL.createObjectURL(f), name: f.name.replace(/\.[^.]+$/, ""), traits: [] });
+    st.selItem = st.handItems.length - 1; paint(root);
+  }; });
+  all(".ns_hsel", (el) => { el.onclick = () => { st.selItem = Number(el.dataset.i); paint(root); }; });
+  on("#ns_hreplace", (el) => { el.onchange = async () => { const f = el.files[0]; if (!f) return; const it = st.handItems[st.selItem]; it.bitmap = await fileToBitmap(f); it.url = URL.createObjectURL(f); paint(root); }; });
+  on("#ns_hname", (el) => { el.oninput = () => { st.handItems[st.selItem].name = el.value; const n = modal.querySelector(`.ns_hsel[data-i="${st.selItem}"] .n`); if (n) n.textContent = el.value; }; });
+  all(".ns_htadd", (el) => { el.onclick = () => {
+    const t = modal.querySelector("#ns_htt").value.trim(), v = modal.querySelector("#ns_htv").value.trim();
+    if (!t || !v) return;
+    st.handItems[st.selItem].traits.push({ trait_type: t, value: v }); paint(root);
+  }; });
+  all(".ns_htrm", (el) => { el.onclick = () => { st.handItems[st.selItem].traits.splice(Number(el.dataset.t), 1); paint(root); }; });
+  all(".ns_hrm", (el) => { el.onclick = () => { st.handItems.splice(st.selItem, 1); st.selItem = Math.max(0, st.selItem - 1); paint(root); }; });
 
-  // step 3: folder
+  // step 2: folder
   on("#ns_folder", (el) => { el.onchange = () => parseFolder(root, el.files); });
+  on("#ns_dz", (el) => {
+    el.ondragover = (e) => { e.preventDefault(); el.classList.add("over"); };
+    el.ondragleave = () => el.classList.remove("over");
+    el.ondrop = (e) => { e.preventDefault(); el.classList.remove("over"); parseFolder(root, e.dataTransfer.files); };
+  });
+  all(".ns_fclear", (el) => { el.onclick = () => { st.folderItems = null; st.folderReport = null; paint(root); }; });
 
   // step 4
   on("#ns_price", (el) => { el.oninput = () => { st.priceSol = el.value; }; });
   on("#ns_deposit", (el) => { el.oninput = () => { st.depositSol = el.value; }; });
   on("#ns_royalty", (el) => { el.oninput = () => { st.royaltyPct = el.value; }; });
-  on("#ns_seq", (el) => { el.onchange = () => { st.sequential = el.checked; }; });
-  on("#ns_deploy", (el) => { el.onclick = () => runDeploy(root); });
+  all(".ns_assign", (el) => { el.onclick = () => { st.sequential = el.dataset.s === "1"; paint(root); }; });
+
+  // step 5
+  all(".ns_deploy", (el) => { el.onclick = () => runDeploy(root); });
 }
 
 let slugTimer = null;
 function checkSlug(modal) {
   const msg = modal.querySelector("#ns_slugmsg");
   clearTimeout(slugTimer);
-  if (st.slug.length < 3) { st.slugState = "short"; if (msg) msg.innerHTML = '<span style="color:var(--mut)">3+ chars, a-z 0-9 -</span>'; return; }
+  if (st.slug.length < 3) { st.slugState = "short"; if (msg) msg.textContent = "3+ chars, a-z 0-9 -"; return; }
   const checking = st.slug;
+  if (msg) msg.textContent = "checking…";
   slugTimer = setTimeout(async () => {
     const r = await call("/c/" + checking).catch(() => null);
     if (st.slug !== checking) return;
     st.slugState = r && r.status === 200 ? "taken" : "free";
-    if (msg) msg.innerHTML = st.slugState === "taken" ? '<span style="color:var(--bad)">already taken</span>' : '<span style="color:var(--acc)">available &rarr; inscribe.codes/?view=nft&c=' + esc(checking) + "</span>";
+    if (msg) msg.innerHTML = st.slugState === "taken" ? '<span style="color:var(--bad)">already taken</span>' : '<span class="mint">available → inscribe.codes/?view=nft&c=' + esc(checking) + "</span>";
   }, 350);
 }
 
@@ -334,30 +501,32 @@ function generate() {
     })),
     previews: dnas.slice(0, 18).map((picks) => compositeDataUrl(snapshot, picks, 96)),
   };
-  if (st.supply > combos) st.error = "only " + combos + " unique combinations exist; generated " + dnas.length;
-  else st.error = null;
+  st.error = st.supply > combos ? "only " + combos + " unique combinations exist; generated " + dnas.length : null;
 }
 
 async function parseFolder(root, files) {
-  const imgs = new Map(), jsons = new Map();
+  const imgs = new Map(), jsons = new Map(), formats = new Set();
   for (const f of files) {
     const m = f.name.match(/^(\d+)\.(png|jpe?g|webp|gif|json)$/i);
     if (!m) continue;
     const n = parseInt(m[1]);
-    if (/json/i.test(m[2])) jsons.set(n, f); else imgs.set(n, f);
+    if (/json/i.test(m[2])) jsons.set(n, f); else { imgs.set(n, f); formats.add(m[2].toLowerCase()); }
   }
-  if (!imgs.size) { st.folderItems = null; st.folderReport = "no N.png / N.jpg files found at the folder root"; return paint(root); }
+  if (!imgs.size) { st.folderItems = null; st.folderReport = { error: "no N.png / N.jpg files found at the folder root" }; return paint(root); }
   const keys = [...imgs.keys()].sort((a, b) => a - b);
-  const base = keys[0]; // 0- or 1-based, normalized to indices 1..N
-  const gaps = keys.filter((k, i) => k !== base + i);
+  const base = keys[0];
+  const gaps = keys.filter((k, i) => k !== base + i).length;
   const out = [];
+  let jsonBad = 0, withDesc = 0, withAttrs = 0, urls = 0;
   for (let i = 0; i < keys.length; i++) {
     const k = keys[i];
     const bitmap = await fileToBitmap(imgs.get(k));
     let meta = {};
     if (jsons.has(k)) {
-      try { meta = JSON.parse(await jsons.get(k).text()); }
-      catch (e) { st.folderReport = k + ".json is not valid JSON"; st.folderItems = null; return paint(root); }
+      try { meta = JSON.parse(await jsons.get(k).text()); } catch (e) { jsonBad++; meta = {}; }
+      if (meta.description) withDesc++;
+      if (Array.isArray(meta.attributes) && meta.attributes.length) withAttrs++;
+      if (meta.image) urls++;
     }
     out.push({
       index: i + 1,
@@ -367,36 +536,41 @@ async function parseFolder(root, files) {
     });
   }
   st.folderItems = out;
-  st.folderReport = out.length + " images (" + (base === 0 ? "0" : "1") + "-based), " + jsons.size + " json files"
-    + (gaps.length ? "\nwarning: numbering gaps at " + gaps.slice(0, 10).join(", ") + " (items were renumbered 1.." + out.length + ")" : "")
-    + "\nimage fields inside json are ignored; the on-chain inscription url replaces them at deploy.";
+  st.folderReport = { count: out.length, formats: [...formats].join("/"), base, jsons: jsons.size, gaps, jsonBad, withDesc, withAttrs, urls };
   paint(root);
 }
 
-const STAGE_LINES = {
-  compress: (x) => [2 + Math.round((x.done / x.total) * 38), "compressing " + x.done + " / " + x.total],
-  stage: (x) => [4 + Math.round((x.done / x.total) * 38), "uploading " + x.done + " / " + x.total + " to Arweave"],
-  funding: () => [46, "funding the burner (approve one transfer)"],
-  manifest: () => [52, "inscribing the manifest on Solana"],
-  logo: () => [66, "inscribing the logo"],
-  banner: () => [70, "inscribing the banner"],
-  collection: () => [74, "inscribing collection.json"],
-  deploy: () => [85, "landing the deploy transaction"],
-  finalize: () => [95, "finalizing"],
+// deploy stages -> bar position + one log line each
+const STAGES = {
+  compress: (x) => [2 + Math.round((x.done / x.total) * 38), "compressing " + x.done + " / " + x.total, false],
+  stage: (x) => [4 + Math.round((x.done / x.total) * 38), "uploading " + x.done + " / " + x.total + " to Arweave", false],
+  funding: () => [46, "approve the funding transfer in your wallet…", false],
+  manifest: () => [52, "manifest inscribed on Solana", true],
+  logo: () => [66, "logo inscribed", true],
+  banner: () => [70, "banner inscribed", true],
+  collection: () => [74, "collection.json inscribed", true],
+  deploy: () => [85, "collection + registry created in one transaction", true],
+  finalize: () => [95, "registry recorded, leftover sweeping back", true],
 };
 
 async function runDeploy(root) {
   if (st.deploying) return;
   if (!addr()) { try { await connectWallet(); } catch (e) { st.error = e.message; } return paint(root); }
   const its = items();
-  if (!its || !its.length) { st.error = "no items"; st.step = 3; return paint(root); }
-  st.deploying = true; st.error = null; st.progress = 1; st.label = "starting";
+  if (!its || !its.length) { st.error = "no items"; st.step = 2; return paint(root); }
+  st.deploying = true; st.error = null; st.pct = 1; st.phase = "starting"; st.log = [];
   paint(root);
-  const live = (pct, label) => {
-    st.progress = Math.max(st.progress, pct); st.label = label;
-    const bar = root.querySelector("#ns_bar"), lab = root.querySelector("#ns_label");
-    if (bar) bar.style.width = st.progress + "%";
-    if (lab) lab.textContent = label;
+  const live = (s, x) => {
+    const line = STAGES[s];
+    if (!line) return;
+    const [pct, text, keep] = line(x || {});
+    st.pct = Math.max(st.pct, pct); st.phase = text;
+    if (keep) st.log.push({ text, ok: true });
+    else if (s === "funding") st.log.push({ text, ok: false });
+    const b = root.querySelector("#ns_bar"), ph = root.querySelector("#ns_phase"), lg = root.querySelector("#ns_log");
+    if (b) b.textContent = bar(st.pct);
+    if (ph) ph.textContent = text;
+    if (lg) lg.innerHTML = st.log.map((l) => `<div class="${l.ok ? "ok" : ""}">&gt; ${esc(l.text)}</div>`).join("");
   };
   try {
     const connection = rpcConnect();
@@ -411,16 +585,12 @@ async function runDeploy(root) {
       banner: st.bannerBitmap ? () => bitmapToImageData(st.bannerBitmap, 1024) : null,
     };
     const { deploy } = await import("../../chain/nft-deploy.js");
-    st.result = await deploy({
-      connection, wallet: session.wallet, burner, spec, items: its,
-      onStage: (s, x) => { const line = STAGE_LINES[s]; if (line) live(...line(x || {})); },
-    });
+    st.result = await deploy({ connection, wallet: session.wallet, burner, spec, items: its, onStage: live });
   } catch (e) {
-    st.error = String((e && e.message) || e);
+    st.error = String((e && e.message) || e) + " · Sign and pay again resumes where it stopped.";
     st.deploying = false;
-    st.step = 4;
-    paint(root);
-    return;
+    st.step = 5;
+    return paint(root);
   }
   st.deploying = false;
   paint(root);

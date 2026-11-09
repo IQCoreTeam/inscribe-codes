@@ -11,6 +11,7 @@ import { readTokens, readMine, notify, imgUrl, renderUrl, metaUrl } from "../../
 import { marketRows, tradeUrl, tradeLabel } from "../../services/markets.js";
 import { connect as rpcConnect } from "../../chain/rpc.js";
 import { estimateCost } from "../../chain/burner.js";
+import { nav, paintWalletPill as paintNavWallet } from "../../ui/nav.js";
 
 const CAP_KB = 256; // encoded row cap for the in-browser path; bigger goes via the SDK
 const SDK_DOCS = "https://iqlabs.mintlify.app/docs-typescript";
@@ -41,49 +42,46 @@ const ch = () => CHAINS[st.chain];
 
 export async function mount(root) {
   root.innerHTML = `
-<div style="max-width:1280px;margin:0 auto;padding:20px 16px 80px">
-  <div class="sm" style="display:flex;justify-content:space-between;gap:16px;flex-wrap:wrap;margin-bottom:16px">
-    <div style="display:flex;gap:20px;flex-wrap:wrap">
-      <a href="?view=home">&larr; HOME</a><a href="?view=nft">NFT LAUNCHPAD</a>
-      <a href="https://iqlabs.dev/?menu=codein" target="_blank" rel="noopener">IQ BOARD</a>
-    </div>
-    <div style="display:flex;gap:10px;align-items:center">
-      <button class="chip tk_chain" data-chain="solana">SOLANA</button>
-      <button class="chip tk_chain" data-chain="hood">ROBINHOOD</button>
-      <span id="tk_wallet"></span>
-    </div>
-  </div>
-
-  <div class="win">
-    <div class="wh"><span data-tty>Markets</span><span class="sm" id="tk_count"></span></div>
+${nav("token")}
+<div id="desk" style="padding:14px 16px 48px">
+  <div class="win" id="markets">
+    <div class="wh"><span data-tty>Markets</span><span class="wh-right" id="tk_count"></span></div>
     <div style="display:flex;gap:18px;align-items:center;padding:14px 16px;border-bottom:1px solid var(--acc);flex-wrap:wrap">
+      <div style="flex:0 0 238px;aspect-ratio:7/3;border:1px solid var(--line);overflow:hidden;background:var(--panel)"><img src="public/img/launch_hero.png" alt="" style="width:100%;height:100%;object-fit:cover"></div>
       <div style="flex:1 1 260px;min-width:0">
         <div class="hero" style="font-size:22px" data-tty>Launch a token from an on-chain inscription.</div>
-        <div class="sm" style="margin-top:4px;font-size:13px;line-height:1.6">Inscribe an image, text, anything, or pick one you already own. Name it, launch it. The coin page links back to the onchain original forever.</div>
+        <div class="sm" style="margin-top:4px;line-height:1.6">Inscribe an image, text, anything, or pick one you already own. Name it, launch it. The coin page links back to the on-chain original forever.</div>
       </div>
-      <button class="cta" id="tk_open">&rarr; Launch a token</button>
+      <button class="cta" id="tk_open" style="flex:0 0 auto">&rarr; Launch a token</button>
     </div>
-    <div id="tk_cards" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(172px,1fr));gap:12px;padding:14px"><span class="sm">reading launches from the feed...</span></div>
+    <div id="tk_tip" style="display:flex;justify-content:space-between;gap:12px;align-items:center;padding:7px 14px;border-bottom:1px solid var(--line)"><span class="sm">Click any token to see its chart.</span><span class="sm lnk" id="tk_tipx" style="padding:0 4px">x</span></div>
+    <div style="display:flex;justify-content:space-between;align-items:baseline;padding:12px 14px 10px;border-bottom:1px solid var(--line)"><span class="sm">Recent launches</span><span class="sm">click a card for the chart</span></div>
+    <div id="tk_cards" class="ttyrows" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(172px,1fr));gap:12px;padding:14px"><span class="sm">reading launches from the feed...</span></div>
     <p class="sm" style="margin:0;padding:10px 14px;border-top:1px solid var(--line)">Tokens launched from the feed, biggest first. Prices refresh every 30 seconds; new launches show "indexing" for a few minutes.</p>
   </div>
 </div>
 <div id="tk_modal"></div>`;
 
   typeLabels(root);
-  paintChainChips(root);
-  for (const b of root.querySelectorAll(".tk_chain")) b.onclick = () => switchChain(root, b.dataset.chain);
+  paintChainNav(root);
   wireWallet(root);
   root.querySelector("#tk_open").onclick = () => { st.open = true; st.phase = "menu"; st.error = null; paintModal(root); };
+  const tipx = root.querySelector("#tk_tipx");
+  if (tipx) tipx.onclick = () => { const t = root.querySelector("#tk_tip"); if (t) t.remove(); };
 
   await loadCoins(root);
   const timer = setInterval(() => loadCoins(root).catch(() => {}), 30000);
   return () => { clearInterval(timer); document.body.removeAttribute("data-net"); };
 }
 
-function paintChainChips(root) {
-  for (const b of root.querySelectorAll(".tk_chain")) b.classList.toggle("live", b.dataset.chain === st.chain);
+function paintChainNav(root) {
   if (st.chain === "hood") document.body.setAttribute("data-net", "hood");
   else document.body.removeAttribute("data-net");
+  const slot = root.querySelector("#nav_chain");
+  if (!slot) return;
+  const other = st.chain === "solana" ? "hood" : "solana";
+  slot.innerHTML = `<button class="navbtn2" id="tk_chain">${other === "hood" ? "Robinhood chain" : "Solana chain"} &rarr;</button>`;
+  slot.querySelector("#tk_chain").onclick = () => switchChain(root, other);
 }
 
 function switchChain(root, chain) {
@@ -92,7 +90,7 @@ function switchChain(root, chain) {
   st.open = false; st.picked = null; st.staged = null;
   st.sol.mine = null; st.hood.mine = null;
   st.coins = []; st.priced = {};
-  paintChainChips(root);
+  paintChainNav(root);
   paintWalletPill(root);
   root.querySelector("#tk_modal").innerHTML = "";
   root.querySelector("#tk_cards").innerHTML = '<span class="sm">reading launches from the feed...</span>';
@@ -114,13 +112,7 @@ async function wireWallet(root) {
 
 const walletAddr = () => (st.chain === "solana" ? (st.sol.wallet ? st.sol.wallet.publicKey.toBase58() : null) : st.hood.address);
 
-function paintWalletPill(root) {
-  const el = root.querySelector("#tk_wallet");
-  if (!el) return;
-  const addr = walletAddr();
-  el.innerHTML = addr ? "<span>" + esc(shortAddr(addr)) + "</span>" : '<span class="lnk">Connect wallet</span>';
-  if (!addr) el.querySelector(".lnk").onclick = () => st.connectWallet().catch((e) => alert(e.message));
-}
+const paintWalletPill = (root) => paintNavWallet(root.querySelector("#nav_wallet"), walletAddr(), st.connectWallet);
 
 // ── markets ─────────────────────────────────────────────────────────────────
 async function loadCoins(root) {
@@ -146,16 +138,18 @@ function paintCards(root) {
   const sorted = st.coins.slice().sort((a, b) => ((st.priced[b.mint] || {}).mcap || 0) - ((st.priced[a.mint] || {}).mcap || 0));
   el.innerHTML = sorted.map((c) => {
     const p = st.priced[c.mint] || {};
-    return `<div class="tkcard" data-mint="${esc(c.mint)}" style="border:1px solid var(--line);cursor:pointer">
+    const live = (p.mcap || 0) > 0;
+    return `<div class="flick tkcard" data-mint="${esc(c.mint)}" style="border:1px solid ${live ? "var(--acc)" : "var(--line)"};background:var(--panel);cursor:pointer">
       <div style="aspect-ratio:1;overflow:hidden;background:var(--panel);position:relative">
         ${p.icon ? `<img src="${esc(p.icon)}" alt="" loading="lazy" style="width:100%;height:100%;object-fit:cover;image-rendering:pixelated">` : `<div class="hero" style="display:grid;place-items:center;height:100%;font-size:28px;color:var(--mut)">$${esc((c.symbol || "?").slice(0, 6))}</div>`}
-        ${p.chg24 != null ? `<span class="sm" style="position:absolute;left:6px;top:6px;background:rgba(0,0,0,.85);padding:2px 6px;color:${p.chg24 >= 0 ? "var(--acc)" : "var(--bad)"}">${fmtPct(p.chg24)}</span>` : ""}
+        ${p.chg24 != null ? `<span class="chip live" style="position:absolute;left:6px;top:6px;background:rgba(0,0,0,.85);color:${p.chg24 >= 0 ? "var(--acc)" : "var(--bad)"}">${fmtPct(p.chg24)}</span>` : ""}
       </div>
       <div style="padding:9px 10px 10px">
-        <div class="big" style="font-size:18px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${esc(c.name || "")}</div>
-        <div class="sm">$${esc(c.symbol || "?")}</div>
-        <div style="margin-top:6px;display:flex;justify-content:space-between;align-items:baseline"><span class="hero" style="font-size:20px">${p.mcap ? fmtUsd(p.mcap) : "..."}</span><span class="sm">MC</span></div>
-        <div class="sm" style="margin-top:4px;color:${p.mcap ? "var(--mut)" : "var(--cta)"}">${p.mcap ? esc(p.via || "") : "indexing"}</div>
+        <div style="color:var(--ink);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font:400 16px 'Jersey 15',monospace">${esc(c.name || "")}</div>
+        <div class="sm" style="white-space:nowrap;overflow:hidden;text-overflow:ellipsis">$${esc(c.symbol || "?")}</div>
+        <div style="margin-top:6px;display:flex;justify-content:space-between;align-items:baseline"><span class="hero" style="font-size:22px">${live ? fmtUsd(p.mcap) : "..."}</span><span class="sm">MC</span></div>
+        <div class="sm" style="margin-top:6px">${p.priceUsd != null ? "$" + Number(p.priceUsd).toPrecision(4) : "&nbsp;"}</div>
+        <div class="sm" style="margin-top:4px;color:${live ? "var(--mut)" : "var(--cta)"}">${live ? esc(p.via || "") : "indexing"}</div>
       </div>
     </div>`;
   }).join("");

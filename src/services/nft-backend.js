@@ -6,7 +6,11 @@
 // interpret status codes as protocol states (503 = retry with the reservation
 // alive, 400 = terminal verification verdict). The read helpers throw instead.
 const KEY = "ic_nft_api";
-export function apiBase() { try { return localStorage.getItem(KEY) || "https://nft.iqlabs.dev"; } catch (e) { return "https://nft.iqlabs.dev"; } }
+const PROD = "https://nft.iqlabs.dev";
+// The backend's CORS allowlist is the deployed origins only; a localhost page
+// goes through the dev server's same-origin proxy (scripts/dev.mjs).
+const DEV = typeof location !== "undefined" && /^(localhost|127\.0\.0\.1)$/.test(location.hostname) ? "/__nft" : null;
+export function apiBase() { try { return localStorage.getItem(KEY) || DEV || PROD; } catch (e) { return DEV || PROD; } }
 
 export async function call(path, body, method = body === undefined ? "GET" : "POST") {
   const res = await fetch(apiBase() + path, {

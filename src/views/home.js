@@ -32,7 +32,7 @@ export async function mount(root) {
 
   <div style="display:flex;flex-direction:column;gap:10px">
     <div class="sm" data-tty>RECENT:</div>
-    <div class="big" id="h_recent" style="display:flex;gap:0 28px;overflow-x:auto;white-space:nowrap;padding-bottom:6px">
+    <div class="big ticker" id="h_recent">
       <span class="sm">reading the feed...</span>
     </div>
   </div>
@@ -162,10 +162,54 @@ async function loadRecent(root) {
     }
     if (items.length >= 6) break;
   }
-  root.querySelector("#h_recent").innerHTML = items.map((it) =>
+  const el = root.querySelector("#h_recent");
+  el.innerHTML = items.map((it) =>
     `<a href="${it.href}" style="text-decoration:none"><span class="sm">${fmtWhen(it.when)} / ${esc(it.kind)}</span> &nbsp;<span style="text-decoration:underline;text-underline-offset:5px;text-decoration-thickness:2px">${esc(it.title)}</span></a>`,
   ).join("") || '<span class="sm">nothing yet</span>';
-  root.querySelector("#h_recent").classList.add("ttyrows");
+  el.classList.add("ttyrows");
+  if (items.length) startTicker(el);
+}
+
+// RECENT ticker: scroll scrollLeft like an LED signboard. Scrollbar is hidden in
+// CSS but the element stays natively scrollable (wheel, touch) plus grab-drag.
+// Auto-scroll pauses while the pointer is over it or dragging.
+function startTicker(el) {
+  const run = () => {
+    if (el.scrollWidth <= el.clientWidth + 4) return; // fits, nothing to move
+    const n = el.children.length;
+    for (let i = 0; i < n; i++) {
+      const c = el.appendChild(el.children[i].cloneNode(true));
+      c.setAttribute("aria-hidden", "true");
+    }
+    const period = el.children[n].offsetLeft; // left edge of the first clone = one cycle
+    let paused = false, dragging = false, startX = 0, startLeft = 0;
+    const wrap = () => {
+      if (el.scrollLeft >= period) el.scrollLeft -= period;
+      else if (el.scrollLeft < 0) el.scrollLeft += period;
+    };
+    const frame = () => {
+      if (!el.isConnected) return; // home view was replaced
+      if (!paused) { el.scrollLeft += 0.4; wrap(); }
+      requestAnimationFrame(frame);
+    };
+    requestAnimationFrame(frame);
+    el.addEventListener("pointerenter", () => { if (!dragging) paused = true; });
+    el.addEventListener("pointerleave", () => { if (!dragging) paused = false; });
+    el.addEventListener("pointerdown", (e) => {
+      dragging = true; paused = true; startX = e.clientX; startLeft = el.scrollLeft;
+      el.classList.add("drag");
+    });
+    el.addEventListener("pointermove", (e) => {
+      if (!dragging) return;
+      el.scrollLeft = startLeft - (e.clientX - startX); wrap();
+    });
+    window.addEventListener("pointerup", () => {
+      if (!dragging) return;
+      dragging = false; paused = false; el.classList.remove("drag");
+    });
+  };
+  if (document.fonts && document.fonts.ready) document.fonts.ready.then(run);
+  else run();
 }
 
 const statLine = { collections: null, tokens: null, mints: null };

@@ -1,73 +1,79 @@
-// Asset viewer (nft.exe): gateway-first for speed, plus the "recover without
-// us" proof that re-reads everything from the chain alone and renders the
-// image from the recovered bytes.
+// Asset viewer (design/NFT Launchpad Flow v5): status | image | on-chain data.
+// Gateway-first for speed; the "run it from chain" button re-reads everything
+// from the chain alone and swaps in the recovered bytes.
 import { esc, shortAddr } from "../../ui/fmt.js";
+import * as nft from "../../services/nft-backend.js";
 import { connect as rpcConnect, explorerTx } from "../../chain/rpc.js";
 import { frame } from "./launchpad.js";
 import { paintWalletPill } from "./session.js";
 
+const LEVEL = { common: 1, rare: 2, epic: 3, legendary: 4 };
+
 export async function render(root, assetAddress) {
-  const body = frame(root, '<div class="sm">reading the asset from chain...</div>');
-  paintWalletPill(root.querySelector("#nf_wallet"));
+  const body = frame(root, '<div class="nf-note">reading the asset from chain...</div>');
+  paintWalletPill(root.querySelector("#nav_wallet"));
   const connection = rpcConnect();
   const { viewAssetViaGateway, readAsset } = await import("../../chain/asset.js");
 
-  let a;
-  try { a = await viewAssetViaGateway(connection, assetAddress); }
-  catch (e) {
-    // gateway cold or down: fall back to the pure chain path immediately
-    try { a = await readAsset(connection, assetAddress); a.imageUrl = a.imageDataUrl; }
-    catch (e2) { body.innerHTML = '<div class="sm">could not read ' + esc(assetAddress) + ": " + esc(e2.message) + "</div>"; return; }
-  }
+  const [a, info] = await Promise.all([
+    viewAssetViaGateway(connection, assetAddress).catch(async () => { const r = await readAsset(connection, assetAddress); r.imageUrl = r.imageDataUrl; return r; }).catch((e) => ({ error: e })),
+    nft.assetInfo(assetAddress).catch(() => null),
+  ]);
+  if (!body.isConnected) return;
+  if (a.error) { body.innerHTML = '<div class="nf-note">could not read ' + esc(assetAddress) + ": " + esc(a.error.message) + "</div>"; return; }
 
-  const attrs = Object.entries(a.attributes || {});
-  const metaAttrs = (a.metadata && a.metadata.attributes) || [];
+  const tier = (info && info.rarity && info.rarity.tier) || "common";
+  const idx = a.attributes && a.attributes.index != null ? a.attributes.index : info && info.index;
+  const colName = (info && info.collectionName) || (a.metadata && a.metadata.collection && a.metadata.collection.name) || "";
+  const std = (a.attributes && a.attributes.std) || "iqnft-0.1";
+  const pips = [0, 1, 2, 3].map((i) => `<i class="${i < (LEVEL[tier] || 1) ? "on" : ""}"></i>`).join("");
+  const extra = ((a.metadata && a.metadata.attributes) || []).filter((x) => !["index", "inscription", "metadata", "std"].includes(x.trait_type));
+
   body.innerHTML = `
-  <div class="grid2" style="display:grid;grid-template-columns:minmax(0,420px) minmax(0,1fr);gap:16px;align-items:start">
-    <div class="win">
-      <div class="wh"><span>nft.exe</span></div>
-      <div style="padding:12px">
-        <div id="nv_img" style="aspect-ratio:1;background:var(--panel);display:grid;place-items:center;overflow:hidden">
-          ${a.imageUrl ? `<img src="${esc(a.imageUrl)}" alt="" style="width:100%;height:100%;object-fit:contain;image-rendering:pixelated">` : '<span class="sm">no image pointer</span>'}
-        </div>
-        <div class="hero" style="font-size:24px;margin-top:10px">${esc(a.name)}</div>
-        <div class="sm">held by ${esc(shortAddr(a.owner))}</div>
+<div class="nf-stack">
+<div class="win nf-win nf-viewer ${tier}">
+  <div class="wh"><span>${esc(a.name)}</span>${tier !== "common" ? `<span class="nf-vchip">${esc(tier)}</span>` : ""}
+    <a class="wh-right wh-x" href="${info && info.slug ? "?view=nft&c=" + esc(info.slug) : "?view=nft"}">${info && info.slug ? "← collection" : "← launchpad"}</a></div>
+  <div class="nf-vgrid">
+    <div class="nf-vleft">
+      <div><div class="lab nf-vlab">Name</div><div class="nf-vname">${esc(a.name)}</div><div class="cm" style="margin-top:2px">${esc(colName)}</div></div>
+      <div class="nf-vsec"><div class="lab nf-vlab">Rarity</div><div class="nf-vrar">${esc(tier)}${info && info.rarity && info.rarity.rank ? ` · rank ${info.rarity.rank} / ${info.rarity.total}` : ""}</div><div class="nf-vpips">${pips}</div></div>
+      <div class="nf-vsec"><div class="lab nf-vlab">Owner</div><div class="nf-vowner">${esc(shortAddr(a.owner))}</div></div>
+      ${extra.length ? `<div class="nf-vsec"><div class="lab nf-vlab">Traits</div><div class="nf-vkv">${extra.map((x) => `<span>${esc(x.trait_type)}</span><b>${esc(String(x.value))}</b>`).join("")}</div></div>` : ""}
+      <div class="nf-vsec" style="margin-top:auto"><div class="lab nf-vlab">Status</div>
+        <div class="nf-vkv"><span>chain</span><b>solana</b><span>std</span><b>${esc(std)}</b><span>storage</span><b class="mint">inscribed</b><span>mutable</span><b>no</b></div></div>
+    </div>
+    <div class="nf-vcenter">
+      <div class="nf-vframe ${tier}" id="nv_frame">${a.imageUrl ? `<img src="${esc(a.imageUrl)}" alt="">` : '<span class="cm">no image pointer</span>'}<span class="c tl"></span><span class="c tr"></span><span class="c bl"></span><span class="c br"></span></div>
+      <div class="nf-vcap"><span>${idx != null ? "#" + idx : ""}</span><span>/img/C.png</span></div>
+    </div>
+    <div class="nf-vright">
+      <div><div class="lab nf-vlab">On chain</div>
+        <div class="nf-vkv" style="word-break:break-all;gap:5px 10px">
+          <span>asset</span><b>${esc(shortAddr(a.asset))}</b>
+          <span>collection</span><b>${a.collection ? esc(shortAddr(a.collection)) : "-"}</b>
+          <span>image</span><b class="mint">${a.C ? esc(shortAddr(a.C)) : "-"}</b>
+          <span>details</span><b class="mint">${a.M ? esc(shortAddr(a.M)) : "-"}</b>
+          <span>link</span><b style="opacity:.8">gateway.iqlabs.dev/token-meta/${a.M ? esc(shortAddr(a.M)) : ""}</b>
+        </div></div>
+      <div class="nf-vsec"><div class="lab nf-vlab">Works without us</div>
+        <div class="nf-vsteps"><div>01 the NFT stores the id of its details (M)</div><div>02 M names the image inscription (C); both are public Solana transactions</div><div>03 anyone with an RPC can read the image back</div></div>
+        <div class="cm" id="nv_prove_s" style="margin-top:6px"></div></div>
+      <div class="nf-vbtns lab">
+        <a class="btn2" href="https://solscan.io/account/${esc(a.asset)}" target="_blank" rel="noopener">Solscan</a>
+        ${a.C ? `<a class="btn2" href="${esc(explorerTx(a.C))}" target="_blank" rel="noopener">Image data</a>` : ""}
+        ${a.M ? `<a class="btn2" href="${esc(explorerTx(a.M))}" target="_blank" rel="noopener">Details data</a>` : ""}
+        <a class="btn2" href="https://magiceden.io/item-details/${esc(a.asset)}" target="_blank" rel="noopener">Magic eden</a>
+        <button class="btn2" id="nv_prove" style="grid-column:1 / -1">Run it from chain now</button>
       </div>
     </div>
-    <div style="display:flex;flex-direction:column;gap:16px">
-      <div class="win">
-        <div class="wh"><span>on-chain attributes</span></div>
-        <div style="padding:10px 14px" class="sm">
-          <div class="kv"><span>asset</span><span>${esc(shortAddr(a.asset))}</span></div>
-          <div class="kv"><span>collection</span><span>${a.collection ? esc(shortAddr(a.collection)) : "-"}</span></div>
-          ${attrs.map(([k, v]) => `<div class="kv"><span>${esc(k)}</span><span style="word-break:break-all;text-align:right">${esc(v.length > 50 ? shortAddr(v) : v)}</span></div>`).join("")}
-          ${metaAttrs.filter((x) => !(x.trait_type in (a.attributes || {}))).map((x) => `<div class="kv"><span>${esc(x.trait_type)}</span><span style="word-break:break-all;text-align:right">${esc(String(x.value).length > 50 ? shortAddr(String(x.value)) : String(x.value))}</span></div>`).join("")}
-        </div>
-      </div>
-      <div class="win">
-        <div class="wh"><span>recover without us</span></div>
-        <div style="padding:10px 14px" class="sm">
-          <div>1. Read the asset account: its uri's last segment is the metadata inscription M.</div>
-          <div>2. Decode M with the IQ SDK: its attributes.inscription is the image inscription C.</div>
-          <div>3. Decode C: the body is the image itself. No gateway, no server, just an RPC.</div>
-          <div style="display:flex;gap:12px;flex-wrap:wrap;margin-top:10px">
-            <button class="cta" id="nv_prove" style="font-size:14px;padding:7px 12px">RUN IT FROM CHAIN NOW</button>
-            <span id="nv_prove_s" style="align-self:center"></span>
-          </div>
-          <div style="display:flex;gap:12px;flex-wrap:wrap;margin-top:12px">
-            ${a.C ? `<a href="${esc(explorerTx(a.C))}" target="_blank" rel="noopener">image tx (C)</a>` : ""}
-            ${a.M ? `<a href="${esc(explorerTx(a.M))}" target="_blank" rel="noopener">metadata tx (M)</a>` : ""}
-            <a href="https://solscan.io/account/${esc(a.asset)}" target="_blank" rel="noopener">asset on solscan</a>
-            <a href="https://magiceden.io/item-details/${esc(a.asset)}" target="_blank" rel="noopener">magic eden</a>
-          </div>
-        </div>
-      </div>
-      <div class="win">
-        <div class="wh"><span>metadata json</span></div>
-        <pre style="margin:0;padding:12px;font:400 12px/1.5 monospace;color:var(--ink2);overflow:auto;max-height:240px">${esc(JSON.stringify(a.metadata, null, 2))}</pre>
-      </div>
-    </div>
-  </div>`;
+  </div>
+</div>
+<div class="win nf-win" style="width:920px;max-width:100%;margin:14px auto 0;align-self:flex-start">
+  <div class="wh"><span>details json</span></div>
+  <pre class="nf-json">${esc(JSON.stringify(a.metadata, null, 2))}</pre>
+</div>
+</div>`;
 
   const prove = body.querySelector("#nv_prove");
   const status = body.querySelector("#nv_prove_s");
@@ -75,13 +81,12 @@ export async function render(root, assetAddress) {
     prove.disabled = true;
     try {
       const r = await readAsset(connection, assetAddress, (s) => { status.textContent = "reading " + s + "..."; });
-      status.textContent = r.imageDataUrl ? "recovered from chain alone ✓ (image below is the recovered bytes)" : "metadata recovered from chain ✓";
-      if (r.imageDataUrl) body.querySelector("#nv_img").innerHTML = `<img src="${r.imageDataUrl}" alt="" style="width:100%;height:100%;object-fit:contain;image-rendering:pixelated">`;
+      status.textContent = r.imageDataUrl ? "recovered from chain alone ✓ (the image above is the recovered bytes)" : "metadata recovered from chain ✓";
+      if (r.imageDataUrl) body.querySelector("#nv_frame img").src = r.imageDataUrl;
     } catch (e) {
-      // The default public RPC serves current state but prunes old transaction
-      // history, so the proof needs a history-keeping RPC (helius, quicknode).
+      // The default public RPC serves current state but prunes old tx history.
       status.textContent = /not found on this RPC/.test(e.message)
-        ? "the default public RPC keeps no old tx history; set your own RPC (localStorage ic_rpc_mainnet-beta) and retry. the data IS on chain: open the tx links below on solscan."
+        ? "the default public RPC keeps no old tx history; set your own RPC (localStorage ic_rpc_mainnet-beta) and retry. the data IS on chain: open the tx links."
         : "chain read failed: " + e.message;
     }
     prove.disabled = false;
