@@ -107,7 +107,7 @@ async function wireWallet(el) {
 }
 
 async function loadCollections(root) {
-  const { collections } = await nft.collections();
+  const collections = await nft.collections();
   const live = collections.filter((c) => c.minted < c.maxSupply && (!c.endAt || c.endAt * 1000 > Date.now()));
   root.querySelector("#h_nftlive").textContent = live.length + " MINTING NOW";
 

@@ -97,11 +97,11 @@ Coding rules, including the SDK high-level-only policy, live in `CLAUDE.md` and 
 
 | Phase | Work | Notes |
 | --- | --- | --- |
-| 0 | Scaffold: repo, static shell, fonts, `?view=` routing, design port of the Home v5 Dark frame | this commit holds the design export under `design/` |
-| 1 | Home: hero, RECENT ticker, top 3 collections (backend `/c`), top 3 tokens (markets data), live labels | real data, no mock rows |
-| 2 | Token side (`Board v5`): markets cards + chart modal, launch layer (inscribe via `writer.codeIn` / `writeRow`, then PumpPortal / Pons), MY INSCRIPTIONS picker via gateway `/user/{wallet}/assets` | Solana + Robinhood in one page, theme switch; iq6900's token_launch / pons_launch are behavioral reference only |
-| 3 | NFT side (`NFT Launchpad Flow v5` + `Art Helper v5` + `Launch Menu Merge v3`): mint and creator-deploy flows against the nft backend, viewer reading the chain | mobile layout from `NFT Mobile Live`; iq6900's nft_* modules are behavioral reference only |
-| 4 | Infra: Firebase project + `inscribe.codes` domain, backend CORS additions (nft backend `CORS_ORIGIN`, gateway), sitewide links | server env message for the backend operator |
+| 0 | DONE: scaffold, `?view=` routing, design tokens, chain/services layers | design export under `design/` |
+| 1 | DONE: home with live data (hero, recent, doors, both top-3 panels) | verified headless against live services |
+| 2 | DONE: token side, both chains (markets + chart modal + launch layer: text / ascii / image / file / MY INSCRIPTIONS, pump.fun and Pons launches, token registry row) | engines are faithful ports of the proven iq6900 flows |
+| 3 | DONE: NFT side (launchpad home + collection page with sealed/minted grid and the full mint flow, asset viewer with the from-chain recovery proof, single 1/1 mint, 4-step studio wizard with generate / hand-craft / folder producers) | engines are faithful ports of the proven iq6900 flows |
+| 4 | REMAINING: Firebase project + `inscribe.codes` domain (owner), backend CORS additions (`CORS_ORIGIN` on nft.iqlabs.dev + gateway), then a real-wallet pass over the mint/launch flows | firebase.json is ready; local testing needs Chrome --disable-web-security until CORS lands |
 | 5 | Launch, then the iq6900 cleanup below | redirects first, removals after |
 
 ## iq6900 / iqlabs.dev cleanup after this site deploys

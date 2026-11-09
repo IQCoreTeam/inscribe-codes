@@ -61,11 +61,12 @@ export async function readRow(sig) {
 }
 
 // Warm the gateway's durable index right after a confirmed write; best-effort.
-export function notify(sig, row) {
+// extra.signer (the owner wallet) invalidates that wallet's inventory cache.
+export function notify(sig, row, extra = {}) {
   return fetch(GATEWAYS[0] + "/table/" + feedTable + "/notify", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ txSignature: sig, row }),
+    body: JSON.stringify({ txSignature: sig, row, ...extra }),
   }).catch(() => {});
 }
 
