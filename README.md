@@ -2,7 +2,7 @@
 
 Inscription-first launchpad for NFTs and tokens, split out of the iq6900 site. Every NFT and every token here starts as an inscription: the file itself written to the chain. No IPFS, no server, no takedown.
 
-This repo is the new site. iq6900.com / iqlabs.dev keep the inscription board (Code In / HOOD IN) and link here for launching; this site links back to the board. The two repos deliberately do NOT share code (decision 2026-11-09): the engine modules are copied, not packaged.
+This repo is the new site. iq6900.com / iqlabs.dev keep the inscription board (Code In / HOOD IN) and link here for launching; this site links back to the board. The two repos share NO code: all site code here is written fresh under the rules in `CLAUDE.md`, and every chain read/write goes through the published SDKs (imported, never copied). iq6900 is a behavioral reference only.
 
 ## Site structure
 
@@ -35,17 +35,21 @@ flowchart TB
         HOMEV[home shell]
         NFTV[nft pages]
         TOKV[token board]
-        ENG["codein engine modules<br/>copied from iq6900/assets/js/codein<br/>burner, inscribe, cost, feed, wallets,<br/>nft engine, image_compress, market,<br/>token_launch, pons_launch"]
-        HOMEV --> ENG
-        NFTV --> ENG
-        TOKV --> ENG
+        CHAIN["src/chain<br/>wallets, burner (fund/sweep),<br/>rpc, launch adapters"]
+        SVC["src/services<br/>nft backend, gateway,<br/>market data clients"]
+        HOMEV --> CHAIN
+        NFTV --> CHAIN
+        TOKV --> CHAIN
+        HOMEV --> SVC
+        NFTV --> SVC
+        TOKV --> SVC
     end
-    ENG --> SSDK["solana-sdk (importmap, pin 0.3.7+)"]
-    ENG --> ESDK["ethereum-sdk (importmap)"]
-    ENG --> NFTBE["nft.iqlabs.dev backend<br/>reserve / mint / creator stage+deploy"]
-    ENG --> GW["gateway.iqlabs.dev<br/>img, token-meta, table rows, user assets"]
-    ENG --> PP["PumpPortal -> pump.fun"]
-    ENG --> PONS["Pons factory (Robinhood)"]
+    CHAIN --> SSDK["solana-sdk (importmap, pin 0.3.7+)<br/>writer.codeIn / writeRow, reader.*"]
+    CHAIN --> ESDK["ethereum-sdk (importmap)<br/>writer.codeIn / writeRowWithInventory, reader.*"]
+    SVC --> NFTBE["nft.iqlabs.dev backend<br/>reserve / mint / creator stage+deploy"]
+    SVC --> GW["gateway.iqlabs.dev<br/>img, token-meta, table rows, user assets"]
+    CHAIN --> PP["PumpPortal -> pump.fun"]
+    CHAIN --> PONS["Pons factory (Robinhood)"]
     SSDK --> SOL[(Solana)]
     ESDK --> RH[(Robinhood chain)]
 ```
@@ -55,14 +59,48 @@ Shared state that crosses the two sites:
 - The burner keypair is derived from one fixed wallet `signMessage` string. That string MUST stay byte-identical with iqlabs.dev so a user has ONE burner everywhere (inventory shows up in MY INSCRIPTIONS, and the ~0.05 SOL account init rent is never paid twice).
 - `localStorage` checkpoints do NOT cross origins: an in-progress deploy started on iqlabs.dev cannot resume here. Launch flows move here wholesale, so this only matters during the cutover.
 
+## Repository layout
+
+```
+index.html          single entry: importmap (SDK pins), fonts, ?view= router mount
+src/
+  main.js           router + page shell, nothing else
+  views/            route-level controllers only (one per screen)
+    home.js
+    token/          board, markets, chart modal, launch layer
+    nft/            launchpad, collection page, viewer, studio wizard
+  chain/            everything that signs or derives keys
+    wallets.js      Wallet Standard discovery + adapter
+    burner.js       derivation (message string identical to iqlabs.dev), fund, sweep
+    rpc.js          endpoints per chain, setRpcUrl pool wiring
+    launch/         pumpfun.js, pons.js (external launch services)
+  services/         plain HTTP clients, no chain code
+    nft-backend.js  nft.iqlabs.dev
+    gateway.js      gateway.iqlabs.dev
+    markets.js      dexscreener / geckoterminal
+  ui/               shared presentational pieces (window chrome, modal, progress, ticker)
+  styles/
+public/             fonts, img, favicon (static bytes only)
+tests/              node test harness, mirrors src/
+design/             design export, reference only
+```
+
+Reasons, so the shape is defendable and not incidental:
+
+- **No build step.** Both SDKs ship browser-ready ESM on jsdelivr and the importmap path has run in production on iq6900 for over a year. A bundler would add a toolchain whose main benefits (tree-shaking, transpilation) this small site does not use; shipped source stays byte-identical to the repo, which makes production debugging trivial. If a real need for a bundler appears, that is a design conversation first (CLAUDE.md rule 5).
+- **views / chain / services / ui is a responsibility split, not a file-count split.** `chain/` is the only place allowed to touch keys or SDK writers; `services/` is the only place allowed to fetch our backends; `views/` orchestrates and renders. A bug class maps to one directory.
+- **No `utils/`.** A helper lives next to its only caller until a second caller exists. Dumping grounds are where duplicate-purpose functions breed (CLAUDE.md rule 2).
+
+Coding rules, including the SDK high-level-only policy, live in `CLAUDE.md` and are binding.
+
 ## Development plan
 
 | Phase | Work | Notes |
 | --- | --- | --- |
 | 0 | Scaffold: repo, static shell, fonts, `?view=` routing, design port of the Home v5 Dark frame | this commit holds the design export under `design/` |
 | 1 | Home: hero, RECENT ticker, top 3 collections (backend `/c`), top 3 tokens (markets data), live labels | real data, no mock rows |
-| 2 | Token side (`Board v5`): markets cards + chart modal (port `market.js`), launch layer (port `token_launch.js` + `pons_launch.js` + `inscribe.js` modal), MY INSCRIPTIONS picker via gateway `/user/{wallet}/assets` | Solana + Robinhood in one page, theme switch |
-| 3 | NFT side (`NFT Launchpad Flow v5` + `Art Helper v5` + `Launch Menu Merge v3`): move the nft modules (`nft_bridge, nft_launch, nft_studio, nft_create, nft.js, nft_asset, nft_net, nft_notify`) and reskin to the v5 dark language | mobile layout from `NFT Mobile Live` |
+| 2 | Token side (`Board v5`): markets cards + chart modal, launch layer (inscribe via `writer.codeIn` / `writeRow`, then PumpPortal / Pons), MY INSCRIPTIONS picker via gateway `/user/{wallet}/assets` | Solana + Robinhood in one page, theme switch; iq6900's token_launch / pons_launch are behavioral reference only |
+| 3 | NFT side (`NFT Launchpad Flow v5` + `Art Helper v5` + `Launch Menu Merge v3`): mint and creator-deploy flows against the nft backend, viewer reading the chain | mobile layout from `NFT Mobile Live`; iq6900's nft_* modules are behavioral reference only |
 | 4 | Infra: Firebase project + `inscribe.codes` domain, backend CORS additions (nft backend `CORS_ORIGIN`, gateway), sitewide links | server env message for the backend operator |
 | 5 | Launch, then the iq6900 cleanup below | redirects first, removals after |
 
@@ -88,6 +126,8 @@ Known export gap: Home v5 Dark links `Launch Menu Merge v4.dc.html`, which is no
 
 ## Decisions on record
 
-- No shared package with iq6900. The SDK (`@iqlabs-official/solana-sdk`, `ethereum-sdk`) stays the only shared dependency; site glue is duplicated on purpose.
+- No shared package with iq6900, and no copying its modules either (2026-11-09, supersedes the earlier copy plan). The published SDKs are the only shared dependency; site code here is written fresh under `CLAUDE.md`.
+- All chain access through SDK high-level flows. Needing a low-level SDK surface is treated as a finding to report to the owner, not something to build around.
+- The design export under `design/` is visual reference only, not a code spec.
 - Pin solana-sdk 0.3.7+ here (iq6900 still pins 0.3.6; 0.3.7 carries the writer-chunk filter fix).
 - Burner derivation string identical across both sites, forever.
