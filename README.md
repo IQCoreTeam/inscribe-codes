@@ -11,30 +11,17 @@ The whole site is one page shell (ported from `design/Home v5 Dark.dc.html`) wit
 ```mermaid
 flowchart LR
     subgraph IC["inscribe.codes"]
-        HOME["HOME ?view=home
-        hero + RECENT ticker
-        two doors + top 3 x 2"]
-        NFT["NFT ?view=nft
-        collections / market / my nfts
-        item viewer / listing"]
-        WIZ["launch_collection.exe
-        4-step wizard
-        + art helper (generate / handcraft / folder)"]
-        TOK["TOKEN ?view=token
-        markets.exe cards + chart modal
-        Solana and Robinhood halves"]
-        LAY["launch-a-token layer
-        step 1: text / ascii / image / file
-        or MY INSCRIPTIONS picker
-        step 2: name it, launch"]
+        HOME["HOME ?view=home<br/>hero + RECENT ticker<br/>two doors + top 3 x 2"]
+        NFT["NFT ?view=nft<br/>collections / market / my nfts<br/>item viewer / listing"]
+        WIZ["launch_collection.exe<br/>4-step wizard<br/>+ art helper (generate / handcraft / folder)"]
+        TOK["TOKEN ?view=token<br/>markets.exe cards + chart modal<br/>Solana and Robinhood halves"]
+        LAY["launch-a-token layer<br/>step 1: text / ascii / image / file<br/>or MY INSCRIPTIONS picker<br/>step 2: name it, launch"]
         HOME -->|Make an NFT| NFT
         NFT -->|Launch a collection| WIZ
         HOME -->|Launch a token| TOK
         TOK -->|Launch a token| LAY
     end
-    IQ["iqlabs.dev
-    board.exe (global feed)
-    code-in / hood-in viewer"]
+    IQ["iqlabs.dev<br/>board.exe (global feed)<br/>code-in / hood-in viewer"]
     IQ -->|LAUNCH A TOKEN / VIEW IN MARKETS / MINT buttons| IC
     LAY -->|VIEW ON IQ BOARD| IQ
     NFT -->|inscription recovery links| IQ
@@ -48,21 +35,15 @@ flowchart TB
         HOMEV[home shell]
         NFTV[nft pages]
         TOKV[token board]
-        ENG["codein engine modules
-        copied from iq6900/assets/js/codein
-        burner, inscribe, cost, feed, wallets,
-        nft engine, image_compress, market,
-        token_launch, pons_launch"]
+        ENG["codein engine modules<br/>copied from iq6900/assets/js/codein<br/>burner, inscribe, cost, feed, wallets,<br/>nft engine, image_compress, market,<br/>token_launch, pons_launch"]
         HOMEV --> ENG
         NFTV --> ENG
         TOKV --> ENG
     end
     ENG --> SSDK["solana-sdk (importmap, pin 0.3.7+)"]
     ENG --> ESDK["ethereum-sdk (importmap)"]
-    ENG --> NFTBE["nft.iqlabs.dev backend
-    reserve / mint / creator stage+deploy"]
-    ENG --> GW["gateway.iqlabs.dev
-    img, token-meta, table rows, user assets"]
+    ENG --> NFTBE["nft.iqlabs.dev backend<br/>reserve / mint / creator stage+deploy"]
+    ENG --> GW["gateway.iqlabs.dev<br/>img, token-meta, table rows, user assets"]
     ENG --> PP["PumpPortal -> pump.fun"]
     ENG --> PONS["Pons factory (Robinhood)"]
     SSDK --> SOL[(Solana)]
