@@ -1,0 +1,460 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet data-dc-atomics>
+<link href="https://fonts.googleapis.com/css2?family=Jersey+15&family=Silkscreen&display=swap" rel="stylesheet">
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<style>
+@font-face{font-family:'Alagard';src:url('fonts/alagard.ttf') format('truetype');font-display:swap}
+@font-face{font-family:'Terminal16';src:url('fonts/terminal16.ttf') format('truetype');font-display:swap}
+body{margin:0;background:#060a07;color:#c9d0c7;font:400 15px/1.6 'MonoMEK','Jersey 15',monospace;-webkit-font-smoothing:none}a{color:#e9eee8;text-decoration:none}a:hover{color:#3fd24f}
+.win{border:1px solid #1f2a21;background:#060a07;overflow:hidden;display:flex;flex-direction:column;min-width:0}
+.wh{display:flex;align-items:center;gap:8px;border-bottom:1px solid #1f2a21;padding:10px 14px;font:400 11px/1.6 'MEKmode','Silkscreen',monospace;color:#737f74}
+.wh span{font-size:11px !important}
+.dr,.da,.dg{display:none}
+.lab{font:400 10px/1.6 'MEKmode','Silkscreen',monospace;color:#737f74}
+.cm{font:400 16px/1.6 'MonoMEK','Jersey 15',monospace;color:#737f74}
+.btn{font:400 16px 'MonoMEK','Jersey 15',monospace;background:#ffb347;color:#1a1206;padding:9px 16px;cursor:pointer;text-align:center;white-space:nowrap;transition:background .2s}
+.btn:hover{background:#ffd27a}
+.btn2{font:400 16px/1.2 'MonoMEK','Jersey 15',monospace;border:1px solid #737f74;color:#c9d0c7;padding:8px 16px;cursor:pointer;text-align:center;white-space:nowrap;transition:all .2s}
+.btn2:hover{border-color:#ffb347;color:#ffb347}
+.btn,.btn2{font-size:16px !important}
+.fl{font:400 10px/1.6 'MEKmode','Silkscreen',monospace;color:#737f74;margin-bottom:6px;}
+.inp{box-sizing:border-box;background:#0b120d;color:#e9eee8;border:1px solid #1f2a21;font:400 16px 'MonoMEK','Jersey 15',monospace;padding:9px 11px;outline:none}
+.lrow{display:flex;align-items:center;gap:8px;border:1px solid #1f2a21;padding:8px 10px;cursor:pointer;background:#0b120d}
+.grip{display:flex;flex-direction:column;gap:2px;cursor:grab;opacity:.5}
+.gdot{width:3px;height:3px;background:#737f74}
+.arw{width:20px;height:18px;border:1px solid #1f2a21;display:flex;align-items:center;justify-content:center;font:400 16px 'MonoMEK','Jersey 15',monospace;cursor:pointer}
+.arw:hover{border-color:#3fd24f}
+.sw{width:14px;height:14px;border:1px solid #1f2a21}
+.chip{display:flex;align-items:center;gap:7px;border:1px solid #1f2a21;padding:5px 8px;font:400 16px 'MonoMEK','Jersey 15',monospace}
+.mini{position:relative;border:1px solid #1f2a21;background:#0b120d;cursor:pointer;overflow:hidden}
+.kv{display:flex;justify-content:space-between;gap:12px;padding:8px 14px;border-bottom:1px dotted #1f2a21;font:400 16px 'MonoMEK','Jersey 15',monospace}
+.kvk{color:#737f74}
+.seg{flex:1;text-align:center;padding:8px 12px;font:400 16px/1.6 'MonoMEK','Jersey 15',monospace;color:#737f74;cursor:pointer;border-right:1px solid #1f2a21;transition:color .2s}.seg:last-child{border-right:none}.seg:hover{color:#e9eee8}
+@media (max-width: 900px){#gw{grid-template-columns:1fr !important}#pw{grid-template-columns:1fr !important}}.wh>span,.wh>a,.wh>div{background:#060a07;padding:2px 8px;color:#c9d0c7}.wh>span[style*="display:none"],.wh>.dr,.wh>.da,.wh>.dg{display:none}
+</style>
+<script>
+(function(){
+  if (window.__tty) return; window.__tty = 1;
+  var speed = function(ch){ return ch === ' ' ? 20 : /[.:]/.test(ch) ? 110 : 9 + Math.random() * 20; };
+  function type(el){
+    if (el.__ttyDone) return; el.__ttyDone = 1;
+    if (el.childNodes.length !== 1 || el.childNodes[0].nodeType !== 3) return;
+    var tn = el.childNodes[0], full = tn.nodeValue; if (!full || !full.trim()) return;
+    var n = 0; tn.nodeValue = ''; el.setAttribute('data-tty-on', '');
+    (function step(){ n++; tn.nodeValue = full.slice(0, n); if (n < full.length) setTimeout(step, speed(full[n - 1])); else el.removeAttribute('data-tty-on'); })();
+  }
+  function scan(root){ if (!root.querySelectorAll) return; if (root.hasAttribute && root.hasAttribute('data-tty')) type(root); var l = root.querySelectorAll('[data-tty]'); for (var i = 0; i < l.length; i++) type(l[i]); }
+  var mo = new MutationObserver(function(ms){ ms.forEach(function(m){ m.addedNodes.forEach(function(nd){ if (nd.nodeType === 1) setTimeout(function(){ scan(nd); }, 30); }); }); });
+  function start(){ scan(document.body); mo.observe(document.body, { childList: true, subtree: true }); }
+  if (document.body) start(); else document.addEventListener('DOMContentLoaded', start);
+})();
+</script>
+<style>[data-tty-on]::after{content:'█';margin-left:.08em;animation:ttycur 1.06s steps(1,end) infinite}@keyframes ttycur{0%,49%{opacity:1}50%,100%{opacity:0}}</style>
+</helmet>
+
+
+<div style="{{ pageStyle }}">
+
+  <sc-if value="{{ standalone }}" hint-placeholder-val="{{ true }}">
+  <div style="position:sticky;top:0;z-index:10;padding:12px 16px 0">
+    <div style="display:flex;justify-content:space-between;align-items:center;gap:14px;border:1px solid #1f2a21;border-radius:0;background:#060a07;padding:11px 16px">
+      <div style="display:flex;align-items:center;gap:14px">
+        <a href="Home v4 Dark.dc.html?view=nft" class="lab" style="white-space:nowrap;border:1px solid #1f2a21;border-radius:0;padding:7px 12px">&larr; NFT LAUNCHPAD</a>
+        <a href="https://iqlabs.dev"><img src="img/text_logo.webp" alt="IQLabs" style="height:18px;display:block;filter:brightness(0) invert(.75) sepia(1) hue-rotate(70deg) saturate(4)"></a>
+        <span class="lab" style="white-space:nowrap;color:#737f74">ITEMS &middot; STEP 3</span>
+      </div>
+    </div>
+  </div>
+  </sc-if>
+
+  <div style="{{ bodyPad }}">
+  <div style="{{ winStyle }}">
+    <div style="padding:18px 20px 22px">
+      <sc-if value="{{ showSegs }}" hint-placeholder-val="{{ true }}">
+      <div style="display:flex;gap:0;border:1px solid #1f2a21">
+        <div onClick="{{ goGen }}" class="seg" style="{{ segGenS }}">Generate art</div>
+        <div onClick="{{ goHand }}" class="seg" style="{{ segHandS }}">Hand-craft 1 / 1</div>
+        <div onClick="{{ goUpload }}" class="seg" style="{{ segUpS }}">Manual upload</div>
+      </div>
+      <div class="cm" style="margin-top:8px">{{ segHint }}</div>
+      </sc-if>
+
+      <!-- ============ BUILD ============ -->
+      <sc-if value="{{ isBuild }}" hint-placeholder-val="{{ true }}">
+
+        <!-- ===== GENERATE ART ===== -->
+        <sc-if value="{{ isGen }}" hint-placeholder-val="{{ true }}">
+
+          <sc-if value="{{ building }}" hint-placeholder-val="{{ true }}">
+          <sc-if value="{{ noLayers }}" hint-placeholder-val="{{ false }}">
+            <div style="margin-top:14px;border:1px dashed #3a5a3c;border-radius:0;padding:30px;text-align:center">
+              <div class="lab" style="font-size:16px">Start with a layer</div>
+              <div class="cm" style="margin-top:6px">an NFT is assembled from stacked layers, for example:</div>
+              <div style="display:flex;gap:8px;justify-content:center;margin-top:12px;flex-wrap:wrap">
+                <sc-for list="{{ ghosts }}" as="g" hint-placeholder-count="5"><div style="border:1px dashed #1f2a21;border-radius:0;padding:8px 14px;font:400 16px 'MonoMEK','Jersey 15',monospace;color:#737f74">{{ g }}</div></sc-for>
+              </div>
+              <div onClick="{{ addAttr }}" class="btn" style="margin-top:18px;padding:11px 18px;font-size:16px;display:inline-block">+ Add your first attribute</div>
+            </div>
+          </sc-if>
+          <sc-if value="{{ hasLayers }}" hint-placeholder-val="{{ true }}">
+          <div id="gw" style="display:grid;grid-template-columns:minmax(0,340px) minmax(0,1fr);gap:18px;margin-top:16px">
+            <div style="display:flex;flex-direction:column;gap:12px">
+              <div>
+                <div class="fl" style="display:flex;justify-content:space-between"><span>Layers</span><span style="color:#737f74">drag or arrows &middot; top = front</span></div>
+                <div style="display:flex;flex-direction:column;gap:6px">
+                  <sc-for list="{{ layersView }}" as="L" hint-placeholder-count="4">
+                    <div class="lrow" onClick="{{ L.select }}" draggable="true" onDragStart="{{ L.dragStart }}" onDragOver="{{ dragOver }}" onDrop="{{ L.drop }}" style="{{ L.rowS }}">
+                      <div class="grip"><span class="gdot"></span><span class="gdot"></span><span class="gdot"></span><span class="gdot"></span><span class="gdot"></span><span class="gdot"></span></div>
+                      <div style="flex:1;min-width:0">
+                        <div style="font:400 16px 'MonoMEK','Jersey 15',monospace">{{ L.name }}</div>
+                        <div style="display:flex;gap:3px;margin-top:5px;align-items:center">
+                          <sc-for list="{{ L.swatches }}" as="c" hint-placeholder-count="4"><span class="sw" style="{{ c }}"></span></sc-for>
+                          <span class="cm" style="margin-left:4px">{{ L.count }}</span>
+                        </div>
+                      </div>
+                      <div style="display:flex;flex-direction:column;gap:3px">
+                        <div class="arw" onClick="{{ L.up }}" style="{{ L.upS }}">&uarr;</div>
+                        <div class="arw" onClick="{{ L.down }}" style="{{ L.downS }}">&darr;</div>
+                      </div>
+                    </div>
+                  </sc-for>
+                </div>
+                <div onClick="{{ addAttr }}" class="btn2" style="margin-top:8px;padding:8px;font-size:16px">+ Add attribute</div>
+              </div>
+              <div style="border-top:1px solid #1f2a21;padding-top:12px">
+                <div class="fl">Selected attribute</div>
+                <input class="inp" style="width:100%" value="{{ selName }}" onInput="{{ nameChange }}">
+                <div style="display:flex;gap:6px;margin-top:10px">
+                  <div style="flex:1;border:1px dashed rgba(63,210,79,.4);border-radius:0;padding:10px;text-align:center" class="cm">+ UPLOAD TRAIT IMAGES (0.png, 1.png &hellip;)</div>
+                  <div onClick="{{ addTrait }}" class="btn2" style="padding:10px 12px;font-size:16px">+ Demo</div>
+                </div>
+                <div class="cm" style="margin-top:6px">Its images show on the right &rarr;</div>
+              </div>
+            </div>
+
+            <div style="display:flex;flex-direction:column;gap:14px">
+              <div>
+                <div class="fl" style="display:flex;justify-content:space-between"><span>{{ galTitle }}</span><span class="cm">{{ galHint }}</span></div>
+                <div style="display:flex;gap:8px;overflow-x:auto;padding-bottom:4px">
+                  <div onClick="{{ addTrait }}" style="flex:0 0 96px;border:1px dashed rgba(63,210,79,.4);border-radius:0;aspect-ratio:1;display:flex;align-items:center;justify-content:center;cursor:pointer;font:400 16px 'MonoMEK','Jersey 15',monospace;color:#737f74">+ Image</div>
+                  <sc-for list="{{ galTiles }}" as="T" hint-placeholder-count="4">
+                    <div style="position:relative;flex:0 0 96px;border:1px solid #1f2a21;border-radius:0;overflow:hidden;aspect-ratio:1">
+                      <div style="position:absolute;inset:0;{{ T.fill }}"></div>
+                      <div style="position:absolute;left:0;right:0;bottom:0;padding:3px 5px;background:linear-gradient(transparent,rgba(63,210,79,.06));font:400 16px 'MonoMEK','Jersey 15',monospace;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;color:#737f74">{{ T.name }}</div>
+                      <div onClick="{{ T.remove }}" style="position:absolute;top:1px;right:5px;opacity:.75;cursor:pointer;font-size:16px">&times;</div>
+                    </div>
+                  </sc-for>
+                </div>
+              </div>
+              <div id="pw" style="display:grid;grid-template-columns:260px minmax(0,1fr);gap:16px;align-items:start">
+                <div style="position:relative;width:260px;height:260px;border:1px solid #1f2a21;border-radius:0;background:#0b120d;overflow:hidden">
+                  <sc-for list="{{ mainShapes }}" as="sh" hint-placeholder-count="4"><div style="{{ sh.style }}"></div></sc-for>
+                </div>
+                <div>
+                  <div class="fl">LAYER STACK (front &rarr; back)</div>
+                  <div style="display:flex;flex-direction:column;gap:5px">
+                    <sc-for list="{{ legend }}" as="g" hint-placeholder-count="4">
+                      <div style="display:flex;align-items:center;gap:8px;font:400 16px 'MonoMEK','Jersey 15',monospace;color:#737f74"><span class="sw" style="{{ g.swS }}"></span><span style="width:78px">{{ g.name }}</span><span style="color:#737f74">{{ g.trait }}</span><span style="{{ g.tagS }}">{{ g.tag }}</span></div>
+                    </sc-for>
+                  </div>
+                  <div style="margin-top:16px;border-top:1px solid #1f2a21;padding-top:12px">
+                    <div class="fl">How many to generate</div>
+                    <div style="display:flex;align-items:center;gap:8px"><input class="inp" style="width:110px" value="{{ supply }}" onInput="{{ supplyChange }}"><span class="cm" style="display:none">of {{ combosN }} possible</span></div>
+                    
+                    <div onClick="{{ openModal }}" class="btn" style="margin-top:12px;padding:12px;font-size:16px">Generate {{ supply }} ITEMS</div>
+                  </div>
+                </div>
+              </div>
+              <div class="cm">Each item gets one random pick per layer. At deploy the image and its details are saved on chain. One signature does it for all.</div>
+            </div>
+          </div>
+          </sc-if>
+          </sc-if>
+
+          <sc-if value="{{ done }}" hint-placeholder-val="{{ false }}">
+            <div style="margin-top:20px;display:flex;justify-content:space-between;align-items:flex-end;gap:14px;flex-wrap:wrap">
+              <div style="min-width:0">
+                <div data-tty style="font:400 28px/1.1 'Terminal16','MonoMEK','Jersey 15',monospace;color:#ffb347;min-height:1.1em">{{ assembledLine }}</div>
+                <div class="cm" style="margin-top:6px">Images and details are ready. They go on chain at deploy.</div>
+              </div>
+              <div style="display:flex;gap:8px"><div onClick="{{ regen }}" class="btn2" style="padding:10px 14px">&larr; EDIT LAYERS</div><div onClick="{{ goNext }}" class="btn" style="padding:10px 14px">{{ nextLabel }}</div></div>
+            </div>
+            <div style="margin-top:14px;max-height:420px;overflow-y:auto;padding-right:6px;scrollbar-width:thin;scrollbar-color:rgba(63,210,79,.35) transparent">
+              <div style="display:grid;grid-template-columns:repeat(6,1fr);gap:8px">
+                <sc-for list="{{ genGrid }}" as="G" hint-placeholder-count="18">
+                  <div class="mini" style="aspect-ratio:1;cursor:default">
+                    <sc-for list="{{ G.shapes }}" as="sh" hint-placeholder-count="4"><div style="{{ sh.style }}"></div></sc-for>
+                  </div>
+                </sc-for>
+              </div>
+            </div>
+            <div class="cm" style="margin-top:8px">Preview of the first {{ genCount }} of {{ supply }}. Nothing is on chain yet; that happens at deploy.</div>
+          </sc-if>
+
+        </sc-if>
+
+        <!-- ===== HAND-CRAFT 1 / 1 ===== -->
+        <sc-if value="{{ isHand }}" hint-placeholder-val="{{ false }}">
+          <div style="margin-top:16px;display:grid;grid-template-columns:minmax(0,1.3fr) minmax(0,1fr);gap:18px" id="gw">
+            <div>
+              <div class="fl">YOUR 1 / 1 ITEMS &middot; {{ itemCount }}</div>
+              <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:8px">
+                <sc-for list="{{ itemsView }}" as="I" hint-placeholder-count="3">
+                  <div class="mini" onClick="{{ I.select }}" style="aspect-ratio:1;{{ I.selS }}">
+                    <div style="{{ I.fill }}"></div>
+                    <div style="position:absolute;left:0;right:0;bottom:0;padding:5px 7px;background:linear-gradient(transparent,rgba(63,210,79,.06));font:400 16px 'MonoMEK','Jersey 15',monospace;color:#737f74">{{ I.name }}</div>
+                  </div>
+                </sc-for>
+                <div onClick="{{ addItem }}" class="mini" style="aspect-ratio:1;display:flex;align-items:center;justify-content:center;border-style:dashed;background:transparent">
+                  <span class="lab" style="font-size:16px;opacity:.7">+ Add<br>Item</span>
+                </div>
+              </div>
+              <div class="cm" style="margin-top:12px">Each card is one unique item. Drop an image, name it, add traits. Good for a small hand-made drop; use Generate art for big sets.</div>
+            </div>
+
+            <div style="border-left:1px solid #1f2a21;padding-left:18px">
+              <div class="fl">Edit item</div>
+              <div style="position:relative;width:100%;max-width:240px;aspect-ratio:1;border:1px solid #1f2a21;border-radius:0;overflow:hidden;background:#0b120d">
+                <div style="position:absolute;inset:0;{{ itemFill }}"></div>
+                <div class="btn2" style="position:absolute;right:8px;bottom:8px;padding:6px 10px;font-size:16px">Replace image</div>
+              </div>
+              <div style="margin-top:10px"><div class="fl">Name</div><input class="inp" style="width:100%" value="{{ itemName }}" onInput="{{ itemNameChange }}"></div>
+              <div style="margin-top:10px"><div class="fl">TRAITS (optional)</div>
+                <div style="display:flex;flex-wrap:wrap;gap:6px">
+                  <sc-for list="{{ itemTraits }}" as="T" hint-placeholder-count="2">
+                    <div class="chip"><span>{{ T.t }}</span><span class="cm">{{ T.v }}</span><span onClick="{{ T.remove }}" style=";color:#737f74;cursor:pointer;margin-left:2px">&times;</span></div>
+                  </sc-for>
+                  <div onClick="{{ addItemTrait }}" class="btn2" style="padding:7px 10px;font-size:16px">+ Trait</div>
+                </div>
+              </div>
+              <div onClick="{{ openModal }}" class="btn" style="margin-top:16px;padding:12px;font-size:16px">Prepare {{ itemCount }} ITEMS</div>
+              <div class="cm" style="margin-top:8px">At deploy each image and its details are saved on chain.</div>
+            </div>
+          </div>
+        </sc-if>
+
+      </sc-if>
+
+      <!-- ============ UPLOAD FOLDER TAB (scatter style) ============ -->
+      <sc-if value="{{ isUpload }}" hint-placeholder-val="{{ false }}">
+        <div style="margin-top:16px;border:1px solid #1f2a21;border-radius:0;padding:14px 16px">
+          <div class="lab" style="font-size:16px;display:flex;justify-content:space-between"><span>Expected folder format</span><a href="https://docs.scatter.art/creators/metadata" style=";color:#737f74;font-size:16px">docs.scatter.art/creators/metadata</a></div>
+          <div class="cm" style="margin-top:6px;opacity:.65">Add media files named by token id (0.png, 1.png, 2.png). Matching metadata json use the same names (0.json, 1.json); metadata is optional, missing metadata is autogenerated. The json is the OpenSea shape: name, description, image, attributes[].</div>
+          
+        </div>
+
+        <sc-if value="{{ notParsed }}" hint-placeholder-val="{{ true }}">
+          <div onClick="{{ parse }}" style="margin-top:12px;border:1px dashed #3a5a3c;border-radius:0;padding:34px;text-align:center;cursor:pointer">
+            <div class="lab" style="font-size:16px">Drop a folder here to get started</div>
+            <div class="cm" style="margin-top:6px">images and metadata are parsed and type-checked automatically &middot; (click to load an example)</div>
+          </div>
+        </sc-if>
+
+        <sc-if value="{{ parsed }}" hint-placeholder-val="{{ false }}">
+          <div style="margin-top:12px;border:1px solid #3a5a3c;border-radius:0;background:rgba(63,210,79,.05);padding:12px 14px;display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap">
+            <div class="lab" style="color:#8dffa0;font-size:16px">FOLDER PARSED &middot; 412 ITEMS &middot; TYPES OK</div>
+            <div onClick="{{ unparse }}" class="btn2" style="padding:8px 12px;font-size:16px">Clear</div>
+          </div>
+          <div style="margin-top:12px;display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:14px" id="pw">
+            <div>
+              <div class="fl">Parse report</div>
+              <div style="border:1px solid #1f2a21;border-radius:0">
+                <div class="kv"><span class="kvk">media files</span><span>412 png, token id named</span></div>
+                <div class="kv"><span class="kvk">metadata json</span><span>409 found, 3 missing (autogenerated)</span></div>
+                <div class="kv"><span class="kvk">schema</span><span>name string, image url, attributes[] all ok</span></div>
+                <div class="kv"><span class="kvk" style="color:#b07a1a">urls to rewrite</span><span>412 image, 12 animation_url</span></div>
+                <div class="kv" style="border-bottom:none"><span class="kvk">errors</span><span style="color:#8dffa0">0</span></div>
+              </div>
+            </div>
+            <div>
+              <div class="fl">TYPE CHECK (per item json)</div>
+              <div style="border:1px solid #1f2a21;border-radius:0">
+                <div class="kv"><span class="kvk">name</span><span style="color:#8dffa0">string &check;</span></div>
+                <div class="kv"><span class="kvk">description</span><span style="color:#8dffa0">string &check;</span></div>
+                <div class="kv"><span class="kvk">image</span><span style="color:#8dffa0">url &check; &rarr; will become on-chain url</span></div>
+                <div class="kv"><span class="kvk">attributes[]</span><span style="color:#8dffa0">array of trait_type / value &check;</span></div>
+                <div class="kv" style="border-bottom:none"><span class="kvk">extra url fields</span><span style="color:#b07a1a">animation_url &rarr; rewritten</span></div>
+              </div>
+            </div>
+          </div>
+          <div style="margin-top:12px;border:1px solid #1f2a21;border-radius:0;padding:12px 14px">
+            <div class="lab" style="font-size:16px;color:#b07a1a">Links are updated at deploy</div>
+            <div class="cm" style="margin-top:6px;opacity:.7">We inscribe each media file, then rewrite the json's image (and animation_url) from the local name / your url to the on-chain gateway url of that inscription, then inscribe the json too. the NFT link points at the inscribed json. attribute values are plain text, left as is; any asset url found anywhere is rewritten the same way; an external website link (external_url) is kept. so your original links are only a staging reference, the minted token resolves fully from chain.</div>
+          </div>
+          <div style="display:flex;justify-content:flex-end;margin-top:12px"><div onClick="{{ goNext }}" class="btn" style="padding:11px 16px;font-size:16px">{{ nextLabel }}</div></div>
+        </sc-if>
+      </sc-if>
+
+    </div>
+  </div>
+  </div>
+</div>
+
+<!-- confirm modal (generate / prepare) -->
+<sc-if value="{{ modal }}" hint-placeholder-val="{{ false }}">
+  <div style="position:fixed;inset:0;z-index:40;background:rgba(10,9,7,.72);display:flex;align-items:center;justify-content:center;padding:20px">
+    <div class="win" style="max-width:460px;width:100%">
+      <div class="wh"><span class="dr"></span><span class="da"></span><span class="dg"></span><span data-tty style="margin-left:6px;opacity:.8">Confirm</span></div>
+      <div style="padding:20px 22px 22px">
+        <div style="font:400 16px 'MonoMEK','Jersey 15',monospace;color:#e9eee8">{{ modalTitle }}</div>
+        <p class="cm" style="margin:10px 0 0">// {{ modalBody }}</p>
+                <div style="margin-top:12px">
+          <span onClick="{{ toggleMeta }}" style="cursor:pointer;color:#b9b3dd;font:400 16px 'MonoMEK','Jersey 15',monospace;">&raquo; {{ metaLabel }}</span>
+          <sc-if value="{{ showMeta }}" hint-placeholder-val="{{ false }}">
+            <div style="margin-top:8px;border:1px solid #1f2a21;border-radius:0;background:rgba(63,210,79,.06);padding:12px;white-space:pre-wrap;font:400 16px/1.6 'MonoMEK','Jersey 15',monospace;color:#cfe8d0;overflow-x:auto">{{ exampleMeta }}</div>
+            <div class="cm" style="margin-top:6px">One detail file like this is saved per item. The image link points at the on-chain copy.</div>
+          </sc-if>
+        </div>
+        <div style="display:grid;grid-template-columns:repeat(5,1fr);gap:8px;margin-top:14px">
+          <sc-for list="{{ samples }}" as="S" hint-placeholder-count="5">
+            <div class="mini" style="aspect-ratio:1;cursor:default">
+              <sc-for list="{{ S.shapes }}" as="sh" hint-placeholder-count="4"><div style="{{ sh.style }}"></div></sc-for>
+            </div>
+          </sc-for>
+        </div>
+        <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:18px" class="lab"><div onClick="{{ closeModal }}" class="btn2" style="padding:9px 16px">Cancel</div><div onClick="{{ confirmGen }}" class="btn" style="padding:9px 16px">{{ modalCta }}</div></div>
+      </div>
+    </div>
+  </div>
+</sc-if>
+
+</x-dc>
+
+<script type="text/x-dc" data-dc-script data-props='{"embedded":{"editor":"boolean","default":false,"tsType":"boolean"},"mode":{"editor":"enum","default":"","options":["","gen","hand","upload"],"tsType":"string"},"onContinue":{"editor":null,"default":null,"tsType":"() => void"}}'>
+var PAL = ['#3fd24f','#737f74','#8dffa0','#b07a1a','#c0392b','#1f5fbf','#6a3fb5','#0b120d','#3a5a3c','#a8ffa8'];
+var DEFAULT_LAYERS = [
+  { id:'l0', name:'Background', traits:[{name:'background1.png',color:'#0b120d'},{name:'background2.png',color:'#737f74'},{name:'background3.png',color:'#b07a1a'},{name:'background4.png',color:'#1f5fbf'}] },
+  { id:'l1', name:'Body', traits:[{name:'body1.png',color:'#3fd24f'},{name:'body2.png',color:'#3a5a3c'},{name:'body3.png',color:'#8dffa0'}] },
+  { id:'l2', name:'Eyes', traits:[{name:'eyes1.png',color:'#000'},{name:'eyes2.png',color:'#c0392b'},{name:'eyes3.png',color:'#b07a1a'}] },
+  { id:'l3', name:'Headwear', traits:[{name:'headwear1.png',color:'none'},{name:'headwear2.png',color:'#c0392b'},{name:'headwear3.png',color:'#6a3fb5'},{name:'headwear4.png',color:'#a8ffa8'}] }
+];
+var DEFAULT_ITEMS = [
+  { id:'i0', name:'Dawn #1', color:'#1f5fbf', traits:[{t:'Vibe',v:'Calm'}] },
+  { id:'i1', name:'Ember #2', color:'#c0392b', traits:[{t:'Vibe',v:'Warm'}] },
+  { id:'i2', name:'Forest #3', color:'#8dffa0', traits:[] }
+];
+function checker(px, dark){ var a = dark ? '#162119' : '#1f2a21', b = dark ? '#0b120d' : '#0f1711'; var s = px * 2; return 'background-color:' + b + ';background-image:linear-gradient(45deg,' + a + ' 25%,transparent 25%,transparent 75%,' + a + ' 75%),linear-gradient(45deg,' + a + ' 25%,transparent 25%,transparent 75%,' + a + ' 75%);background-size:' + s + 'px ' + s + 'px;background-position:0 0,' + px + 'px ' + px + 'px'; }
+function rollOne(layers){ var o={}; for(var i=0;i<layers.length;i++){ var l=layers[i]; o[l.id]=Math.floor(Math.random()*Math.max(1,l.traits.length)); } return o; }
+function rollN(layers,n){ var a=[]; for(var i=0;i<n;i++)a.push(rollOne(layers)); return a; }
+function combos(layers){ var n=1; for(var i=0;i<layers.length;i++)n=n*Math.max(1,layers[i].traits.length); return n; }
+function shapesFor(roll,layers,S){
+  var n=layers.length; var step=n>1?(S*0.5)/(n-1):0; var out=[];
+  for(var p=0;p<n;p++){
+    var l=layers[p]; var idx=roll[l.id]; if(idx===undefined||idx>=l.traits.length)idx=0;
+    var tr=l.traits[idx]; var size=S-((n-1-p)*step); var z=n-p;
+    var none=(!tr)||(tr.color==='none');
+    var base='position:absolute;left:50%;top:50%;width:'+size+'px;height:'+size+'px;transform:translate(-50%,-50%);border-radius:0;z-index:'+z+';';
+    var cell = Math.max(2, Math.round(S / 12 * (1 - p / Math.max(1, n)) ));
+    out.push({ style: base + (none ? 'border:1px dashed #3a5a3c;background:transparent' : checker(cell, p % 2 === 1) + ';outline:1px solid #3a5a3c;outline-offset:-1px') });
+  }
+  return out;
+}
+
+class Component extends DCLogic {
+  state = { tab:'build', bmode:'gen', layers: DEFAULT_LAYERS, sel:0, seq:4, supply:2000, samples: rollN(DEFAULT_LAYERS,5), main: rollOne(DEFAULT_LAYERS), modal:false, showMeta:false, done:false, gen: [], items: DEFAULT_ITEMS, selItem:0, iseq:3, parsed:false };
+  componentDidMount() { this.applyMode(); }
+  componentDidUpdate(prev) { if (prev.mode !== this.props.mode) this.applyMode(); }
+  applyMode() { var m = this.props.mode; if (!m) return; if (m === 'upload') this.setState({ tab: 'upload' }); else this.setState({ tab: 'build', bmode: m }); }
+  renderVals() {
+    var s = this.state;
+    var self = this;
+    var segOn='background:#ffb347;color:#1a1206';
+    var tabS = function(on){ return on ? 'background:#3fd24f;color:#041006;padding:4px 10px;margin:-4px 0;cursor:pointer;border:1px solid #3fd24f' : 'border:1px solid #3fd24f;padding:4px 10px;margin:-4px 0;cursor:pointer'; };
+
+    // generator
+    var reorder = function(from,to){ if(to<0||to>=s.layers.length)return; var arr=s.layers.slice(); var m=arr.splice(from,1)[0]; arr.splice(to,0,m); self.setState({ layers:arr, sel:to }); };
+    var layersView = s.layers.map(function(l,i){
+      var sws=[]; for(var k=0;k<l.traits.length && k<6;k++){ var c=l.traits[k].color; sws.push(c==='none'?'background:transparent;border-style:dashed':checker(3, k % 2 === 1)); }
+      return { name:l.name, count:(l.traits.length+' traits'), swatches:sws,
+        rowS: i===s.sel ? 'border-color:#8dffa0;background:rgba(63,210,79,.07)' : '',
+        select: function(){ self.setState({ sel:i }); },
+        up: function(e){ if(e&&e.stopPropagation)e.stopPropagation(); reorder(i,i-1); },
+        down: function(e){ if(e&&e.stopPropagation)e.stopPropagation(); reorder(i,i+1); },
+        upS: i===0?'opacity:.25;pointer-events:none':'', downS: i===s.layers.length-1?'opacity:.25;pointer-events:none':'',
+        dragStart: function(){ self.setState({ drag:i }); },
+        drop: function(e){ if(e&&e.preventDefault)e.preventDefault(); if(s.drag!=null)reorder(s.drag,i); } };
+    });
+    var selLayer = s.layers[s.sel] || { name:'', traits:[] };
+    var galTiles = selLayer.traits.map(function(t,ti){
+      return { name:t.name, fill: t.color==='none'?'border:1px dashed #1f2a21':checker(6, ti % 2 === 1),
+        remove: function(){ var arr=s.layers.map(function(l,li){ if(li!==s.sel)return l; var tr=l.traits.slice(); tr.splice(ti,1); return { id:l.id, name:l.name, traits:tr }; }); self.setState({ layers:arr }); } };
+    });
+    galTiles.reverse();
+    var galTitle = (selLayer.name||'Layer').toUpperCase()+' IMAGES';
+    var galHint = selLayer.traits.length+' images, newest first, scroll →';
+    var ghosts = ['Background','Body','Eyes','Mouth','Headwear'];
+    var legend = s.layers.map(function(l,p){
+      var idx=s.main[l.id]; if(idx===undefined||idx>=l.traits.length)idx=0; var tr=l.traits[idx]; var none=(!tr)||(tr.color==='none');
+      return { name:l.name, trait: tr?tr.name:'empty', swS: none?'background:transparent;border-style:dashed':checker(3, p % 2 === 1),
+        tag: p===0?'front':'', tagS: p===0?'color:#8dffa0;font-weight:400;margin-left:auto':'margin-left:auto;opacity:.4' };
+    });
+    var samples = s.samples.map(function(r){ return { shapes: shapesFor(r,s.layers,88), pick: function(){ self.setState({ main:r }); } }; });
+    var genGrid = s.gen.map(function(r){ return { shapes: shapesFor(r,s.layers,66) }; });
+    var cN = combos(s.layers); var dup = s.supply > cN;
+
+    // hand-craft
+    var itemsView = s.items.map(function(it,i){ return { name:it.name, color:it.color, fill: 'position:absolute;inset:0;' + checker(6, i % 2 === 1), selS: i===s.selItem?'outline:2px solid #8dffa0;outline-offset:-2px':'', select: function(){ self.setState({ selItem:i }); } }; });
+    var selIt = s.items[s.selItem] || { name:'', color:'#333', traits:[] };
+    var itemTraits = selIt.traits.map(function(t,ti){ return { t:t.t, v:t.v, remove: function(){ var arr=s.items.map(function(it,ii){ if(ii!==s.selItem)return it; var tr=it.traits.slice(); tr.splice(ti,1); return { id:it.id, name:it.name, color:it.color, traits:tr }; }); self.setState({ items:arr }); } }; });
+
+    // header + modal copy depend on mode
+    var hr = s.tab==='upload' ? 'scatter folder format' : (s.bmode==='hand' ? (s.items.length+' one-of-ones') : (cN+' max unique combinations'));
+    var isHandMode = s.tab==='build' && s.bmode==='hand';
+
+    // example metadata json, built from the current preview roll (what gets inscribed per item)
+    var attrsLines = legend.map(function(g){ return '    { "trait_type": "'+g.name+'", "value": "'+g.trait.replace('.png','')+'" }'; }).join(',\n');
+    var exampleMeta = '{\n  "name": "Pixel Monks #1",\n  "description": "a fully on-chain pfp",\n  "image": "https://gateway.iqlabs.dev/nft/<item-txid>",\n  "attributes": [\n'+attrsLines+'\n  ]\n}';
+
+    return {
+      // tabs
+      goBuild: function(){ self.setState({ tab:'build' }); }, goUpload: function(){ self.setState({ tab:'upload' }); },
+      tabBuildS: tabS(s.tab==='build'), tabUploadS: tabS(s.tab==='upload'), isBuild: s.tab==='build', isUpload: s.tab==='upload',
+      goGen: function(){ self.setState({ tab:'build', bmode:'gen' }); }, goHand: function(){ self.setState({ tab:'build', bmode:'hand' }); },
+      segGenS: (s.tab==='build'&&s.bmode==='gen')?segOn:'', segHandS: (s.tab==='build'&&s.bmode==='hand')?segOn:'', segUpS: s.tab==='upload'?segOn:'', isGen: s.bmode==='gen', isHand: s.bmode==='hand',
+      segHint: s.tab==='upload' ? 'Already have the files? Drop the whole folder: images plus optional metadata.' : s.bmode==='hand' ? 'A few unique pieces. One image, one name, a couple of traits each.' : 'Stack layers, set rarity, and let the generator roll a full set.',
+      headerRight: hr, showSegs: !self.props.mode,
+      standalone: !self.props.embedded, pageStyle: self.props.embedded ? '' : 'position:relative;z-index:1;color:#3fd24f;min-height:100vh;display:flex;flex-direction:column',
+      bodyPad: self.props.embedded ? '' : 'padding:14px 16px 28px', winStyle: self.props.embedded ? '' : 'border:2px solid #3fd24f;background:#060a07;overflow:hidden;display:flex;flex-direction:column;min-width:0',
+      nextLabel: self.props.embedded ? 'Continue' : 'CONTINUE \u2192 MINT LISTS', goNext: function(){ if (self.props.onContinue) self.props.onContinue(); },
+      // generator
+      building: !s.done, done: s.done,
+      layersView, addAttr: function(){ var id='l'+s.seq; self.setState({ layers:s.layers.concat([{ id:id, name:'New Layer', traits:[] }]), seq:s.seq+1, sel:s.layers.length }); },
+      dragOver: function(e){ if(e&&e.preventDefault)e.preventDefault(); },
+      selName: selLayer.name, galTitle: galTitle, galHint: galHint, galTiles: galTiles, ghosts: ghosts, hasLayers: s.layers.length>0, noLayers: s.layers.length===0,
+      nameChange: function(e){ var v=e.target.value; var arr=s.layers.map(function(l,li){ return li===s.sel?{ id:l.id, name:v, traits:l.traits }:l; }); self.setState({ layers:arr }); },
+      addTrait: function(){ var arr=s.layers.map(function(l,li){ if(li!==s.sel)return l; var col=PAL[(l.traits.length*3+s.sel)%PAL.length]; var fn=l.name.toLowerCase().replace(/[^a-z0-9]+/g,'-').replace(/^-|-$/g,'')+(l.traits.length+1)+'.png'; return { id:l.id, name:l.name, traits:l.traits.concat([{ name:fn, color:col }]) }; }); self.setState({ layers:arr }); },
+      samples,
+      mainShapes: shapesFor(s.main,s.layers,260), legend,
+      supply: s.supply, supplyChange: function(e){ var v=parseInt(e.target.value||'0',10); self.setState({ supply: isNaN(v)?0:v }); },
+      combosN: cN, dupMsg: dup ? ('Above max, '+(s.supply-cN)+' will repeat a combination') : 'All unique, below the max', dupS: dup?'color:#b07a1a;opacity:.9':'',
+      regen: function(){ self.setState({ done:false }); }, genGrid, genCount: Math.min(60,s.supply),
+      // hand-craft
+      itemsView, itemCount: s.items.length, itemName: selIt.name, itemColor: selIt.color, itemFill: checker(8, false), itemTraits,
+      addItem: function(){ var id='i'+s.iseq; var col=PAL[s.items.length%PAL.length]; self.setState({ items:s.items.concat([{ id:id, name:'Item #'+(s.items.length+1), color:col, traits:[] }]), iseq:s.iseq+1, selItem:s.items.length }); },
+      itemNameChange: function(e){ var v=e.target.value; var arr=s.items.map(function(it,ii){ return ii===s.selItem?{ id:it.id, name:v, color:it.color, traits:it.traits }:it; }); self.setState({ items:arr }); },
+      addItemTrait: function(){ var arr=s.items.map(function(it,ii){ if(ii!==s.selItem)return it; return { id:it.id, name:it.name, color:it.color, traits:it.traits.concat([{ t:'Trait '+(it.traits.length+1), v:'value' }]) }; }); self.setState({ items:arr }); },
+      // upload
+      notParsed: !s.parsed, parsed: s.parsed, parse: function(){ self.setState({ parsed:true }); }, unparse: function(){ self.setState({ parsed:false }); },
+      // modal (shared)
+      openModal: function(){ self.setState({ modal:true }); }, closeModal: function(){ self.setState({ modal:false }); },
+      confirmGen: function(){ self.setState({ modal:false, done:true, gen: rollN(s.layers, Math.min(60, s.supply)) }); },
+      assembledLine: '> ' + s.supply.toLocaleString('en-US') + ' ITEMS ASSEMBLED',
+      modal: s.modal,
+      modalTitle: isHandMode ? ('Prepare '+s.items.length+' ITEMS?') : ('Generate '+s.supply+' ITEMS?'),
+      modalBody: isHandMode ? (s.items.length+' hand-made 1 of 1 items will be staged. each gets its metadata json, then at deploy the image + json are inscribed and the url is rewritten on-chain.') : (s.supply+' unique 1 of 1 items assembled from your '+s.layers.length+' attributes ('+cN+' possible). each gets a composited image + metadata json, staged in the buffer until the deploy signature.'),
+      modalCta: isHandMode ? ('Prepare '+s.items.length) : ('Generate '+s.supply),
+      showMeta: s.showMeta, toggleMeta: function(){ self.setState({ showMeta: !s.showMeta }); }, metaLabel: s.showMeta?'hide example metadata':'see example metadata', exampleMeta: exampleMeta
+    };
+  }
+}
+</script>
+</body>
+</html>

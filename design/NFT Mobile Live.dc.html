@@ -1,0 +1,968 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>NFT Launchpad - Mobile</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Archivo:wght@400;500;700;800&family=Kode+Mono:wght@400;500;600;700&family=Zen+Dots&display=swap" rel="stylesheet">
+<style>
+  html,body{margin:0;padding:0;background:#0a0a09;color:#e8e4d6;font-family:'Kode Mono',monospace;}
+  /* mobile phone frame: the live launchpad at phone width */
+  body{max-width:430px;margin:0 auto;min-height:100vh;container-type:inline-size;}
+  img{max-width:100%;}
+</style>
+<style>
+
+    @import url('https://fonts.googleapis.com/css2?family=Kode+Mono:wght@400;500;600;700&family=Archivo:wght@400;500;800&family=Zen+Dots&display=swap');
+    /* Ported 1:1 from the live design (NFT Launchpad Flow.dc.html, claude.ai):
+       same tokens, window chrome, card/feed/collection/mint-panel geometry,
+       scoped under #nftl. The site already draws the animated background
+       behind #main_section. Color utilities are nftl- prefixed because the
+       site's global .green is a dot. */
+    #nftl { color:#e8e4d6; font-family:'Kode Mono',monospace; width:100%; max-width:1560px; margin:0 auto; box-sizing:border-box; padding:14px 16px 24px; position:relative; }
+    #nftl a { color:#e8e4d6; text-decoration:none; } #nftl a:hover { color:#fff; }
+    #nftl button { font-family:inherit; }
+    @keyframes nftl_pulse { 0%,100%{opacity:1} 50%{opacity:.35} }
+    /* CRT flicker on hover (ported from the design). --fc/--fg/--fo tint it per rarity. */
+    @keyframes nftl_flick{0%,49%{border-color:var(--fc,#fff);box-shadow:0 0 0 1px var(--fc,#fff),0 0 16px var(--fg,rgba(255,255,255,.4))}50%,100%{border-color:var(--fo,rgba(255,255,255,.12));box-shadow:none}}
+    @keyframes nftl_flickrow{0%,49%{box-shadow:inset 0 0 0 1px #fff,inset 0 0 18px rgba(255,255,255,.12);background:rgba(255,255,255,.07)}50%,100%{box-shadow:inset 0 0 0 1px rgba(232,228,214,.12);background:rgba(232,228,214,.03)}}
+    #nftl .flick:hover{animation:nftl_flick .11s steps(1,end) infinite}
+    #nftl .flickrow:hover{animation:nftl_flickrow .11s steps(1,end) infinite}
+    #nftl .win{border:1px solid #e8e4d6;border-radius:8px;background:rgba(20,19,16,.9);backdrop-filter:blur(4px);-webkit-backdrop-filter:blur(4px);overflow:hidden;display:flex;flex-direction:column;min-width:0}
+    #nftl .wh{display:flex;align-items:center;gap:8px;border-bottom:1px solid rgba(232,228,214,.35);padding:11px 16px;font:500 10px 'Kode Mono',monospace;letter-spacing:.14em}
+    #nftl .dr{width:9px;height:9px;border-radius:50%;background:#e0554e}#nftl .da{width:9px;height:9px;border-radius:50%;background:#e0a84e}#nftl .dg{width:9px;height:9px;border-radius:50%;background:#2BD52D}
+    #nftl .whback{margin-left:auto;cursor:pointer;opacity:.7;border:1px solid rgba(232,228,214,.4);border-radius:3px;padding:0 8px;white-space:nowrap;transition:all .3s}
+    #nftl .whback:hover{opacity:1;background:rgba(232,228,214,.1)}
+    #nftl .lab{font:600 10px 'Kode Mono',monospace;letter-spacing:.14em}
+    #nftl .cm{font:500 9.5px/1.8 'Kode Mono',monospace;opacity:.5}
+    #nftl .btn{font:700 10px 'Kode Mono',monospace;letter-spacing:.12em;background:#e8e4d6;color:#1b1a17;border:none;border-radius:4px;padding:9px 16px;cursor:pointer;transition:all .35s cubic-bezier(.2,.7,.2,1);text-align:center;white-space:nowrap;display:inline-block}
+    #nftl .btn:hover{background:#fff;color:#1b1a17;transform:translateY(-2px);box-shadow:0 6px 20px rgba(0,0,0,.45)}
+    #nftl .btn:disabled{opacity:.45;cursor:not-allowed;transform:none;box-shadow:none}
+    #nftl .btn2{font:700 10px 'Kode Mono',monospace;letter-spacing:.1em;border:1px solid rgba(232,228,214,.5);background:transparent;color:#e8e4d6;border-radius:4px;padding:9px 16px;cursor:pointer;transition:all .3s;text-align:center;white-space:nowrap;display:inline-block}
+    #nftl .btn2:hover{border-color:#e8e4d6;background:rgba(232,228,214,.1);color:#e8e4d6}
+    #nftl .btng{font:700 10px 'Kode Mono',monospace;letter-spacing:.12em;background:#2BD52D;color:#04140a;border:none;border-radius:4px;padding:11px 18px;cursor:pointer;transition:all .3s;text-align:center;white-space:nowrap;display:inline-block}
+    #nftl .btng:hover{background:#7dff7f;color:#04140a}
+    #nftl .wide{display:block;width:100%;box-sizing:border-box;padding:14px 0;font-size:11px}
+    #nftl .kv{display:flex;justify-content:space-between;gap:12px;padding:8px 14px;border-bottom:1px dotted rgba(232,228,214,.25);font:500 10.5px 'Kode Mono',monospace}
+    #nftl .kv:last-child{border-bottom:none}
+    #nftl .kvk{opacity:.6;white-space:nowrap}
+    #nftl .kvv{text-align:right;min-width:0;word-break:break-all}
+    #nftl .kvbox{border:1px solid rgba(232,228,214,.4);border-radius:5px}
+    #nftl .ph{display:flex;align-items:center;justify-content:center;text-align:center;font:500 9.5px/1.4 'Kode Mono',monospace;color:#2BD52D;background:repeating-linear-gradient(135deg,rgba(232,228,214,.07) 0 6px,rgba(0,0,0,.25) 6px 12px);border-bottom:1px solid rgba(232,228,214,.25);position:relative;overflow:hidden}
+    #nftl .ph img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;display:block}
+    #nftl .inp{width:100%;box-sizing:border-box;background:rgba(0,0,0,.35);color:#e8e4d6;border:1px solid rgba(232,228,214,.5);border-radius:5px;font:500 11px 'Kode Mono',monospace;padding:10px 12px;outline:none}
+    #nftl .fl{font:500 9.5px 'Kode Mono',monospace;letter-spacing:.14em;opacity:.7;margin-bottom:6px}
+    #nftl .chip{border:1px solid rgba(232,228,214,.4);border-radius:3px;padding:1px 6px;letter-spacing:.08em;font:500 9px 'Kode Mono',monospace;white-space:nowrap}
+    #nftl .live{color:#2BD52D;border-color:rgba(43,213,45,.6)}#nftl .soon{color:#e0a84e;border-color:rgba(224,168,78,.6)}#nftl .out{opacity:.5}
+    #nftl .chip.chain{color:#e8e4d6;border-color:rgba(232,228,214,.55)}
+    #nftl .chip.hot{color:#e0a84e;border-color:rgba(224,168,78,.6)}
+    #nftl #nftl_tabs{display:flex;gap:8px}
+    #nftl .tab{border:1px solid rgba(232,228,214,.5);border-radius:4px;padding:7px 16px;opacity:.6;cursor:pointer;transition:all .3s}
+    #nftl .tab.on{background:#e8e4d6;color:#1b1a17;padding:8px 16px;font-weight:700;opacity:1;border-color:#e8e4d6}
+    #nftl .seg{display:flex;border:1px solid rgba(232,228,214,.5);border-radius:5px;overflow:hidden;margin-bottom:12px}
+    #nftl .seg div{flex:1;text-align:center;padding:8px 0;cursor:pointer;transition:background .3s;opacity:.55}
+    #nftl .seg div+div{border-left:1px solid rgba(232,228,214,.3)}
+    #nftl .seg div.on{background:#e8e4d6;color:#1b1a17;opacity:1}
+    #nftl .seg div{white-space:nowrap;display:flex;align-items:center;justify-content:center;gap:6px}
+    #nftl .seg div.soon{opacity:.3;cursor:not-allowed;pointer-events:none}
+    #nftl .seg div.soon small{font-size:7.5px;letter-spacing:.1em;border:1px solid currentColor;border-radius:2px;padding:0 4px}
+    #nftl .mkbar{display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap}
+    #nftl .mkscope{display:flex;border:1px solid rgba(232,228,214,.45);border-radius:4px;overflow:hidden;font:600 9px 'Kode Mono',monospace;letter-spacing:.12em}
+    #nftl .mkscope div{padding:7px 12px;cursor:pointer;transition:background .3s;opacity:.6}
+    #nftl .mkscope div+div{border-left:1px solid rgba(232,228,214,.3)}
+    #nftl .mkscope div.on{background:#e8e4d6;color:#1b1a17;opacity:1}
+    #nftl .mksort{display:flex;gap:6px;font:600 9px 'Kode Mono',monospace;letter-spacing:.1em}
+    #nftl .mksort div{border:1px solid rgba(232,228,214,.35);border-radius:3px;padding:6px 10px;cursor:pointer;opacity:.6}
+    #nftl .mksort div.on{border-color:rgba(232,228,214,.9);opacity:1}
+    #nftl .mkstats{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-top:12px;font:500 9.5px 'Kode Mono',monospace}
+    #nftl .mkstats div{border:1px solid rgba(232,228,214,.3);border-radius:5px;padding:9px 12px}
+    #nftl .mkstats b{display:block;font-size:13px;margin-top:3px}
+    #nftl .mkstats span{opacity:.5;letter-spacing:.1em}
+    #nftl .mkgrid{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-top:12px}
+    #nftl .mk{border:1px solid rgba(232,228,214,.5);border-radius:5px;overflow:hidden;cursor:pointer;transition:border-color .35s,background .35s,transform .35s;font:500 9.5px 'Kode Mono',monospace}
+    #nftl .mk:hover{border-color:#e8e4d6;background:rgba(232,228,214,.05);transform:translateY(-2px)}
+    #nftl .mk.mine{border-color:rgba(232,228,214,.9)}
+    #nftl .mk .im{position:relative;aspect-ratio:1;overflow:hidden;background:#0a0a09}
+    #nftl .mk .im img{width:100%;height:100%;object-fit:cover;display:block;transition:transform .6s cubic-bezier(.2,.7,.2,1)}
+    #nftl .mk:hover .im img{transform:scale(1.04)}
+    #nftl .mk .bd{position:absolute;right:6px;top:6px;font:600 8px 'Kode Mono',monospace;letter-spacing:.1em;border-radius:3px;padding:2px 6px;background:rgba(20,19,16,.85);border:1px solid rgba(43,213,45,.6);color:#2BD52D}
+    #nftl .mk .bd.y{background:#2BD52D;color:#04140a;border-color:#2BD52D}
+    #nftl .mk .ch{position:absolute;left:6px;top:6px;font:600 8px 'Kode Mono',monospace;letter-spacing:.1em;background:rgba(20,19,16,.85);border:1px solid rgba(232,228,214,.35);border-radius:3px;padding:2px 6px}
+    #nftl .mk .tx{padding:9px 10px 10px}
+    #nftl .mk .nm{font-weight:700;font-size:11px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+    #nftl .mk .co{opacity:.45;margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+    #nftl .mk .pr{display:flex;justify-content:space-between;align-items:baseline;margin-top:8px}
+    #nftl .mk .pr b{color:#2BD52D;font-size:11px}#nftl .mk .pr i{font-style:normal;opacity:.45}#nftl .mk .pr small{opacity:.5;font-size:9px}
+    #nftl .mkfoot{display:flex;justify-content:space-between;align-items:center;gap:12px;padding:14px 2px 4px;font:500 9.5px 'Kode Mono',monospace;opacity:.6}
+    #nftl .mkfoot .more{cursor:pointer;border:1px solid rgba(232,228,214,.4);border-radius:3px;padding:4px 10px;letter-spacing:.1em}
+    #nftl .mkempty{border:1px dashed rgba(232,228,214,.35);border-radius:5px;padding:34px 20px;text-align:center;margin-top:12px;display:flex;flex-direction:column;align-items:center;gap:12px}
+    #nftl .mkempty .lab{letter-spacing:.14em}
+    /* launch modal */
+    #nftl_launch{position:fixed;inset:0;z-index:30;background:rgba(4,6,4,.72);backdrop-filter:blur(4px);display:none;align-items:flex-start;justify-content:center;padding:26px 16px;overflow:auto}
+    #nftl_launch.open{display:flex}
+    #nftl_launch .lbox{width:min(720px,calc(100cqw - 20px));max-width:100%;display:flex;flex-direction:column}
+    #nftl_launch .lsteps{display:flex;gap:8px;margin-bottom:12px;font:600 9.5px 'Kode Mono',monospace;letter-spacing:.14em}
+    #nftl_launch .lsteps div{flex:1;border:1px solid rgba(232,228,214,.3);border-radius:4px;padding:7px 0;text-align:center;opacity:.45;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+    #nftl_launch .lsteps div.on{background:#e8e4d6;color:#1b1a17;opacity:1;border-color:#e8e4d6}
+    #nftl_launch .lbody{padding:22px 24px 24px}
+    #nftl_launch .drop{display:flex;flex-direction:column;align-items:center;gap:8px;border:1px dashed rgba(232,228,214,.45);border-radius:5px;padding:34px 20px;text-align:center;cursor:pointer;transition:all .3s}
+    #nftl_launch .drop:hover{border-color:#e8e4d6;background:rgba(232,228,214,.05)}
+    #nftl_launch .lwhy{display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;margin-top:14px;font:500 9.5px/1.7 'Kode Mono',monospace;opacity:.65}
+    #nftl_launch .lwhy div{border:1px solid rgba(232,228,214,.3);border-radius:5px;padding:12px}
+    #nftl_launch .ltabs{display:flex;gap:6px;flex-wrap:wrap}
+    #nftl_launch .ltabs div{border:1px solid rgba(232,228,214,.5);border-radius:4px;padding:7px 14px;opacity:.6;cursor:pointer;transition:all .3s}
+    #nftl_launch .ltabs div.on{background:#e8e4d6;color:#1b1a17;opacity:1;font-weight:700;border-color:#e8e4d6}
+    #nftl_launch .lseg{display:flex;gap:6px;margin-top:14px}
+    #nftl_launch .lseg div{flex:1;text-align:center;border:1px solid rgba(232,228,214,.35);border-radius:4px;padding:8px 0;opacity:.6;cursor:pointer;transition:all .3s}
+    #nftl_launch .lseg div.on{border-color:#e8e4d6;opacity:1;background:rgba(232,228,214,.08)}
+    #nftl_launch .lnote{margin-top:14px}
+    #nftl_launch .llayers{display:flex;flex-direction:column;gap:6px}
+    #nftl_launch .lrow{display:flex;align-items:center;gap:10px;border:1px solid rgba(232,228,214,.3);border-radius:5px;padding:8px 10px}
+    #nftl_launch .lrow:first-child{border-color:rgba(232,228,214,.8)}
+    #nftl_launch .lgrip{width:6px;height:14px;background:repeating-linear-gradient(to bottom,rgba(232,228,214,.5) 0 2px,transparent 2px 4px);flex-shrink:0}
+    #nftl_launch .lname{font:600 11px 'Kode Mono',monospace}
+    #nftl_launch .lsw{display:flex;gap:3px;align-items:center;margin-top:5px}
+    #nftl_launch .lsw i{width:12px;height:12px;border-radius:2px;border:1px solid rgba(0,0,0,.4);display:block}
+    #nftl_launch .lsw .cm{margin-left:4px}
+    #nftl_launch .lgen{display:grid;grid-template-columns:1fr auto;gap:12px;align-items:end;margin-top:14px;border-top:1px solid rgba(232,228,214,.2);padding-top:12px}
+    #nftl_launch .lhand{display:grid;grid-template-columns:repeat(4,1fr);gap:8px}
+    #nftl_launch .lmini{position:relative;aspect-ratio:1;border:1px solid rgba(232,228,214,.3);border-radius:6px;overflow:hidden;cursor:pointer}
+    #nftl_launch .lmini.on{border-color:#e8e4d6}
+    #nftl_launch .lmini span{position:absolute;left:0;right:0;bottom:0;padding:5px 7px;background:linear-gradient(transparent,rgba(0,0,0,.75));font:600 9px 'Kode Mono',monospace}
+    #nftl_launch .lmini.add{border-style:dashed;display:flex;align-items:center;justify-content:center}
+    #nftl_launch .lmini.add span{position:static;background:none;padding:0;font-size:10px;opacity:.7;text-align:center}
+    #nftl_launch .ledit{display:flex;gap:14px;align-items:flex-start}
+    #nftl_launch .lthumb{position:relative;width:140px;flex-shrink:0;aspect-ratio:1;border:1px solid rgba(232,228,214,.35);border-radius:8px;overflow:hidden}
+    #nftl_launch .lthumb .btn2{position:absolute;right:6px;bottom:6px;padding:5px 8px;font-size:8.5px}
+    #nftl_launch .drop.over{border-color:#2BD52D;background:rgba(43,213,45,.06)}
+    #nftl_launch .lok{display:flex;justify-content:space-between;align-items:center;gap:12px;border:1px solid rgba(43,213,45,.55);border-radius:5px;background:rgba(43,213,45,.07);padding:12px 14px;font:500 10px/1.5 'Kode Mono',monospace;color:#2BD52D;margin-top:12px;flex-wrap:wrap}
+    #nftl_launch .lwarn{border-color:rgba(224,168,78,.6);background:rgba(224,168,78,.07);color:#e0a84e}
+    #nftl_launch .lok .btn2{color:#e8e4d6;padding:7px 10px;font-size:9.5px}
+    #nftl_launch .lfiles{display:grid;grid-template-columns:repeat(8,1fr);gap:6px;margin-top:12px}
+    #nftl_launch .lfiles div{border:1px solid rgba(232,228,214,.35);border-radius:4px;overflow:hidden;font:500 8.5px 'Kode Mono',monospace}
+    #nftl_launch .lfiles .fim{aspect-ratio:1;background:#0a0a09 center/cover no-repeat;display:flex;align-items:center;justify-content:center;color:#2BD52D;opacity:.9}
+    #nftl_launch .lfiles .fnm{padding:3px 6px;opacity:.6;border-top:1px solid rgba(232,228,214,.25);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+    #nftl_launch .lfiles .fnm.j{color:#e0a84e;opacity:.9}
+    #nftl_launch .lrep{border:1px solid rgba(232,228,214,.4);border-radius:5px;margin-top:12px}
+    #nftl_launch .lrep .kv{font-size:9.5px}
+    #nftl_launch .btn.off{opacity:.45;pointer-events:none}
+    #nftl_launch .lrow{cursor:pointer;transition:border-color .3s,background .3s}
+    #nftl_launch .lrow:hover{border-color:#e8e4d6;background:rgba(232,228,214,.05)}
+    #nftl_launch .lrow.drag{opacity:.4}
+    #nftl_launch .lrow .larr{display:flex;flex-direction:column;gap:3px;margin-left:auto}
+    #nftl_launch .lrow .larr span{width:22px;height:18px;display:flex;align-items:center;justify-content:center;border:1px solid rgba(232,228,214,.3);border-radius:3px;font-size:10px;opacity:.7}
+    #nftl_launch .lrow .larr span:hover{opacity:1;border-color:#e8e4d6}
+    #nftl_launch .lrow .larr span.off{opacity:.2;pointer-events:none}
+    #nftl_launch .lprev{display:flex;gap:14px;align-items:flex-start}
+    #nftl_launch .lstack{position:relative;width:140px;height:140px;flex-shrink:0;border:1px solid rgba(232,228,214,.4);border-radius:8px;background:#0d0c0a;overflow:hidden}
+    #nftl_launch .lstack i{position:absolute;display:block}
+    #nftl_launch .llegend{display:flex;flex-direction:column;gap:5px;font:500 10px 'Kode Mono',monospace;flex:1;min-width:0}
+    #nftl_launch .llegend div{display:flex;align-items:center;gap:8px}
+    #nftl_launch .llegend i{width:12px;height:12px;border-radius:2px;display:block;flex-shrink:0}
+    #nftl_launch .llegend b{font-weight:600;width:84px;flex-shrink:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+    #nftl_launch .llegend span{opacity:.6;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+    #nftl_launch .llegend .reroll{margin-top:6px;cursor:pointer;opacity:.6;text-decoration:underline;text-underline-offset:3px}
+    #nftl_launch .lgrid9{display:grid;grid-template-columns:repeat(8,1fr);gap:6px;margin-top:12px}
+    #nftl_launch .lgrid9 .lstack{width:auto;height:auto;aspect-ratio:1;border-radius:4px}
+    #nftl_launch .ldone{border:1px solid rgba(43,213,45,.5);border-radius:7px;background:rgba(43,213,45,.05);padding:14px 16px;display:flex;justify-content:space-between;align-items:center;gap:14px;flex-wrap:wrap;margin-top:14px}
+    #nftl_layerpop{position:fixed;inset:0;z-index:40;background:rgba(4,6,4,.6);display:none;align-items:center;justify-content:center;padding:16px}
+    #nftl_layerpop.open{display:flex}
+    #nftl_layerpop .ltraits{display:grid;grid-template-columns:repeat(5,1fr);gap:8px;margin-top:6px}
+    #nftl_layerpop .ltraits div{position:relative;aspect-ratio:1;border:1px solid rgba(232,228,214,.3);border-radius:6px;overflow:hidden;cursor:pointer;background-size:cover;background-position:center}
+    #nftl_layerpop .ltraits div:hover{border-color:#e0554e}
+    #nftl_layerpop .ltraits div span{position:absolute;left:0;right:0;bottom:0;padding:3px 5px;background:linear-gradient(transparent,rgba(0,0,0,.8));font:600 8px 'Kode Mono',monospace;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+    #nftl_layerpop .ltraits .empty{grid-column:1/-1;aspect-ratio:auto;border-style:dashed;padding:18px;text-align:center;cursor:default}
+    #nftl_layerpop .ltraits .empty:hover{border-color:rgba(232,228,214,.3)}
+    #nftl_launch .lfoot{display:flex;justify-content:space-between;align-items:center;gap:10px;margin-top:18px;flex-wrap:wrap}
+    #nftl .nftl-g{color:#2BD52D}#nftl .nftl-a{color:#e0a84e}#nftl .nftl-e{color:#ff9a9a}
+    /* nav (design: the sticky top bar) */
+    #nftl .nav{display:flex;justify-content:space-between;align-items:center;gap:14px;border:1px solid #e8e4d6;border-radius:8px;background:rgba(20,19,16,.9);backdrop-filter:blur(6px);-webkit-backdrop-filter:blur(6px);padding:11px 16px;margin-bottom:14px}
+    #nftl .nav .logo{height:18px;display:block;filter:brightness(0) invert(0.93) sepia(0.18) saturate(1.2) brightness(0.98)}
+    /* no stray focus ring left on the banner after clicking connect; keep keyboard focus elsewhere */
+    #nftl .nav a:focus,#nftl .nav a:focus-visible,#nftl .nav button:focus,#nftl .nav button:focus-visible{outline:none}
+    #nftl a:focus:not(:focus-visible),#nftl button:focus:not(:focus-visible){outline:none}
+    #nftl .pill{display:flex;align-items:center;gap:8px;letter-spacing:.1em;border:1px solid rgba(43,213,45,.5);border-radius:4px;padding:7px 12px;color:#2BD52D;white-space:nowrap}
+    #nftl .pill i{width:7px;height:7px;border-radius:50%;background:#2BD52D;display:block}
+    /* desk: launchpad.exe + minted.exe (inner areas scroll, like the design's 100vh page) */
+    #nftl #nftl_desk{display:flex;gap:14px;align-items:stretch}
+    #nftl #nftl_lp{flex:3;min-height:0}#nftl #nftl_mw{flex:1;min-height:0}
+    #nftl .lpbody{min-height:0;overflow:hidden;padding:20px 22px 22px;flex:1;display:flex;flex-direction:column}
+    #nftl .colscroll{flex:1;min-height:0;max-height:calc(100vh - 340px);overflow-y:auto;padding:12px 6px 0 2px;margin:-12px -6px 0 -2px;scrollbar-width:thin;scrollbar-color:rgba(232,228,214,.35) transparent}
+    #nftl .colgrid{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;align-items:start}
+    #nftl .card{position:relative;z-index:1;display:flex;flex-direction:column;padding:14px;border:1px solid rgba(232,228,214,.28);border-radius:3px;background:rgba(232,228,214,.025);overflow:hidden;cursor:pointer;transition:background .35s,border-color .35s,transform .35s;color:inherit;min-width:0}
+    #nftl .card:hover{background:rgba(232,228,214,.05);border-color:rgba(232,228,214,.45);transform:translateY(-2px);color:inherit;z-index:5}
+    #nftl .card.dim{border-color:rgba(232,228,214,.15);opacity:.6}
+    #nftl .card .cov{position:relative;height:120px;overflow:hidden;background:#0a0a09;flex:0 0 auto;border:1px solid rgba(232,228,214,.22)}
+    #nftl .card .cov img{width:100%;height:100%;object-fit:cover;display:block;filter:saturate(.9);transition:transform .7s cubic-bezier(.2,.7,.2,1)}
+    #nftl .card:hover .cov img{transform:scale(1.04)}
+    #nftl .card .cn{margin-top:12px;font:800 18px/1.05 'Archivo',sans-serif;letter-spacing:-.02em;color:#f2efe6;text-transform:uppercase;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+    #nftl .card .segwrap{margin-top:10px}
+    #nftl .card .segs{display:flex;gap:2px;height:16px}
+    #nftl .card .segs span{flex:1;border-radius:1px}
+    #nftl .card .segs span.on{transition:background .4s ease}
+    #nftl .card .segl{display:flex;justify-content:flex-end;align-items:baseline;margin-top:5px;font:600 10px 'Kode Mono',monospace;letter-spacing:.06em;color:#e8e4d6}
+    #nftl .card .cdesc{margin:10px 0 0;min-height:32px;font:400 11px/1.45 'Archivo',sans-serif;color:rgba(232,228,214,.7);display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+    #nftl .card .stats{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:12px}
+    #nftl .card .st{border-top:1px solid rgba(232,228,214,.2);padding-top:7px;min-width:0}
+    #nftl .card .st .k{font:600 8px 'Kode Mono',monospace;letter-spacing:.16em;opacity:.5}
+    #nftl .card .st .vrow{display:flex;align-items:baseline;gap:8px;margin-top:2px;min-width:0}
+    #nftl .card .st .v{font:700 13px 'Kode Mono',monospace;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+    #nftl .card .st .d{font:600 9px 'Kode Mono',monospace;color:#2BD52D;white-space:nowrap}
+    #nftl .card .chainline{display:flex;justify-content:space-between;align-items:center;gap:10px;margin-top:auto;padding-top:10px;font:500 8.5px 'Kode Mono',monospace;letter-spacing:.08em;opacity:.6;white-space:nowrap;overflow:hidden;min-width:0}
+    #nftl .card .chainline .cadr{overflow:hidden;text-overflow:ellipsis}
+    #nftl .card .chainline .hot{color:#e0a84e;opacity:1;flex:0 0 auto}
+    #nftl .card .band{position:relative;display:flex;align-items:center;gap:12px;margin:10px -14px -14px;padding:9px 14px;border-top:1px solid rgba(232,228,214,.2);background:rgba(232,228,214,.06);color:#e8e4d6;overflow:hidden;isolation:isolate}
+    #nftl .card .band .bfill{position:absolute;inset:0;background:#e8e4d6;transform:scaleX(0);transform-origin:left;transition:transform .45s cubic-bezier(.2,.7,.2,1);z-index:0}
+    #nftl .card.dim .band .bfill{background:rgba(232,228,214,.16)}
+    #nftl .card.out .band .bfill{display:none}
+    #nftl .card:hover .band .bfill{transform:scaleX(1)}
+    #nftl .card .band .btext{position:relative;z-index:1;display:flex;align-items:center;gap:12px;width:100%}
+    #nftl .card:not(.dim) .band .btext{mix-blend-mode:difference;color:#e8e4d6}
+    #nftl .card .band .bprice{font:700 11px 'Kode Mono',monospace;letter-spacing:.1em}
+    #nftl .card .band .bcta{margin-left:auto;font:700 10px 'Kode Mono',monospace;letter-spacing:.16em;display:inline-flex;gap:6px;align-items:center}
+    #nftl .card .band .barr{display:inline-block;transition:transform .45s cubic-bezier(.2,.7,.2,1)}
+    #nftl .card:hover .band .barr{transform:translateX(4px)}
+    #nftl .card.out:hover .band .barr{transform:none}
+    /* skeleton reuses the card box + child classes so its height matches the real card exactly (no layout jump when cards load) */
+    #nftl .card.skel{cursor:default;pointer-events:none;animation:nftl_pulse 1.2s ease-in-out infinite}
+    #nftl .card.skel .cov{background:rgba(232,228,214,.05)}
+    #nftl .card.skel .sk{display:block;background:rgba(232,228,214,.13);border-radius:2px}
+    #nftl .card.skel .band .btext{mix-blend-mode:normal;color:inherit}
+    /* MY NFTS gallery (rarity-tiered cards, per design) */
+    #nftl .minehead{display:flex;align-items:baseline;justify-content:space-between;gap:12px;margin:2px 0 12px}
+    #nftl .minehead .ml{display:flex;align-items:baseline;gap:10px;min-width:0}
+    #nftl .minehead .mcount{font:800 18px/1 'Archivo',sans-serif;letter-spacing:-.02em;text-transform:uppercase}
+    #nftl .minehead .mheld{font:500 10px 'Kode Mono',monospace;opacity:.55;letter-spacing:.06em;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+    #nftl .minehead .mrar{font:500 9px 'Kode Mono',monospace;opacity:.45;letter-spacing:.1em;white-space:nowrap;flex:0 0 auto}
+    #nftl .minegrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(168px,1fr));gap:12px}
+    #nftl .mc{display:flex;flex-direction:column;padding:12px;border:1px solid rgba(232,228,214,.28);border-radius:3px;background:rgba(232,228,214,.025);overflow:hidden;cursor:pointer;color:inherit;transition:background .35s,border-color .35s,transform .35s,box-shadow .35s}
+    #nftl .mc:hover{transform:translateY(-2px);border-color:#e8e4d6;background:rgba(232,228,214,.05);color:inherit}
+    #nftl .mc .mim{position:relative;aspect-ratio:1;overflow:hidden;background:#0a0a09;border:1px solid rgba(232,228,214,.22)}
+    #nftl .mc .mim img{width:100%;height:100%;object-fit:cover;image-rendering:pixelated;display:block;transition:transform .7s cubic-bezier(.2,.7,.2,1)}
+    #nftl .mc:hover .mim img{transform:scale(1.04)}
+    #nftl .mc .mtag{position:absolute;right:6px;top:6px;font:700 7.5px 'Kode Mono',monospace;letter-spacing:.16em;padding:3px 6px;background:rgba(20,19,16,.85);color:#e8e4d6}
+    #nftl .mc .mnm{margin-top:10px;font:800 14px/1.1 'Archivo',sans-serif;letter-spacing:-.01em;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;color:#f2efe6}
+    #nftl .mc .msub{margin-top:4px;font:500 8.5px 'Kode Mono',monospace;letter-spacing:.1em;opacity:.5;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;text-transform:uppercase}
+    #nftl .mc .mfoot{display:flex;align-items:center;margin:10px -12px -12px;padding:8px 12px;font:700 9px 'Kode Mono',monospace;letter-spacing:.14em;border-top:1px solid rgba(232,228,214,.2);background:rgba(232,228,214,.06);color:#e8e4d6}
+    #nftl .mc .mfoot .lst{margin-left:auto;opacity:.75}
+    #nftl .mc.r-rare{border:1.5px solid rgba(90,169,255,.85);background:linear-gradient(180deg,rgba(90,169,255,.07),rgba(90,169,255,.02));box-shadow:0 0 12px rgba(90,169,255,.16)}
+    #nftl .mc.r-rare .mtag{color:#5aa9ff;border:1px solid rgba(90,169,255,.6)}#nftl .mc.r-rare .mnm{color:#5aa9ff}
+    #nftl .mc.r-rare .mfoot{border-top-color:rgba(90,169,255,.45);background:rgba(90,169,255,.1);color:#5aa9ff}
+    #nftl .mc.r-rare:hover{border-color:#5aa9ff;box-shadow:0 0 30px rgba(90,169,255,.35)}
+    #nftl .mc.r-epic{border:1.5px solid rgba(199,125,255,.85);background:linear-gradient(180deg,rgba(199,125,255,.07),rgba(199,125,255,.02));box-shadow:0 0 16px rgba(199,125,255,.2)}
+    #nftl .mc.r-epic .mtag{color:#c77dff;border:1px solid rgba(199,125,255,.6)}#nftl .mc.r-epic .mnm{color:#c77dff}
+    #nftl .mc.r-epic .mfoot{border-top-color:rgba(199,125,255,.45);background:rgba(199,125,255,.1);color:#c77dff}
+    #nftl .mc.r-epic:hover{border-color:#c77dff;box-shadow:0 0 30px rgba(199,125,255,.35)}
+    #nftl .mc.r-legendary{border:1.5px solid rgba(255,179,71,.85);background:linear-gradient(180deg,rgba(255,179,71,.07),rgba(255,179,71,.02));box-shadow:0 0 22px rgba(255,179,71,.25),inset 0 0 0 1px rgba(255,179,71,.25)}
+    #nftl .mc.r-legendary .mtag{color:#ffb347;border:1px solid rgba(255,179,71,.6)}#nftl .mc.r-legendary .mnm{color:#ffb347;text-shadow:0 0 12px rgba(255,179,71,.45)}
+    #nftl .mc.r-legendary .mfoot{border-top-color:rgba(255,179,71,.45);background:rgba(255,179,71,.1);color:#ffb347}
+    #nftl .mc.r-legendary:hover{border-color:#ffb347;box-shadow:0 0 30px rgba(255,179,71,.35)}
+    #nftl .mc.skel{pointer-events:none;animation:nftl_pulse 1.2s ease-in-out infinite}
+    #nftl .mc.skel .mim{background:rgba(232,228,214,.05)}
+    #nftl .mc.skel .sk{display:block;background:rgba(232,228,214,.13);border-radius:2px}
+    #nftl .pager{display:flex;justify-content:space-between;align-items:center;gap:12px;padding:14px 2px 4px;font:500 9.5px 'Kode Mono',monospace;opacity:.6}
+    #nftl .pager .more{cursor:pointer;border:1px solid rgba(232,228,214,.4);border-radius:3px;padding:4px 10px;letter-spacing:.1em;transition:background .3s}
+    #nftl .pager .more:hover{background:rgba(232,228,214,.1)}
+    #nftl .pager .eof{letter-spacing:.1em;opacity:.7}
+    #nftl .feed{background:rgba(0,0,0,.28);flex:1;min-height:0;display:flex;flex-direction:column;font-family:'Kode Mono',monospace;overflow-y:auto;max-height:calc(100vh - 200px);scrollbar-width:thin;scrollbar-color:rgba(232,228,214,.35) transparent}
+    #nftl .fhead{display:flex;justify-content:space-between;align-items:baseline;padding:12px 14px 10px;border-bottom:1px solid rgba(232,228,214,.2)}
+    #nftl .fhead .ft{font:800 13px/1 'Archivo',sans-serif;letter-spacing:-.01em;text-transform:uppercase}
+    #nftl .fhead .fl{font:500 8.5px 'Kode Mono',monospace;letter-spacing:.14em;opacity:.45}
+    #nftl .fr{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:10px;align-items:center;padding:10px 14px;border-bottom:1px solid rgba(232,228,214,.16);white-space:nowrap;cursor:pointer;transition:background .3s}
+    #nftl .fr:hover{background:rgba(232,228,214,.06)}
+    #nftl .fr.fresh{background:rgba(43,213,45,.07)}
+    #nftl .fr .fn{display:flex;align-items:center;gap:9px;min-width:0;overflow:hidden}
+    #nftl .fr .fth{width:34px;height:34px;border:1px solid rgba(232,228,214,.25);object-fit:cover;flex:0 0 auto;display:block;background:#0a0a09}
+    #nftl .fr .fth.ph{font-size:9px;display:flex;align-items:center;justify-content:center;color:rgba(232,228,214,.5)}
+    #nftl .fr .fnt{font:800 12px/1.1 'Archivo',sans-serif;letter-spacing:-.01em;color:#f2efe6;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+    #nftl .fr .fna{font:500 8.5px 'Kode Mono',monospace;opacity:.6;margin-top:3px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;letter-spacing:.06em}
+    #nftl .ffoot{margin:auto 0 0;padding:9px 14px;border-top:1px solid rgba(232,228,214,.2);font:500 8.5px 'Kode Mono',monospace;letter-spacing:.12em;opacity:.45;display:flex;justify-content:space-between}
+    #nftl .fr .fna .fev{color:#2BD52D;font-weight:700;letter-spacing:.1em;margin-right:2px}
+    #nftl .fr .fna .fev.sale{color:#e0a84e}
+    #nftl .fr .fc{font-size:10px;opacity:.8;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+    #nftl .fr .fo{font-size:10px;opacity:.6;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+    #nftl .fr .fw{text-align:right;font:600 9px 'Kode Mono',monospace;letter-spacing:.08em;opacity:.55}
+    #nftl .empty{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:14px;padding:50px 0;text-align:center}
+    #nftl .empty .zen{font:400 20px 'Zen Dots',monospace;opacity:.85}
+    /* collection page */
+    #nftl #nftl_colpage{display:grid;grid-template-columns:minmax(0,1.5fr) minmax(300px,.9fr);gap:0}
+    #nftl .cleft{padding:22px 24px;border-right:1px solid rgba(232,228,214,.2);min-width:0}
+    #nftl .cright{padding:22px 24px;display:flex;flex-direction:column;gap:14px;min-width:0}
+    #nftl .cbanner{height:150px;border-bottom:1px solid rgba(232,228,214,.25);overflow:hidden;background:#0a0a09}
+    #nftl .cbanner img{width:100%;height:100%;object-fit:cover;display:block}
+    #nftl .chead{display:flex;gap:16px;align-items:flex-start;flex-wrap:wrap}
+    #nftl .ccov{position:relative;width:120px;height:120px;border:1px solid rgba(232,228,214,.4);border-radius:6px;flex:0 0 auto;overflow:hidden;background:#0a0a09}
+    #nftl .ccov img{width:100%;height:100%;object-fit:cover;display:block}
+    #nftl .ccov .none{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font:500 9.5px 'Kode Mono',monospace;color:#2BD52D;background:repeating-linear-gradient(135deg,rgba(232,228,214,.07) 0 6px,rgba(0,0,0,.25) 6px 12px)}
+    #nftl .ctitle{font:400 24px 'Zen Dots',monospace;min-width:0;word-break:break-word}
+    #nftl .itemgrid{display:grid;grid-template-columns:repeat(6,1fr);gap:8px;margin-top:10px;max-height:calc(100vh - 430px);min-height:220px;overflow-y:auto;padding:2px 6px 2px 2px;scrollbar-width:thin;scrollbar-color:rgba(232,228,214,.35) transparent}
+    #nftl .legend{display:flex;gap:12px;margin-top:10px;font:600 8.5px 'Kode Mono',monospace;letter-spacing:.12em;opacity:.8;flex-wrap:wrap}
+    #nftl .c-common{color:rgba(232,228,214,.55)}#nftl .c-rare{color:#5aa9ff}#nftl .c-epic{color:#c77dff}#nftl .c-legendary{color:#ffb347}
+    @keyframes nftl_legend{0%,100%{box-shadow:0 0 0 1px rgba(255,179,71,.45),0 0 14px rgba(255,179,71,.3)}50%{box-shadow:0 0 0 1px rgba(255,179,71,.85),0 0 26px rgba(255,179,71,.55),0 0 50px rgba(255,179,71,.2)}}
+    #nftl .it{display:block;color:inherit;min-width:0;position:relative;border:1px solid rgba(232,228,214,.15);border-radius:4px;overflow:hidden;opacity:.4;cursor:default;transition:border-color .3s,transform .25s,filter .25s,box-shadow .25s}
+    #nftl .it.rev{opacity:1;cursor:pointer;border:1.5px solid rgba(232,228,214,.55)}
+    #nftl .it.rev:hover{color:inherit;transform:translateY(-4px) scale(1.03);z-index:2;box-shadow:0 10px 24px rgba(0,0,0,.55),0 0 0 1px rgba(232,228,214,.75),0 0 22px rgba(232,228,214,.35)}
+    #nftl .it.rev.r-rare{border-color:#5aa9ff;box-shadow:0 0 0 1px rgba(90,169,255,.35),0 0 12px rgba(90,169,255,.25)}
+    #nftl .it.rev.r-epic{border-color:#c77dff;box-shadow:0 0 0 1px rgba(199,125,255,.4),0 0 14px rgba(199,125,255,.3)}
+    #nftl .it.rev.r-legendary{border-color:#ffb347;box-shadow:0 0 0 1px rgba(255,179,71,.45),0 0 16px rgba(255,179,71,.35);animation:nftl_legend 2.6s ease-in-out infinite}
+    #nftl .it.rev.fresh{border-color:#2BD52D;box-shadow:0 0 0 1px rgba(43,213,45,.4),0 0 14px rgba(43,213,45,.3);animation:none}
+    #nftl .it .im{position:relative;height:72px;overflow:hidden;background:#0a0a09}
+    #nftl .it .im img{width:100%;height:100%;object-fit:cover;display:block;filter:brightness(.82);transition:filter .25s,transform .35s}
+    #nftl .it.rev:hover .im img{filter:brightness(1.08);transform:scale(1.06)}
+    #nftl .it.fresh .im img{outline:2px solid #2BD52D;outline-offset:-2px}
+    #nftl .it .rb{position:absolute;left:4px;top:4px;font:700 7.5px 'Kode Mono',monospace;letter-spacing:.12em;text-transform:uppercase;border-radius:2px;padding:1px 4px;background:rgba(20,19,16,.9)}
+    #nftl .it .tag{position:absolute;right:4px;bottom:4px;font:600 8px 'Kode Mono',monospace;background:rgba(20,19,16,.85);border-radius:2px;padding:1px 4px;color:rgba(232,228,214,.5)}
+    #nftl .it.rev .tag{color:#e8e4d6}#nftl .it.fresh .tag{color:#2BD52D}
+    #nftl .it .if{display:flex;justify-content:space-between;gap:6px;padding:6px 8px;font:500 9px 'Kode Mono',monospace;border-top:1px solid rgba(232,228,214,.25)}
+    #nftl .it.rev .if{background:rgba(232,228,214,.06)}
+    #nftl .it .if .ow{opacity:.7;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+    #nftl .it .if .st{opacity:.4;white-space:nowrap}#nftl .it.rev .if .st{opacity:1;font-weight:700}#nftl .it.fresh .if .st{color:#2BD52D}
+    #nftl .pfocus{position:relative;display:inline-flex;align-items:baseline;gap:8px;padding:12px 24px}
+    #nftl .pfocus i{position:absolute;width:12px;height:12px;border:0 solid #e8e4d6}
+    #nftl .pfocus i:nth-child(1){left:0;top:0;border-left-width:1.5px;border-top-width:1.5px}
+    #nftl .pfocus i:nth-child(2){right:0;top:0;border-right-width:1.5px;border-top-width:1.5px}
+    #nftl .pfocus i:nth-child(3){left:0;bottom:0;border-left-width:1.5px;border-bottom-width:1.5px}
+    #nftl .pfocus i:nth-child(4){right:0;bottom:0;border-right-width:1.5px;border-bottom-width:1.5px}
+    #nftl .price{font:400 40px/1 'Zen Dots',monospace;color:#2BD52D}
+    #nftl .punit{font:400 18px 'Zen Dots',monospace;color:#2BD52D}
+    #nftl .bigbar{position:relative;border:1px solid rgba(232,228,214,.5);border-radius:4px;height:26px;overflow:hidden}
+    #nftl .bigbar.tall{height:30px}
+    #nftl .bigbar i{position:absolute;inset:0;width:0;background:repeating-linear-gradient(90deg,rgba(232,228,214,.92) 0 6px,transparent 6px 9px);display:block;transition:width .4s}
+    #nftl .bigbar > span{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;gap:8px;font:700 10px 'Kode Mono',monospace;letter-spacing:.16em;color:#fff;text-shadow:0 1px 4px rgba(0,0,0,.9)}
+    #nftl .bigbar.mint{border-color:rgba(43,213,45,.55);background:rgba(43,213,45,.06);box-shadow:inset 0 0 0 1px rgba(0,0,0,.5)}
+    #nftl .bigbar.mint i{background:repeating-linear-gradient(90deg,#2BD52D 0 6px,rgba(43,213,45,.18) 6px 9px);box-shadow:0 0 12px rgba(43,213,45,.45);transition:width .6s}
+    #nftl .bigbar.mint > span{text-shadow:0 1px 4px rgba(0,0,0,.95),0 0 8px rgba(0,0,0,.8)}
+    #nftl .bigbar.mint > span small{opacity:.75;font-size:9px}
+    /* the solid, pressable CONNECT WALLET TO MINT */
+    #nftl .btn3d{display:block;width:100%;box-sizing:border-box;padding:14px 0;font:700 11px 'Kode Mono',monospace;letter-spacing:.16em;text-align:center;cursor:pointer;background:#e8e4d6;color:#1b1a17;border:1px solid #e8e4d6;border-radius:4px;box-shadow:0 3px 0 rgba(232,228,214,.35),0 0 18px rgba(232,228,214,.18);transition:all .2s}
+    #nftl .btn3d:hover{background:#fff;color:#1b1a17;transform:translateY(-1px);box-shadow:0 4px 0 rgba(232,228,214,.45),0 0 26px rgba(232,228,214,.3)}
+    #nftl .btn3d:active{transform:translateY(2px);box-shadow:0 1px 0 rgba(232,228,214,.35)}
+    #nftl .approve{border:1px solid rgba(43,213,45,.55);border-radius:4px;text-align:center;padding:14px 0;font:700 11px 'Kode Mono',monospace;letter-spacing:.12em;color:#2BD52D;animation:nftl_pulse 1.2s ease-in-out infinite}
+    #nftl .log{font:500 10px/2.1 'Kode Mono',monospace;opacity:.75;white-space:pre-wrap;word-break:break-all}
+    #nftl .log .wait{animation:nftl_pulse 1.2s ease-in-out infinite}
+    #nftl .done{font:400 30px 'Zen Dots',monospace;color:#2BD52D}
+    #nftl .mstate{display:flex;flex-direction:column;gap:14px}
+    #nftl .mstate .acts{display:flex;gap:8px;flex-wrap:wrap;justify-content:center}
+    /* viewer + single */
+    #nftl #nftl_sgrid{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1.2fr);gap:0}
+    #nftl .vleft{padding:20px;border-right:1px solid rgba(232,228,214,.2);min-width:0}
+    #nftl .vright{padding:20px 22px;min-width:0}
+    /* asset viewer: 3-column console (identity/rarity/holder/status | image | on-chain), ported from the design */
+    #nftl #nftl_vgrid{display:grid;grid-template-columns:minmax(0,.9fr) minmax(0,1.15fr) minmax(0,1fr);gap:0;font-family:'Kode Mono',monospace}
+    #nftl #nftl_vwinbox{width:920px;max-width:100%}
+    #nftl #nftl_vwinbox.r-rare{border-color:#5aa9ff}
+    #nftl #nftl_vwinbox.r-epic{border-color:#c77dff}
+    #nftl #nftl_vwinbox.r-legendary{border-color:#ffb347;animation:nftl_legend 2.6s ease-in-out infinite}
+    #nftl .vc{padding:18px;min-width:0;display:flex;flex-direction:column;gap:14px}
+    #nftl .vcL{border-right:1px solid rgba(232,228,214,.18)}
+    #nftl .vcL>div+div{border-top:1px solid rgba(232,228,214,.18);padding-top:14px}
+    #nftl .vcC{align-items:center;justify-content:center;gap:10px;background:radial-gradient(ellipse at 50% 45%,rgba(232,228,214,.06),transparent 70%)}
+    #nftl .vcR{border-left:1px solid rgba(232,228,214,.18);gap:12px}
+    #nftl .vcR>div:last-child{margin-top:auto}
+    #nftl .vsec{font:600 8.5px 'Kode Mono',monospace;letter-spacing:.2em;opacity:.55}
+    #nftl .vname{font:700 15px/1.25 'Kode Mono',monospace;margin-top:6px;word-break:break-word}
+    #nftl .vsub2{font:500 9.5px/1.6 'Kode Mono',monospace;opacity:.6;margin-top:2px}
+    #nftl .vrar{font:700 13px/1.2 'Kode Mono',monospace;text-transform:uppercase;letter-spacing:.16em;margin-top:6px}
+    #nftl .vpips{display:flex;gap:3px;margin-top:8px}
+    #nftl .vpips span{width:18px;height:5px;background:rgba(232,228,214,.15)}
+    #nftl .vhold{font:600 11px/1.5 'Kode Mono',monospace;color:#2BD52D;margin-top:6px;word-break:break-all}
+    #nftl .vstatblk{margin-top:auto}
+    #nftl .vstat{display:grid;grid-template-columns:auto 1fr;gap:4px 10px;font:500 9.5px/1.7 'Kode Mono',monospace;margin-top:6px}
+    #nftl .vstat .k{opacity:.55}
+    #nftl .vcC #nftl_vph{width:100%;max-width:300px;aspect-ratio:1;min-height:0;border-radius:0;overflow:visible}
+    #nftl .vcC #nftl_vph img{height:100%;max-height:none;object-fit:cover}
+    #nftl #nftl_vph .br{position:absolute;width:12px;height:12px;border:0 solid #e8e4d6;z-index:2}
+    #nftl #nftl_vph .br.tl{left:-1px;top:-1px;border-left-width:2px;border-top-width:2px}
+    #nftl #nftl_vph .br.tr{right:-1px;top:-1px;border-right-width:2px;border-top-width:2px}
+    #nftl #nftl_vph .br.bl{left:-1px;bottom:-1px;border-left-width:2px;border-bottom-width:2px}
+    #nftl #nftl_vph .br.rb{right:-1px;bottom:-1px;border-right-width:2px;border-bottom-width:2px}
+    #nftl #nftl_vph.r-rare .br{border-color:#5aa9ff}#nftl #nftl_vph.r-epic .br{border-color:#c77dff}#nftl #nftl_vph.r-legendary .br{border-color:#ffb347}
+    #nftl .vcap2{font:500 8.5px/1.5 'Kode Mono',monospace;opacity:.5;letter-spacing:.06em;text-align:center;max-width:300px;word-break:break-all}
+    #nftl .vacct{display:grid;grid-template-columns:auto 1fr;gap:5px 10px;font:500 9.5px/1.6 'Kode Mono',monospace;margin-top:8px;word-break:break-all}
+    #nftl .vacct .k{opacity:.55}
+    #nftl .vacct .kvlink{color:#2BD52D;text-decoration:none;border-bottom:1px dotted rgba(43,213,45,.5);cursor:pointer}
+    #nftl .vacct .kvlink:hover{color:#7dff7f}
+    #nftl .vbtns{display:grid;grid-template-columns:1fr 1fr;gap:6px}
+    #nftl .vbtns>*{padding:8px 6px!important;border-radius:0;text-align:center;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+    #nftl .vimg{position:relative;min-height:240px;border:1px solid rgba(232,228,214,.4);border-radius:6px;overflow:hidden;background:#0a0a09}
+    #nftl .vimg.r-rare{border:1.5px solid #5aa9ff;box-shadow:0 0 0 1px rgba(90,169,255,.35),0 0 12px rgba(90,169,255,.25)}
+    #nftl .vimg.r-epic{border:1.5px solid #c77dff;box-shadow:0 0 0 1px rgba(199,125,255,.4),0 0 14px rgba(199,125,255,.3)}
+    #nftl .vimg.r-legendary{border:1.5px solid #ffb347;box-shadow:0 0 0 1px rgba(255,179,71,.45),0 0 16px rgba(255,179,71,.35);animation:nftl_legend 2.6s ease-in-out infinite}
+    #nftl .win.r-legendary{border-color:#ffb347;animation:nftl_legend 2.6s ease-in-out infinite}
+    #nftl .rchip{border:1px solid currentColor;border-radius:3px;padding:1px 7px;font:700 9px 'Kode Mono',monospace;letter-spacing:.14em;text-transform:uppercase;margin-left:10px}
+    #nftl .vimg img{width:100%;height:auto;max-height:70vh;object-fit:contain;display:block}
+    #nftl .vimg .wait{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font:500 11px 'Kode Mono',monospace;color:#2BD52D;background:repeating-linear-gradient(135deg,rgba(232,228,214,.07) 0 6px,rgba(0,0,0,.25) 6px 12px);text-align:center;padding:0 16px}
+    #nftl .vimg .cap{position:absolute;left:0;right:0;bottom:0;padding:6px 10px;font:500 8.5px/1.5 'Kode Mono',monospace;background:rgba(20,19,16,.85);color:#2BD52D}
+    #nftl .vimg pre{position:absolute;inset:0;margin:0;padding:10px;overflow:auto;font:500 9px/1.5 'Kode Mono',monospace;color:#bfe8cf;background:rgba(0,0,0,.6);white-space:pre-wrap;word-break:break-all;text-align:left}
+    #nftl pre.meta{margin:12px 0 0;padding:10px;max-height:180px;overflow:auto;font:500 9px/1.5 'Kode Mono',monospace;color:#bfe8cf;background:rgba(0,0,0,.35);border:1px solid rgba(232,228,214,.25);border-radius:5px;white-space:pre-wrap;word-break:break-all}
+    #nftl .steps{font:500 9.5px/1.9 'Kode Mono',monospace;opacity:.7;margin-top:6px}
+    /* Viewer overlays sit above the site navigation (z-index:100); metadata stays above the viewer. */
+    #nftl #nftl_viewer{position:fixed;inset:0;z-index:101;background:rgba(4,6,4,.72);backdrop-filter:blur(4px);-webkit-backdrop-filter:blur(4px);display:none;align-items:flex-start;justify-content:center;padding:24px;overflow:auto}
+    #nftl #nftl_viewer.open{display:flex}
+    #nftl #nftl_vwinbox{width:760px;max-width:100%;margin-block:auto;background:rgba(20,19,16,.97)}
+    #nftl .wh .xclose{margin-left:auto;cursor:pointer;opacity:.7;font:500 10px 'Kode Mono',monospace;letter-spacing:.14em;transition:opacity .3s}
+    #nftl .wh .xclose:hover{opacity:1}
+    /* clickable C / M value rows -> raw tx on solscan */
+    #nftl a.kvv.kvlink{cursor:pointer;text-decoration:none;border-bottom:1px dotted rgba(43,213,45,.5);transition:color .3s,border-color .3s}
+    #nftl a.kvv.kvlink:hover{color:#7dff7f;border-color:#7dff7f}
+    /* metadata json popup (nested over the viewer) */
+    #nftl #nftl_metapop{position:fixed;inset:0;z-index:102;background:rgba(4,6,4,.8);backdrop-filter:blur(4px);-webkit-backdrop-filter:blur(4px);display:none;align-items:flex-start;justify-content:center;padding:24px;overflow:auto}
+    #nftl #nftl_metapop.open{display:flex}
+    #nftl #nftl_metabox{width:640px;max-width:100%;margin-block:auto;background:rgba(20,19,16,.98)}
+    /* sealed tile (design: the locked cell): a dark box with a bold "?", the art
+       itself is never loaded */
+    #nftl .q{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;background:#141310;font:700 30px 'Kode Mono',monospace;color:rgba(232,228,214,.75);text-shadow:0 2px 0 #000,0 0 10px rgba(0,0,0,.8)}
+    #nftl .q.lg{font-size:44px}
+    @container (max-width:1100px){#nftl #nftl_nav_mid{display:none}}
+    @container (max-width:980px){#nftl #nftl_desk{flex-direction:column}#nftl #nftl_mw{flex:none}#nftl .colscroll{max-height:none}#nftl .feed{max-height:none}#nftl #nftl_colpage,#nftl #nftl_vgrid,#nftl #nftl_sgrid{grid-template-columns:1fr}#nftl .cleft,#nftl .vleft{border-right:none;border-bottom:1px solid rgba(232,228,214,.2)}#nftl .vcL{border-right:none;border-bottom:1px solid rgba(232,228,214,.18)}#nftl .vcR{border-left:none;border-top:1px solid rgba(232,228,214,.18)}#nftl .itemgrid{grid-template-columns:repeat(4,1fr)}}
+    @container (max-width:720px){#nftl .colgrid{grid-template-columns:repeat(2,1fr)}}
+    @container (max-width:560px){#nftl .colgrid{grid-template-columns:1fr}#nftl .itemgrid{grid-template-columns:repeat(3,1fr)}#nftl .nav .logo{display:none}#nftl .nav,#nftl #nftl_view>.win>.wh{flex-wrap:wrap}#nftl .chead{flex-direction:column}#nftl .chead>div:last-child{width:100%}}
+    /* ===== phone (<=560px, container query: fires in the 430px preview frame and on real phones) ===== */
+    @container (max-width:560px){
+      #nftl{padding:10px 10px 20px}
+      #nftl .nav{padding:8px 10px;border-radius:6px}
+      #nftl .wh{padding:10px 12px}
+      #nftl .wh>span[style*="margin-left:auto"]{display:none}
+      #nftl .lpbody{padding:14px 12px 16px}
+      #nftl .seg.lab>div{flex:1;padding:11px 0;font-size:10.5px}
+      #nftl #nftl_tabs{width:100%;display:grid;grid-template-columns:1fr 1fr 1fr;gap:6px}
+      #nftl .tab{padding:11px 6px;text-align:center;font-size:10.5px}
+      #nftl #nftl_tabs+a.btn{width:100%;box-sizing:border-box;padding:13px 0;font-size:11px}
+      #nftl #nftl_desk_cap{display:none}
+      #nftl .colscroll{padding:4px 0 0;margin:0;max-height:none;overflow:visible}
+      #nftl .colgrid{grid-template-columns:1fr;gap:12px}
+      #nftl .card{padding:12px}
+      #nftl .card .cn{font-size:16px}
+      #nftl .card .cdesc{font-size:12px;line-height:1.5;min-height:0}
+      #nftl .card .st .v{font-size:13px}
+      #nftl .card:hover{transform:none}
+      #nftl .flick:hover{animation:none}
+      #nftl .pager{font-size:10.5px;gap:10px}
+      #nftl .pager .more{padding:10px 14px;font-size:11px}
+      #nftl .lpbody>.cm,#nftl #nftl_cols>.cm{font-size:10px;line-height:1.6}
+      #nftl #nftl_desk{gap:12px}
+      #nftl #nftl_mw{display:none}
+      #nftl #nftl_mw .feed{max-height:none}
+      #nftl #nftl_mw .fhead{cursor:pointer;padding:13px 14px;align-items:center}
+      #nftl #nftl_mw .fhead .ft{font-size:14px}
+      #nftl #nftl_mw .fhead .fl::after{content:' · TAP TO OPEN';opacity:.8}
+      #nftl #nftl_mw.open .fhead .fl::after{content:' · CLOSE'}
+      #nftl #nftl_mw #nftl_minted_rows,#nftl #nftl_mw .ffoot{display:none}
+      #nftl #nftl_mw.open #nftl_minted_rows{display:block;max-height:60vh;overflow-y:auto}
+      #nftl #nftl_mw.open .ffoot{display:flex}
+      #nftl .fr{padding:13px 14px;font-size:11.5px;white-space:normal}
+      #nftl .ffoot{font-size:9.5px}
+      #nftl .itemgrid{grid-template-columns:repeat(3,1fr);gap:8px;max-height:none}
+      #nftl .mkgrid{grid-template-columns:repeat(2,1fr);gap:8px}
+      #nftl .mkscope{width:100%}#nftl .mkscope div{flex:1;text-align:center;padding:10px 0}
+      #nftl .mksort{width:100%}#nftl .mksort div{flex:1;text-align:center;padding:9px 0}
+      #nftl .mkstats{gap:6px}#nftl .mkstats div{padding:8px 9px}#nftl .mkstats span{font-size:8.5px}
+      #nftl_launch{padding:14px 10px}#nftl_launch .lbody{padding:16px 14px 18px}
+      #nftl_launch .lwhy{grid-template-columns:1fr}#nftl_launch .lsteps div{font-size:8.5px}
+      #nftl_launch .ltabs div{flex:1;text-align:center;padding:10px 6px}
+      #nftl_launch .lgen{grid-template-columns:1fr}#nftl_launch .lgen .inp{width:100%!important}
+      #nftl_launch .lhand{grid-template-columns:repeat(3,1fr)}
+      #nftl_launch .lthumb{width:110px}
+      #nftl_launch .lgrid9{grid-template-columns:repeat(5,1fr)}
+      #nftl_launch .lfiles{grid-template-columns:repeat(4,1fr)}
+      #nftl_layerpop .ltraits{grid-template-columns:repeat(4,1fr)}
+      #nftl_layerpop .lfoot>span{flex:1;text-align:center}
+      #nftl_launch .lfoot>div{width:100%}#nftl_launch .lfoot>div>*{flex:1;text-align:center}
+      #nftl .btn,#nftl .btn2,#nftl .btng{padding:12px 16px;font-size:11px}
+      #nftl .whback{padding:6px 10px;font-size:10px}
+      #nftl .ctitle{font-size:20px}
+      #nftl #nftl_vwinbox{width:100%}
+    }
+  
+</style>
+</head>
+<body>
+<section id="nftl">
+
+  <!-- nav: same bar as the design's sticky header -->
+  <div class="nav">
+    <div style="display:flex;align-items:center;gap:14px;min-width:0">
+      <a id="nftl_navback" href="Home.dc.html" class="lab btn2" style="padding:7px 12px">← HOME</a>
+      <img src="img/text_logo.webp" alt="IQLabs" class="logo">
+    </div>
+    <div id="nftl_nav_mid" class="lab" style="white-space:nowrap;letter-spacing:.22em;opacity:.45"></div>
+    <div style="display:flex;align-items:center;gap:8px">
+      <div id="nftl_who" class="lab pill" style="display:none"><i></i><span></span></div>
+      <button id="nftl_hconnect" class="btn" type="button" style="padding:8px 14px">CONNECT WALLET</button>
+    </div>
+  </div>
+
+  <div id="nftl_loading" class="cm" style="padding: 40px; text-align: center; display: none;">loading...</div>
+
+  <!-- ===== HOME: launchpad.exe + minted.exe ===== -->
+  <div id="nftl_home" style="">
+    <div id="nftl_desk">
+      <div class="win" id="nftl_lp">
+        <div class="wh"><span class="dr"></span><span class="da"></span><span class="dg"></span>
+          <span style="margin-left:6px;opacity:.8">launchpad.exe</span>
+          <span style="margin-left:auto;opacity:.5;font-size:9px">inscription nft · gateway.iqlabs.dev</span></div>
+        <div class="lpbody">
+          <div class="seg lab" id="nftl_chains"><div class="on" data-chain="all">ALL</div><div data-chain="solana">◎ SOL</div><div class="soon" data-chain="rh" title="coming soon">▲ RH<small>SOON</small></div></div>
+          <div style="display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap">
+            <div class="lab" id="nftl_tabs"><div class="tab on" data-tab="cols">COLLECTIONS</div><div class="tab" data-tab="market">MARKET</div><div class="tab" data-tab="mine">MY NFTS</div></div>
+            <a href="#" id="nftl_launchbtn" class="btn">+ LAUNCH A COLLECTION</a>
+          </div>
+          <p class="cm" id="nftl_desk_cap" style="margin:12px 0 14px">// collections launched from this board. each one = a core collection + N inscriptions. pick one, mint one.</p>
+          <div id="nftl_cols" style="flex:1;min-height:0;display:flex;flex-direction:column">
+            <div class="colscroll" id="nftl_colscroll">
+              <div id="nftl_colgrid" class="colgrid"><a class="card flick" href="?menu=nft&amp;nft=miladytest"><div class="cov"><img alt="" loading="lazy" src="img/cov1.png"></div><div class="cn">milady_test</div><div class="segwrap"><div class="segs"><span style="background: rgba(232, 228, 214, 0.1);"></span><span style="background: rgba(232, 228, 214, 0.1);"></span><span style="background: rgba(232, 228, 214, 0.1);"></span><span style="background: rgba(232, 228, 214, 0.1);"></span><span style="background: rgba(232, 228, 214, 0.1);"></span><span style="background: rgba(232, 228, 214, 0.1);"></span><span style="background: rgba(232, 228, 214, 0.1);"></span><span style="background: rgba(232, 228, 214, 0.1);"></span><span style="background: rgba(232, 228, 214, 0.1);"></span><span style="background: rgba(232, 228, 214, 0.1);"></span><span style="background: rgba(232, 228, 214, 0.1);"></span><span style="background: rgba(232, 228, 214, 0.1);"></span><span style="background: rgba(232, 228, 214, 0.1);"></span><span style="background: rgba(232, 228, 214, 0.1);"></span><span style="background: rgba(232, 228, 214, 0.1);"></span><span style="background: rgba(232, 228, 214, 0.1);"></span><span style="background: rgba(232, 228, 214, 0.1);"></span><span style="background: rgba(232, 228, 214, 0.1);"></span><span style="background: rgba(232, 228, 214, 0.1);"></span><span style="background: rgba(232, 228, 214, 0.1);"></span><span style="background: rgba(232, 228, 214, 0.1);"></span><span style="background: rgba(232, 228, 214, 0.1);"></span><span style="background: rgba(232, 228, 214, 0.1);"></span><span style="background: rgba(232, 228, 214, 0.1);"></span><span style="background: rgba(232, 228, 214, 0.1);"></span><span style="background: rgba(232, 228, 214, 0.1);"></span><span style="background: rgba(232, 228, 214, 0.1);"></span><span style="background: rgba(232, 228, 214, 0.1);"></span><span style="background: rgba(232, 228, 214, 0.1);"></span><span style="background: rgba(232, 228, 214, 0.1);"></span><span style="background: rgba(232, 228, 214, 0.1);"></span><span style="background: rgba(232, 228, 214, 0.1);"></span><span style="background: rgba(232, 228, 214, 0.1);"></span><span style="background: rgba(232, 228, 214, 0.1);"></span><span style="background: rgba(232, 228, 214, 0.1);"></span><span style="background: rgba(232, 228, 214, 0.1);"></span><span style="background: rgba(232, 228, 214, 0.1);"></span><span style="background: rgba(232, 228, 214, 0.1);"></span><span style="background: rgba(232, 228, 214, 0.1);"></span><span style="background: rgba(232, 228, 214, 0.1);"></span></div><div class="segl">1 / 100</div></div><p class="cdesc">milady</p><div class="stats"><div class="st"><div class="k">OWNERS</div><div class="vrow"><span class="v">1</span></div></div><div class="st"><div class="k">VOLUME</div><div class="vrow"><span class="v">-</span></div></div></div><div class="chainline"><span class="cadr">◎ SOLANA · MPL CORE · 7SZ4...1cpB</span><span class="hot">▲ HOT</span></div><div class="band"><div class="bfill"></div><div class="btext"><span class="bprice">0.01 SOL</span><span class="bcta">MINT <span class="barr">→</span></span></div></div></a><a class="card flick" href="?menu=nft&amp;nft=eeeeeeee"><div class="cov"><img alt="" loading="lazy" src="img/cov2.png"></div><div class="cn">test2</div><div class="segwrap"><div class="segs"><span class="on" data-c="#f2d94e" style="background: rgb(242, 217, 78); transition-delay: 0ms;"></span><span class="on" data-c="#f2d94e" style="background: rgb(242, 217, 78); transition-delay: 24ms;"></span><span class="on" data-c="#f2d94e" style="background: rgb(242, 217, 78); transition-delay: 48ms;"></span><span class="on" data-c="#f2d94e" style="background: rgb(242, 217, 78); transition-delay: 72ms;"></span><span class="on" data-c="#f2d94e" style="background: rgb(242, 217, 78); transition-delay: 96ms;"></span><span class="on" data-c="#f2d94e" style="background: rgb(242, 217, 78); transition-delay: 120ms;"></span><span class="on" data-c="#f2d94e" style="background: rgb(242, 217, 78); transition-delay: 144ms;"></span><span class="on" data-c="#f2d94e" style="background: rgb(242, 217, 78); transition-delay: 168ms;"></span><span style="background: rgba(232, 228, 214, 0.1);"></span><span style="background: rgba(232, 228, 214, 0.1);"></span><span style="background: rgba(232, 228, 214, 0.1);"></span><span style="background: rgba(232, 228, 214, 0.1);"></span><span style="background: rgba(232, 228, 214, 0.1);"></span><span style="background: rgba(232, 228, 214, 0.1);"></span><span style="background: rgba(232, 228, 214, 0.1);"></span><span style="background: rgba(232, 228, 214, 0.1);"></span><span style="background: rgba(232, 228, 214, 0.1);"></span><span style="background: rgba(232, 228, 214, 0.1);"></span><span style="background: rgba(232, 228, 214, 0.1);"></span><span style="background: rgba(232, 228, 214, 0.1);"></span><span style="background: rgba(232, 228, 214, 0.1);"></span><span style="background: rgba(232, 228, 214, 0.1);"></span><span style="background: rgba(232, 228, 214, 0.1);"></span><span style="background: rgba(232, 228, 214, 0.1);"></span><span style="background: rgba(232, 228, 214, 0.1);"></span><span style="background: rgba(232, 228, 214, 0.1);"></span><span style="background: rgba(232, 228, 214, 0.1);"></span><span style="background: rgba(232, 228, 214, 0.1);"></span><span style="background: rgba(232, 228, 214, 0.1);"></span><span style="background: rgba(232, 228, 214, 0.1);"></span><span style="background: rgba(232, 228, 214, 0.1);"></span><span style="background: rgba(232, 228, 214, 0.1);"></span><span style="background: rgba(232, 228, 214, 0.1);"></span><span style="background: rgba(232, 228, 214, 0.1);"></span><span style="background: rgba(232, 228, 214, 0.1);"></span><span style="background: rgba(232, 228, 214, 0.1);"></span><span style="background: rgba(232, 228, 214, 0.1);"></span><span style="background: rgba(232, 228, 214, 0.1);"></span><span style="background: rgba(232, 228, 214, 0.1);"></span><span style="background: rgba(232, 228, 214, 0.1);"></span></div><div class="segl">2 / 10</div></div><p class="cdesc">yo</p><div class="stats"><div class="st"><div class="k">OWNERS</div><div class="vrow"><span class="v">1</span></div></div><div class="st"><div class="k">VOLUME</div><div class="vrow"><span class="v">-</span></div></div></div><div class="chainline"><span class="cadr">◎ SOLANA · MPL CORE · FGoM...NB3q</span><span class="hot">▲ HOT</span></div><div class="band"><div class="bfill"></div><div class="btext"><span class="bprice">0.01 SOL</span><span class="bcta">MINT <span class="barr">→</span></span></div></div></a><a class="card flick" href="?menu=nft&amp;nft=testdevvvnet"><div class="cov"><img alt="" loading="lazy" src="img/cov3.png"></div><div class="cn">testing</div><div class="segwrap"><div class="segs"><span class="on" data-c="#f2d94e" style="background: rgb(242, 217, 78); transition-delay: 0ms;"></span><span class="on" data-c="#f2d94e" style="background: rgb(242, 217, 78); transition-delay: 24ms;"></span><span class="on" data-c="#f2d94e" style="background: rgb(242, 217, 78); transition-delay: 48ms;"></span><span class="on" data-c="#f2d94e" style="background: rgb(242, 217, 78); transition-delay: 72ms;"></span><span class="on" data-c="#f2d94e" style="background: rgb(242, 217, 78); transition-delay: 96ms;"></span><span class="on" data-c="#f2d94e" style="background: rgb(242, 217, 78); transition-delay: 120ms;"></span><span class="on" data-c="#f2d94e" style="background: rgb(242, 217, 78); transition-delay: 144ms;"></span><span class="on" data-c="#f2d94e" style="background: rgb(242, 217, 78); transition-delay: 168ms;"></span><span class="on" data-c="#f2d94e" style="background: rgb(242, 217, 78); transition-delay: 192ms;"></span><span class="on" data-c="#f2d94e" style="background: rgb(242, 217, 78); transition-delay: 216ms;"></span><span class="on" data-c="#f2d94e" style="background: rgb(242, 217, 78); transition-delay: 240ms;"></span><span class="on" data-c="#f2d94e" style="background: rgb(242, 217, 78); transition-delay: 264ms;"></span><span class="on" data-c="#f2d94e" style="background: rgb(242, 217, 78); transition-delay: 288ms;"></span><span class="on" data-c="#f2d94e" style="background: rgb(242, 217, 78); transition-delay: 312ms;"></span><span class="on" data-c="#f2d94e" style="background: rgb(242, 217, 78); transition-delay: 336ms;"></span><span class="on" data-c="#f2d94e" style="background: rgb(242, 217, 78); transition-delay: 360ms;"></span><span class="on" data-c="#f2d94e" style="background: rgb(242, 217, 78); transition-delay: 384ms;"></span><span class="on" data-c="#f2d94e" style="background: rgb(242, 217, 78); transition-delay: 408ms;"></span><span class="on" data-c="#f2d94e" style="background: rgb(242, 217, 78); transition-delay: 432ms;"></span><span class="on" data-c="#f2d94e" style="background: rgb(242, 217, 78); transition-delay: 456ms;"></span><span class="on" data-c="#f2d94e" style="background: rgb(242, 217, 78); transition-delay: 480ms;"></span><span class="on" data-c="#f2d94e" style="background: rgb(242, 217, 78); transition-delay: 504ms;"></span><span class="on" data-c="#f2d94e" style="background: rgb(242, 217, 78); transition-delay: 528ms;"></span><span class="on" data-c="#f2d94e" style="background: rgb(242, 217, 78); transition-delay: 552ms;"></span><span style="background: rgba(232, 228, 214, 0.1);"></span><span style="background: rgba(232, 228, 214, 0.1);"></span><span style="background: rgba(232, 228, 214, 0.1);"></span><span style="background: rgba(232, 228, 214, 0.1);"></span><span style="background: rgba(232, 228, 214, 0.1);"></span><span style="background: rgba(232, 228, 214, 0.1);"></span><span style="background: rgba(232, 228, 214, 0.1);"></span><span style="background: rgba(232, 228, 214, 0.1);"></span><span style="background: rgba(232, 228, 214, 0.1);"></span><span style="background: rgba(232, 228, 214, 0.1);"></span><span style="background: rgba(232, 228, 214, 0.1);"></span><span style="background: rgba(232, 228, 214, 0.1);"></span><span style="background: rgba(232, 228, 214, 0.1);"></span><span style="background: rgba(232, 228, 214, 0.1);"></span><span style="background: rgba(232, 228, 214, 0.1);"></span><span style="background: rgba(232, 228, 214, 0.1);"></span></div><div class="segl">6 / 10</div></div><p class="cdesc">test</p><div class="stats"><div class="st"><div class="k">OWNERS</div><div class="vrow"><span class="v">1</span></div></div><div class="st"><div class="k">VOLUME</div><div class="vrow"><span class="v">-</span></div></div></div><div class="chainline"><span class="cadr">◎ SOLANA · MPL CORE · BLsp...Egew</span><span class="hot">▲ HOT</span></div><div class="band"><div class="bfill"></div><div class="btext"><span class="bprice">0.01 SOL</span><span class="bcta">MINT <span class="barr">→</span></span></div></div></a><a class="card flick" href="?menu=nft&amp;nft=brand-d8fb9f"><div class="cov"><img alt="" loading="lazy" src="img/cov4.png"></div><div class="cn">Brand Test</div><div class="segwrap"><div class="segs"><span style="background: rgba(232, 228, 214, 0.1);"></span><span style="background: rgba(232, 228, 214, 0.1);"></span><span style="background: rgba(232, 228, 214, 0.1);"></span><span style="background: rgba(232, 228, 214, 0.1);"></span><span style="background: rgba(232, 228, 214, 0.1);"></span><span style="background: rgba(232, 228, 214, 0.1);"></span><span style="background: rgba(232, 228, 214, 0.1);"></span><span style="background: rgba(232, 228, 214, 0.1);"></span><span style="background: rgba(232, 228, 214, 0.1);"></span><span style="background: rgba(232, 228, 214, 0.1);"></span><span style="background: rgba(232, 228, 214, 0.1);"></span><span style="background: rgba(232, 228, 214, 0.1);"></span><span style="background: rgba(232, 228, 214, 0.1);"></span><span style="background: rgba(232, 228, 214, 0.1);"></span><span style="background: rgba(232, 228, 214, 0.1);"></span><span style="background: rgba(232, 228, 214, 0.1);"></span><span style="background: rgba(232, 228, 214, 0.1);"></span><span style="background: rgba(232, 228, 214, 0.1);"></span><span style="background: rgba(232, 228, 214, 0.1);"></span><span style="background: rgba(232, 228, 214, 0.1);"></span><span style="background: rgba(232, 228, 214, 0.1);"></span><span style="background: rgba(232, 228, 214, 0.1);"></span><span style="background: rgba(232, 228, 214, 0.1);"></span><span style="background: rgba(232, 228, 214, 0.1);"></span><span style="background: rgba(232, 228, 214, 0.1);"></span><span style="background: rgba(232, 228, 214, 0.1);"></span><span style="background: rgba(232, 228, 214, 0.1);"></span><span style="background: rgba(232, 228, 214, 0.1);"></span><span style="background: rgba(232, 228, 214, 0.1);"></span><span style="background: rgba(232, 228, 214, 0.1);"></span><span style="background: rgba(232, 228, 214, 0.1);"></span><span style="background: rgba(232, 228, 214, 0.1);"></span><span style="background: rgba(232, 228, 214, 0.1);"></span><span style="background: rgba(232, 228, 214, 0.1);"></span><span style="background: rgba(232, 228, 214, 0.1);"></span><span style="background: rgba(232, 228, 214, 0.1);"></span><span style="background: rgba(232, 228, 214, 0.1);"></span><span style="background: rgba(232, 228, 214, 0.1);"></span><span style="background: rgba(232, 228, 214, 0.1);"></span><span style="background: rgba(232, 228, 214, 0.1);"></span></div><div class="segl">0 / 2</div></div><p class="cdesc">2 items, each inscribed on solana before mint.</p><div class="stats"><div class="st"><div class="k">OWNERS</div><div class="vrow"><span class="v">0</span></div></div><div class="st"><div class="k">VOLUME</div><div class="vrow"><span class="v">-</span></div></div></div><div class="chainline"><span class="cadr">◎ SOLANA · MPL CORE · GhPS...43fE</span></div><div class="band"><div class="bfill"></div><div class="btext"><span class="bprice">0.01 SOL</span><span class="bcta">MINT <span class="barr">→</span></span></div></div></a><a class="card flick" href="?menu=nft&amp;nft=studio-83799a"><div class="cov"><div class="q lg">?</div></div><div class="cn">Studio Test</div><div class="segwrap"><div class="segs"><span style="background: rgba(232, 228, 214, 0.1);"></span><span style="background: rgba(232, 228, 214, 0.1);"></span><span style="background: rgba(232, 228, 214, 0.1);"></span><span style="background: rgba(232, 228, 214, 0.1);"></span><span style="background: rgba(232, 228, 214, 0.1);"></span><span style="background: rgba(232, 228, 214, 0.1);"></span><span style="background: rgba(232, 228, 214, 0.1);"></span><span style="background: rgba(232, 228, 214, 0.1);"></span><span style="background: rgba(232, 228, 214, 0.1);"></span><span style="background: rgba(232, 228, 214, 0.1);"></span><span style="background: rgba(232, 228, 214, 0.1);"></span><span style="background: rgba(232, 228, 214, 0.1);"></span><span style="background: rgba(232, 228, 214, 0.1);"></span><span style="background: rgba(232, 228, 214, 0.1);"></span><span style="background: rgba(232, 228, 214, 0.1);"></span><span style="background: rgba(232, 228, 214, 0.1);"></span><span style="background: rgba(232, 228, 214, 0.1);"></span><span style="background: rgba(232, 228, 214, 0.1);"></span><span style="background: rgba(232, 228, 214, 0.1);"></span><span style="background: rgba(232, 228, 214, 0.1);"></span><span style="background: rgba(232, 228, 214, 0.1);"></span><span style="background: rgba(232, 228, 214, 0.1);"></span><span style="background: rgba(232, 228, 214, 0.1);"></span><span style="background: rgba(232, 228, 214, 0.1);"></span><span style="background: rgba(232, 228, 214, 0.1);"></span><span style="background: rgba(232, 228, 214, 0.1);"></span><span style="background: rgba(232, 228, 214, 0.1);"></span><span style="background: rgba(232, 228, 214, 0.1);"></span><span style="background: rgba(232, 228, 214, 0.1);"></span><span style="background: rgba(232, 228, 214, 0.1);"></span><span style="background: rgba(232, 228, 214, 0.1);"></span><span style="background: rgba(232, 228, 214, 0.1);"></span><span style="background: rgba(232, 228, 214, 0.1);"></span><span style="background: rgba(232, 228, 214, 0.1);"></span><span style="background: rgba(232, 228, 214, 0.1);"></span><span style="background: rgba(232, 228, 214, 0.1);"></span><span style="background: rgba(232, 228, 214, 0.1);"></span><span style="background: rgba(232, 228, 214, 0.1);"></span><span style="background: rgba(232, 228, 214, 0.1);"></span><span style="background: rgba(232, 228, 214, 0.1);"></span></div><div class="segl">0 / 2</div></div><p class="cdesc">headless e2e</p><div class="stats"><div class="st"><div class="k">OWNERS</div><div class="vrow"><span class="v">0</span></div></div><div class="st"><div class="k">VOLUME</div><div class="vrow"><span class="v">-</span></div></div></div><div class="chainline"><span class="cadr">◎ SOLANA · MPL CORE · AP4A...REaz</span></div><div class="band"><div class="bfill"></div><div class="btext"><span class="bprice">0.01 SOL</span><span class="bcta">MINT <span class="barr">→</span></span></div></div></a><a class="card flick" href="?menu=nft&amp;nft=rules-5b4521"><div class="cov"><img alt="" loading="lazy" src="img/cov5.png"></div><div class="cn">Rules</div><div class="segwrap"><div class="segs"><span class="on" data-c="rgba(232,228,214,.85)" style="background: rgba(232, 228, 214, 0.85); transition-delay: 0ms;"></span><span class="on" data-c="rgba(232,228,214,.85)" style="background: rgba(232, 228, 214, 0.85); transition-delay: 24ms;"></span><span class="on" data-c="rgba(232,228,214,.85)" style="background: rgba(232, 228, 214, 0.85); transition-delay: 48ms;"></span><span class="on" data-c="rgba(232,228,214,.85)" style="background: rgba(232, 228, 214, 0.85); transition-delay: 72ms;"></span><span class="on" data-c="rgba(232,228,214,.85)" style="background: rgba(232, 228, 214, 0.85); transition-delay: 96ms;"></span><span class="on" data-c="rgba(232,228,214,.85)" style="background: rgba(232, 228, 214, 0.85); transition-delay: 120ms;"></span><span class="on" data-c="rgba(232,228,214,.85)" style="background: rgba(232, 228, 214, 0.85); transition-delay: 144ms;"></span><span style="background: rgba(232, 228, 214, 0.1);"></span><span style="background: rgba(232, 228, 214, 0.1);"></span><span style="background: rgba(232, 228, 214, 0.1);"></span><span style="background: rgba(232, 228, 214, 0.1);"></span><span style="background: rgba(232, 228, 214, 0.1);"></span><span style="background: rgba(232, 228, 214, 0.1);"></span><span style="background: rgba(232, 228, 214, 0.1);"></span><span style="background: rgba(232, 228, 214, 0.1);"></span><span style="background: rgba(232, 228, 214, 0.1);"></span><span style="background: rgba(232, 228, 214, 0.1);"></span><span style="background: rgba(232, 228, 214, 0.1);"></span><span style="background: rgba(232, 228, 214, 0.1);"></span><span style="background: rgba(232, 228, 214, 0.1);"></span><span style="background: rgba(232, 228, 214, 0.1);"></span><span style="background: rgba(232, 228, 214, 0.1);"></span><span style="background: rgba(232, 228, 214, 0.1);"></span><span style="background: rgba(232, 228, 214, 0.1);"></span><span style="background: rgba(232, 228, 214, 0.1);"></span><span style="background: rgba(232, 228, 214, 0.1);"></span><span style="background: rgba(232, 228, 214, 0.1);"></span><span style="background: rgba(232, 228, 214, 0.1);"></span><span style="background: rgba(232, 228, 214, 0.1);"></span><span style="background: rgba(232, 228, 214, 0.1);"></span><span style="background: rgba(232, 228, 214, 0.1);"></span><span style="background: rgba(232, 228, 214, 0.1);"></span><span style="background: rgba(232, 228, 214, 0.1);"></span><span style="background: rgba(232, 228, 214, 0.1);"></span><span style="background: rgba(232, 228, 214, 0.1);"></span><span style="background: rgba(232, 228, 214, 0.1);"></span><span style="background: rgba(232, 228, 214, 0.1);"></span><span style="background: rgba(232, 228, 214, 0.1);"></span><span style="background: rgba(232, 228, 214, 0.1);"></span><span style="background: rgba(232, 228, 214, 0.1);"></span></div><div class="segl">1 / 6</div></div><p class="cdesc">6 items, each inscribed on solana before mint.</p><div class="stats"><div class="st"><div class="k">OWNERS</div><div class="vrow"><span class="v">1</span></div></div><div class="st"><div class="k">VOLUME</div><div class="vrow"><span class="v">-</span></div></div></div><div class="chainline"><span class="cadr">◎ SOLANA · MPL CORE · FPpQ...YRws</span></div><div class="band"><div class="bfill"></div><div class="btext"><span class="bprice">0.003 SOL</span><span class="bcta">MINT <span class="barr">→</span></span></div></div></a></div>
+              <div class="pager" id="nftl_pager"><span>// page 1 / 2 · showing 6 of 8</span><span class="more">LOAD MORE ↓</span></div>
+            </div>
+            <p class="cm" style="margin:12px 0 0">// every item is inscribed at mint: image + metadata json live on solana, the gateway only caches. sorted by latest mint. scroll = next page from the registry (6 per page).</p>
+          </div>
+          <div id="nftl_market" style="display:none;flex:1;min-height:0;flex-direction:column"></div>
+          <div id="nftl_mine" style="display:none;flex:1;min-height:0;flex-direction:column"></div>
+        </div>
+      </div>
+      <div class="win" id="nftl_mw">
+        <div class="wh"><span class="dr"></span><span class="da"></span><span class="dg"></span>
+          <span style="margin-left:6px;opacity:.8">minted.exe</span>
+          <span style="margin-left:auto;opacity:.5;font-size:9px">live · newest first</span></div>
+        <div class="feed">
+          <div class="fhead"><span class="ft">Recent mints</span><span class="fl">LIVE</span></div>
+          <div id="nftl_minted_rows"></div>
+          <div class="ffoot"><span>ALL COLLECTIONS</span><span>30S REFRESH</span></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===== COLLECTION PAGE (buyer flow) ===== -->
+  <div id="nftl_view" style="display:none">
+    <div class="win">
+      <div class="wh"><span class="dr"></span><span class="da"></span><span class="dg"></span>
+        <span style="margin-left:6px;opacity:.8">collection.exe // <span id="nftl_cslug"></span></span>
+        <a href="?menu=nft" class="whback">← all collections</a></div>
+      <div id="nftl_cbanner" class="cbanner" style="display:none"><img alt=""></div>
+      <div id="nftl_colpage">
+        <div class="cleft">
+          <div class="chead">
+            <div id="nftl_ccov" class="ccov"></div>
+            <div style="min-width:0;flex:1">
+              <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap"><div class="ctitle" id="nftl_name">-</div><span class="chip" id="nftl_chip"></span><span class="chip">◎ SOLANA · MPL CORE</span></div>
+              <div class="cm" id="nftl_meta" style="margin-top:6px;opacity:.6"></div>
+              <p id="nftl_desc" style="margin:10px 0 0;font:500 10.5px/1.8 'Kode Mono',monospace;opacity:.8"></p>
+              <div id="nftl_clinks" class="lab" style="display:flex;gap:8px;margin-top:12px;flex-wrap:wrap"></div>
+            </div>
+          </div>
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-top:22px;flex-wrap:wrap;gap:10px">
+            <div class="lab" id="nftl_items_lab" style="opacity:.7">// ITEMS</div>
+            <div id="nftl_filters" style="display:flex;gap:8px" class="lab"><div class="tab on" data-f="all">ALL</div><div class="tab" data-f="avail">AVAILABLE</div><div class="tab" data-f="minted">MINTED</div></div>
+          </div>
+          <div id="nftl_legend" class="legend" style="display:none"><span class="c-legendary">■ LEGENDARY 2%</span><span class="c-epic">■ EPIC 8%</span><span class="c-rare">■ RARE 20%</span><span style="opacity:.6">■ COMMON</span><span style="opacity:.4;margin-left:auto">? = unrevealed · mint to reveal</span></div>
+          <div id="nftl_grid" class="itemgrid"></div>
+          <p class="cm" style="margin:14px 0 0">// lit = minted and revealed with its holder (the inscribed image, via the gateway). ? = still in the machine. click a lit one for the on-chain viewer.</p>
+        </div>
+        <div class="cright">
+          <div class="lab" style="letter-spacing:.2em;opacity:.7">// MINT</div>
+          <div style="text-align:center;padding:10px 0 4px">
+            <div class="pfocus"><i></i><i></i><i></i><i></i><span class="price" id="nftl_price">-</span><span class="punit">SOL</span></div>
+            <div class="cm" id="nftl_fee" style="margin-top:10px">+ platform fee · + inscription rent · leftover returns</div>
+          </div>
+          <div class="bigbar mint"><i id="nftl_progbar"></i><span><span id="nftl_progtxt">0 / 0</span><small>MINTED</small></span></div>
+          <div class="kvbox" id="nftl_kv"></div>
+          <div id="nftl_mstate" class="mstate"></div>
+          <div class="cm">
+            <div>// 2 wallet popups: a message that derives your burner, then one funding transfer. the burner inscribes, mints, and sweeps the rest back.</div>
+            <div>// the asset uri is gateway/token-meta/{M}. M = the item's metadata inscription, C = its image inscription.</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===== NFT VIEWER (fixed overlay popup over the current view) ===== -->
+  <div id="nftl_viewer">
+    <div class="win" id="nftl_vwinbox">
+      <div class="wh"><span class="dr"></span><span class="da"></span><span class="dg"></span>
+        <span style="margin-left:6px;opacity:.8">nft.exe // <span id="nftl_vwin">reading</span></span><span id="nftl_vrchip" class="rchip" style="display:none"></span>
+        <span id="nftl_vclose" class="xclose">[ x ]</span></div>
+      <div id="nftl_vgrid">
+        <div class="vc vcL">
+          <div>
+            <div class="vsec">// IDENTITY</div>
+            <div class="vname" id="nftl_vname">-</div>
+            <div class="vsub2" id="nftl_vcol"></div>
+          </div>
+          <div>
+            <div class="vsec">// RARITY</div>
+            <div class="vrar" id="nftl_vrarity">-</div>
+            <div class="vpips" id="nftl_vpips"></div>
+          </div>
+          <div>
+            <div class="vsec">// HOLDER</div>
+            <div class="vhold" id="nftl_vholder">-</div>
+          </div>
+          <div class="vstatblk">
+            <div class="vsec">// STATUS</div>
+            <div class="vstat"><span class="k">chain</span><span>solana</span><span class="k">std</span><span id="nftl_vstd">iqnft-0.1</span><span class="k">storage</span><span class="nftl-g">inscribed</span><span class="k">mutable</span><span>no</span></div>
+          </div>
+        </div>
+        <div class="vc vcC">
+          <div class="vimg" id="nftl_vph"><img id="nftl_vimg" alt="" style="display:none"><div class="wait" id="nftl_vphtxt">reading the asset account…</div><span class="br tl"></span><span class="br tr"></span><span class="br bl"></span><span class="br rb"></span></div>
+          <div class="vcap2" id="nftl_vcap"></div>
+        </div>
+        <div class="vc vcR">
+          <div>
+            <div class="vsec">// ASSET ACCOUNT</div>
+            <div class="vacct" id="nftl_vattrs"></div>
+          </div>
+          <div>
+            <div class="vsec">// RECOVER WITHOUT US</div>
+            <div class="steps">
+              <div>01 asset.attributes.inscription (hex)</div>
+              <div>02 hex → base58 = the tx signature (C)</div>
+              <div>03 getTransaction + sdk reader → bytes</div>
+            </div>
+          </div>
+          <div id="nftl_vlinks" class="vbtns"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===== METADATA JSON (popup from the viewer, keeps the panel compact) ===== -->
+  <div id="nftl_metapop">
+    <div class="win" id="nftl_metabox">
+      <div class="wh"><span class="dr"></span><span class="da"></span><span class="dg"></span>
+        <span style="margin-left:6px;opacity:.8">metadata.json</span>
+        <span id="nftl_metaclose" class="xclose">[ x ]</span></div>
+      <pre id="nftl_vmeta" class="meta" style="margin:0;max-height:70vh;border:none;border-radius:0"></pre>
+    </div>
+  </div>
+
+  <!-- ===== SINGLE (make it a token) ===== -->
+  <div id="nftl_single" style="display:none">
+    <div class="win">
+      <div class="wh"><span class="dr"></span><span class="da"></span><span class="dg"></span>
+        <span style="margin-left:6px;opacity:.8">make_it_a_token.exe</span>
+        <a href="?menu=nft" class="whback">← all collections</a></div>
+      <div id="nftl_sgrid">
+        <div class="vleft">
+          <div class="vimg" id="nftl_sph"><img id="nftl_simg" alt="" style="display:none"><pre id="nftl_stext" style="display:none"></pre><div class="wait" id="nftl_sphtxt">reading your inscription…</div><div class="cap" id="nftl_scap" style="display:none"></div></div>
+          <div class="kvbox" style="margin-top:14px">
+            <div class="kv"><span class="kvk">inscription (C)</span><span class="kvv nftl-g" id="nftl_sc">-</span></div>
+            <div class="kv"><span class="kvk">owner</span><span class="kvv" id="nftl_sowner">-</span></div>
+            <div class="kv"><span class="kvk">collection</span><span class="kvv">IQ6900 Inscriptions (single mints)</span></div>
+          </div>
+        </div>
+        <div class="cright">
+          <div class="lab" style="letter-spacing:.2em;opacity:.7">// MAKE IT A TOKEN</div>
+          <p class="cm" style="margin:0">turn one of your inscriptions into a 1 of 1 NFT. the content already lives on chain; this mints the token that points at it.</p>
+          <div><div class="fl">NAME YOUR NFT</div><input class="inp" id="nftl_sname" placeholder="My Inscription #1" maxlength="80"></div>
+          <div id="nftl_sstate" class="mstate"></div>
+          <div class="cm">// 2 wallet popups, like a mint: the metadata json is inscribed (M), then the asset is registered. leftover returns to your wallet.</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div id="nftl_error" class="nftl-e" style="display:none;padding:12px;font-size:11px"></div>
+
+  <!-- ===== LAUNCH A COLLECTION (creator flow, step 1) ===== -->
+  <div id="nftl_launch">
+    <div class="lbox">
+      <div class="lsteps"><div class="on">01 DROP</div><div>02 DETAILS</div><div>03 MINT RULES</div><div>04 INSCRIBE</div><div>05 HANDOFF</div></div>
+      <div class="win" style="background:rgba(20,19,16,.97)">
+        <div class="wh"><span class="dr"></span><span class="da"></span><span class="dg"></span>
+          <span style="margin-left:6px;opacity:.8">items.exe // make your collection, three ways</span>
+          <span id="nftl_lclose" class="whback">x</span></div>
+        <div class="lbody">
+          <div class="ltabs lab"><div class="on" data-lt="build">BUILD HERE · default</div><div data-lt="upload">UPLOAD A FOLDER</div></div>
+
+          <!-- BUILD HERE -->
+          <div data-lp="build">
+            <div class="lseg lab"><div class="on" data-lm="gen">GENERATE ART</div><div data-lm="hand">HAND-CRAFT 1 / 1</div></div>
+
+            <div data-lmp="gen">
+              <div class="cm lnote">// a collection is built from stacked layers. each layer (Background, Body, …) holds trait images; one random pick per layer = one unique 1 / 1. top layer = front.</div>
+              <div class="fl" style="display:flex;justify-content:space-between;margin-top:12px"><span>LAYERS</span><span style="opacity:.6">top = front</span></div>
+              <div class="llayers" id="nftl_layers"></div>
+              <span class="btn2" id="nftl_addlayer" style="display:block;text-align:center;margin-top:8px;padding:9px;font-size:10px">+ ADD ATTRIBUTE</span>
+              <div class="fl" style="margin-top:14px">PREVIEW</div>
+              <div class="lprev"><div class="lstack" id="nftl_stack"></div><div id="nftl_legend" class="llegend"></div></div>
+              <div class="lgen">
+                <div><div class="fl">HOW MANY TO GENERATE</div><div style="display:flex;align-items:center;gap:8px"><input class="inp" id="nftl_supply" style="width:100px" value="48" inputmode="numeric"><span class="cm" id="nftl_combos">of 48 possible</span></div></div>
+                <span class="btn" id="nftl_genbtn" style="padding:12px;font-size:11px;text-align:center">GENERATE 48 ITEMS</span>
+              </div>
+              <div id="nftl_gendone" style="display:none"></div>
+              <div class="cm" style="margin-top:10px">// each item = one random pick per attribute. at deploy the image is composited, its json is built, both are inscribed. one signature does it for all.</div>
+            </div>
+
+            <div data-lmp="hand" style="display:none">
+              <div class="fl" style="margin-top:12px">YOUR 1 / 1 ITEMS · <span id="nftl_handn">3</span></div>
+              <div class="lhand" id="nftl_hand"></div>
+              <div class="cm" style="margin-top:10px">// each card is one unique 1 of 1. drop an image, name it, give it traits. supply = number of cards. good for a small hand-made drop, not a 2,000 pfp set (use GENERATE ART for that).</div>
+              <div class="fl" style="margin-top:14px">EDIT ITEM</div>
+              <div class="ledit">
+                <div class="lthumb" style="background:#2b3a67"><span class="btn2">REPLACE IMAGE</span></div>
+                <div style="flex:1;min-width:0;display:flex;flex-direction:column;gap:10px">
+                  <div><div class="fl">NAME</div><input class="inp" id="nftl_hname" value="Monk #0"></div>
+                  <div><div class="fl">TRAITS (optional)</div><input class="inp" id="nftl_htraits" placeholder="Background: Night · Mood: Calm"></div>
+                  <span class="btn2" id="nftl_hdel" style="text-align:center;padding:8px;font-size:9.5px">REMOVE ITEM</span>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- UPLOAD A FOLDER -->
+          <div data-lp="upload" style="display:none">
+            <label class="drop" for="nftl_lfile" style="margin-top:14px">
+              <span class="lab" style="font-size:12px">DROP YOUR FOLDER OR ZIP</span>
+              <span class="cm" style="letter-spacing:.1em">0.png + 0.json … (metaplex) or 1.png + 1.json … (scatter). both fine, we normalize.</span>
+              <span class="cm" style="letter-spacing:.1em">optional: collection.png + collection.json · no json? we build one per item from a template</span>
+              <input id="nftl_lfile" type="file" multiple accept=".zip,image/*,.json" webkitdirectory directory style="display:none">
+            </label>
+            <div style="display:flex;gap:8px;margin-top:8px"><label class="btn2" for="nftl_lfile" style="flex:1;text-align:center;padding:9px;font-size:10px">PICK A FOLDER</label><label class="btn2" for="nftl_lfiles" style="flex:1;text-align:center;padding:9px;font-size:10px">PICK FILES / ZIP<input id="nftl_lfiles" type="file" multiple accept=".zip,image/*,.json" style="display:none"></label></div>
+            <div id="nftl_lresult" style="display:none"></div>
+            <div class="lwhy" id="nftl_lwhy">
+              <div><b>same as other launchpads</b><br>drop files, we host the buffer, you sign once.</div>
+              <div><b>but fully on chain</b><br>every image + json is inscribed before anyone can mint.</div>
+              <div><b>you keep the keys</b><br>collection authority is handed to your wallet at the end.</div>
+            </div>
+          </div>
+
+          <div class="lfoot">
+            <span class="cm">// chain: ◎ solana · robinhood chain soon</span>
+            <div style="display:flex;gap:8px"><span id="nftl_lcancel" class="btn2">CANCEL</span><button class="btn" disabled>NEXT →</button></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+  <!-- ===== LAYER EDITOR (popup over the launch modal) ===== -->
+  <div id="nftl_layerpop">
+    <div class="win" style="width:520px;max-width:100%;background:rgba(20,19,16,.98)">
+      <div class="wh"><span class="dr"></span><span class="da"></span><span class="dg"></span>
+        <span style="margin-left:6px;opacity:.8">layer.exe // <span id="nftl_lptitle">Background</span></span>
+        <span id="nftl_lpclose" class="whback">x</span></div>
+      <div class="lbody" style="padding:18px 20px 20px">
+        <div class="fl">ATTRIBUTE NAME</div>
+        <input class="inp" id="nftl_lpname" maxlength="32">
+        <div class="fl" style="display:flex;justify-content:space-between;margin-top:14px"><span>TRAIT IMAGES · <span id="nftl_lpcount">0</span></span><span class="cm">tap a trait to remove</span></div>
+        <div class="ltraits" id="nftl_lptraits"></div>
+        <div style="display:flex;gap:8px;margin-top:10px">
+          <label class="btn2" for="nftl_lpfile" style="flex:1;text-align:center;padding:10px;font-size:10px">+ UPLOAD TRAIT IMAGES<input id="nftl_lpfile" type="file" multiple accept="image/*" style="display:none"></label>
+          <span class="btn2" id="nftl_lpdemo" style="padding:10px 12px;font-size:10px">+ DEMO</span>
+        </div>
+        <div class="cm" style="margin-top:8px">// 0.png, 1.png … one file per trait. transparent png recommended so lower layers show through.</div>
+        <div class="lfoot" style="margin-top:16px">
+          <span class="btn2" id="nftl_lpdel" style="color:#e0554e;border-color:rgba(224,85,78,.5)">DELETE LAYER</span>
+          <span class="btn" id="nftl_lpdone">DONE</span>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+<script>(function(){
+  var $=function(id){return document.getElementById(id)};
+  var tabs=$('nftl_tabs'),cols=$('nftl_cols'),mk=$('nftl_market'),mine=$('nftl_mine'),cap=$('nftl_desk_cap');
+  if(!tabs)return;
+  var caps={cols:'// collections launched from this board. each one = a core collection + N inscriptions. pick one, mint one.',market:'// secondary market for everything minted here. every item is fully inscribed. list or buy, 1 signature.',mine:''};
+  // ---- market mock (ported from the desktop design) ----
+  var covers=[].slice.call(document.querySelectorAll('#nftl_colgrid .card')).map(function(c){var i=c.querySelector('.cov img'),n=c.querySelector('.cn');return{img:i?i.getAttribute('src'):'',name:n?n.textContent.trim():'collection'}}).filter(function(c){return c.img});
+  if(!covers.length)covers=[{img:'',name:'collection'}];
+  var raw=[];for(var k=0;k<48;k++){var c=covers[k%covers.length];raw.push({id:k,name:c.name+' #'+((k*97)%1000),col:c.name,img:c.img,chain:k%4===2?'RH':'SOL',listed:k%3!==1,mine:k%11===4,price:(0.03+((k*13)%40)/100).toFixed(2),last:(0.02+((k*7)%30)/100).toFixed(2),ago:(k%23+1)});}
+  var st={scope:'listed',sort:'price',page:1,PER:12};
+  function renderMarket(){
+    var list=raw.slice();
+    if(st.scope==='listed')list=list.filter(function(m){return m.listed});
+    if(st.scope==='mine')list=list.filter(function(m){return m.mine});
+    var pn=function(m){return parseFloat(m.listed?m.price:m.last)};
+    if(st.sort==='price')list.sort(function(a,b){return pn(a)-pn(b)});
+    if(st.sort==='pricehi')list.sort(function(a,b){return pn(b)-pn(a)});
+    if(st.sort==='recent')list.sort(function(a,b){return a.ago-b.ago});
+    var total=list.length,shown=Math.min(st.page*st.PER,total);
+    var listedN=raw.filter(function(m){return m.listed}).length;
+    var sc=function(k,l){return '<div data-s="'+k+'" class="'+(st.scope===k?'on':'')+'">'+l+'</div>'};
+    var so=function(k,l){return '<div data-o="'+k+'" class="'+(st.sort===k?'on':'')+'">'+l+'</div>'};
+    var html='<div class="mkbar"><div class="mkscope">'+sc('listed','LISTED')+sc('all','ALL ITEMS')+sc('mine','MINE')+'</div><div class="mksort">'+so('price','PRICE ↑')+so('pricehi','PRICE ↓')+so('recent','RECENT')+'</div></div>';
+    html+='<div class="mkstats"><div><span>LISTED</span><b>'+listedN+' / '+raw.length+'</b></div><div><span>24H VOLUME</span><b>41.2 SOL</b></div><div><span>OWNERS</span><b>1,208</b></div></div>';
+    if(!total){html+='<div class="mkempty"><span class="lab">NOTHING HERE YET</span><span class="cm">'+(st.scope==='mine'?'connect a wallet or mint something first.':'no listings right now.')+'</span></div>';}
+    else{html+='<div class="mkgrid">'+list.slice(0,shown).map(function(m){return '<div class="mk'+(m.mine?' mine':'')+'" data-id="'+m.id+'"><div class="im"><img alt="" loading="lazy" src="'+m.img+'">'+(m.mine?'<span class="bd y">YOURS</span>':m.listed?'<span class="bd">LISTED</span>':'')+'<span class="ch">'+m.chain+'</span></div><div class="tx"><div class="nm">'+m.name+'</div><div class="co">'+m.col+'</div><div class="pr">'+(m.listed?'<b>'+m.price+' SOL</b>':'<i>not listed</i>')+'<small>last '+m.last+(m.listed?'':' · '+m.ago+'h')+'</small></div></div></div>'}).join('')+'</div>';
+      html+='<div class="mkfoot"><span>// page '+st.page+' / '+Math.max(1,Math.ceil(total/st.PER))+' · showing '+shown+' of '+total+'</span>'+(shown<total?'<span class="more" id="nftl_mkmore">LOAD MORE ↓</span>':'<span style="letter-spacing:.1em;opacity:.7">EOF · '+total+' items</span>')+'</div>';}
+    html+='<p class="cm" style="margin:12px 0 0">// ALL ITEMS = every item ever minted here · LISTED = for sale now · MINE = yours (list or delist).</p>';
+    mk.innerHTML=html;
+  }
+  mk.addEventListener('click',function(e){
+    var t=e.target.closest('[data-s]');if(t){st.scope=t.getAttribute('data-s');st.page=1;renderMarket();return;}
+    t=e.target.closest('[data-o]');if(t){st.sort=t.getAttribute('data-o');st.page=1;renderMarket();return;}
+    if(e.target.id==='nftl_mkmore'){st.page++;renderMarket();return;}
+    t=e.target.closest('.mk');if(t){location.href='?menu=nft&item='+t.getAttribute('data-id');}
+  });
+  function renderMine(){
+    mine.innerHTML='<div class="mkempty" style="margin-top:4px"><span class="lab">CONNECT A WALLET</span><span class="cm">// your minted and bought items show up here. list or delist in 1 signature.</span><span class="btn">CONNECT WALLET</span></div>';
+  }
+  // ---- tabs ----
+  function show(tab){
+    [].slice.call(tabs.children).forEach(function(t){t.classList.toggle('on',t.getAttribute('data-tab')===tab)});
+    cols.style.display=tab==='cols'?'flex':'none';
+    mk.style.display=tab==='market'?'flex':'none';
+    mine.style.display=tab==='mine'?'flex':'none';
+    if(cap){cap.textContent=caps[tab];cap.style.display=caps[tab]?'':'none';}
+    if(tab==='market')renderMarket();if(tab==='mine')renderMine();
+  }
+  tabs.addEventListener('click',function(e){var t=e.target.closest('[data-tab]');if(t)show(t.getAttribute('data-tab'));});
+  // ---- chain segment ----
+  var ch=$('nftl_chains');if(ch)ch.addEventListener('click',function(e){var t=e.target.closest('[data-chain]');if(!t||t.classList.contains('soon'))return;[].slice.call(ch.children).forEach(function(d){d.classList.toggle('on',d===t)});});
+  // ---- launch modal ----
+  var lm=$('nftl_launch'),lb=$('nftl_launchbtn');
+  function openL(e){if(e)e.preventDefault();lm.classList.add('open');document.body.style.overflow='hidden';}
+  function closeL(){lm.classList.remove('open');document.body.style.overflow='';}
+  if(lb)lb.addEventListener('click',openL);
+  // ---- generate art: layers model ----
+  var PAL=['#2b3a67','#8e3b46','#3b6e4a','#c9a66b','#e0a84e','#e0554e','#7dd3fc','#b45309','#6d28d9','#e8e4d6','#1f2937','#0f766e'];
+  var SHAPES=['bg','body','eyes','hat','acc'];
+  var layers=[
+    {name:'Background',traits:[{n:'Night',c:'#2b3a67'},{n:'Wine',c:'#8e3b46'},{n:'Moss',c:'#3b6e4a'}]},
+    {name:'Body',traits:[{n:'Bone',c:'#e8e4d6'},{n:'Sand',c:'#c9a66b'}]},
+    {name:'Eyes',traits:[{n:'Green',c:'#2BD52D'},{n:'Amber',c:'#e0a84e'},{n:'Red',c:'#e0554e'},{n:'Ice',c:'#7dd3fc'}]},
+    {name:'Hat',traits:[{n:'Cap',c:'#1b1a17'},{n:'Rust',c:'#b45309'}]}
+  ];
+  var roll=null,editing=-1,generated=false;
+  var ltrs=$('nftl_layers'),stack=$('nftl_stack'),legend=$('nftl_legend'),supplyI=$('nftl_supply'),combosT=$('nftl_combos'),genBtn=$('nftl_genbtn'),genDone=$('nftl_gendone');
+  function combos(){return layers.reduce(function(a,l){return a*Math.max(1,l.traits.length)},1)}
+  function shapeStyle(i,c,img){
+    var n=layers.length,k=i===0?'bg':i===n-1&&n>2?'hat':i===1?'body':i===2?'eyes':'acc';
+    var base=img?'background:url('+img+') center/cover;inset:0':'background:'+c+';';
+    if(img)return base;
+    if(k==='bg')return base+'inset:0';
+    if(k==='body')return base+'left:22%;right:22%;top:30%;bottom:0;border-radius:40% 40% 0 0';
+    if(k==='eyes')return base+'left:34%;top:44%;width:10%;height:10%;border-radius:50%;box-shadow:'+(c)+' 0 0 0 0, 2.2em 0 0 0 '+c;
+    if(k==='hat')return base+'left:26%;right:26%;top:16%;height:16%;border-radius:4px 4px 0 0';
+    return base+'left:40%;top:70%;width:20%;height:6%;border-radius:2px';
+  }
+  function rollOne(){return layers.map(function(l){return l.traits.length?l.traits[Math.floor(Math.random()*l.traits.length)]:null})}
+  function stackHTML(r){return r.map(function(t,i){return t?'<i style="'+shapeStyle(i,t.c,t.img)+'"></i>':''}).join('')}
+  function renderLayers(){
+    ltrs.innerHTML=layers.map(function(l,i){
+      return '<div class="lrow" draggable="true" data-i="'+i+'"><span class="lgrip"></span><div style="min-width:0"><div class="lname">'+l.name+'</div><div class="lsw">'+l.traits.slice(0,6).map(function(t){return '<i style="background:'+(t.img?'url('+t.img+') center/cover':t.c)+'"></i>'}).join('')+'<span class="cm">'+l.traits.length+' trait'+(l.traits.length===1?'':'s')+'</span></div></div><div class="larr"><span data-mv="-1" class="'+(i===0?'off':'')+'">↑</span><span data-mv="1" class="'+(i===layers.length-1?'off':'')+'">↓</span></div></div>';
+    }).reverse().join('');
+    if(!roll||roll.length!==layers.length)roll=rollOne();
+    stack.innerHTML=stackHTML(roll);
+    legend.innerHTML=layers.map(function(l,i){var t=roll[i];return '<div><i style="background:'+(t?(t.img?'url('+t.img+') center/cover':t.c):'transparent')+';border:1px solid rgba(232,228,214,.3)"></i><b>'+l.name+'</b><span>'+(t?t.n:'no traits yet')+'</span></div>'}).reverse().join('')+'<div class="reroll cm" id="nftl_reroll">↻ reroll preview</div>';
+    var c=combos(),v=parseInt(supplyI.value)||0;
+    combosT.textContent='of '+c.toLocaleString()+' possible';
+    combosT.style.color=v>c?'#e0a84e':'';
+    genBtn.textContent='GENERATE '+(v||0)+' ITEMS';
+    genBtn.classList.toggle('off',!layers.length||!v);
+  }
+  renderLayers();
+  supplyI.addEventListener('input',renderLayers);
+  legend.addEventListener('click',function(e){if(e.target.id==='nftl_reroll'){roll=rollOne();renderLayers();}});
+  $('nftl_addlayer').addEventListener('click',function(){layers.push({name:'New Layer',traits:[]});roll=null;renderLayers();openLayer(layers.length-1);});
+  var dragFrom=-1;
+  ltrs.addEventListener('click',function(e){
+    var mv=e.target.closest('[data-mv]');var row=e.target.closest('.lrow');if(!row)return;var i=+row.getAttribute('data-i');
+    if(mv){var d=+mv.getAttribute('data-mv'),j=i+d;if(j<0||j>=layers.length)return;var tmp=layers[i];layers[i]=layers[j];layers[j]=tmp;roll=null;renderLayers();return;}
+    openLayer(i);
+  });
+  ltrs.addEventListener('dragstart',function(e){var r=e.target.closest('.lrow');if(!r)return;dragFrom=+r.getAttribute('data-i');r.classList.add('drag');e.dataTransfer.effectAllowed='move';});
+  ltrs.addEventListener('dragover',function(e){e.preventDefault();});
+  ltrs.addEventListener('drop',function(e){e.preventDefault();var r=e.target.closest('.lrow');if(!r||dragFrom<0)return;var to=+r.getAttribute('data-i');var m=layers.splice(dragFrom,1)[0];layers.splice(to,0,m);dragFrom=-1;roll=null;renderLayers();});
+  ltrs.addEventListener('dragend',function(){dragFrom=-1;renderLayers();});
+  genBtn.addEventListener('click',function(){
+    var v=parseInt(supplyI.value)||0;if(!v||!layers.length)return;
+    var n=Math.min(v,16),cells='';for(var i=0;i<n;i++)cells+='<div class="lstack">'+stackHTML(rollOne())+'</div>';
+    genDone.innerHTML='<div class="ldone"><div><div class="lab" style="color:#2BD52D">'+v.toLocaleString()+' ITEMS ASSEMBLED</div><div class="cm" style="margin-top:3px">images composited + metadata json built for each. staged in the buffer, ready to inscribe at deploy.</div></div><span class="btn2" id="nftl_regen" style="padding:9px 12px">← EDIT LAYERS</span></div><div class="lgrid9">'+cells+'</div><div class="cm" style="margin-top:8px">// preview of the first '+n+' of '+v.toLocaleString()+'. each has a unique trait combination + its own metadata. nothing is on-chain yet.</div>';
+    genDone.style.display='';generated=true;
+    lm.querySelectorAll('[data-lmp="gen"] > *:not(#nftl_gendone)').forEach(function(x){x.style.display='none'});
+    var nx=lm.querySelector('.lfoot .btn');if(nx)nx.disabled=false;
+  });
+  genDone.addEventListener('click',function(e){if(e.target.id==='nftl_regen'){genDone.style.display='none';generated=false;lm.querySelectorAll('[data-lmp="gen"] > *').forEach(function(x){x.style.display=''});genDone.style.display='none';var nx=lm.querySelector('.lfoot .btn');if(nx)nx.disabled=true;}});
+  // layer popup
+  var lp=$('nftl_layerpop'),lpName=$('nftl_lpname'),lpTraits=$('nftl_lptraits');
+  function renderPop(){
+    var l=layers[editing];if(!l)return;
+    $('nftl_lptitle').textContent=l.name;lpName.value=l.name;$('nftl_lpcount').textContent=l.traits.length;
+    lpTraits.innerHTML=l.traits.length?l.traits.map(function(t,i){return '<div data-t="'+i+'" style="background:'+(t.img?'url('+t.img+') center/cover':t.c)+'"><span>'+t.n+'</span></div>'}).join(''):'<div class="empty cm">no traits yet. upload images or add a demo trait.</div>';
+  }
+  function openLayer(i){editing=i;renderPop();lp.classList.add('open');setTimeout(function(){lpName.focus();lpName.select();},50);}
+  function closeLayer(){lp.classList.remove('open');editing=-1;renderLayers();}
+  lpName.addEventListener('input',function(){if(layers[editing]){layers[editing].name=lpName.value||'Layer';$('nftl_lptitle').textContent=layers[editing].name;}});
+  lpTraits.addEventListener('click',function(e){var t=e.target.closest('[data-t]');if(!t)return;layers[editing].traits.splice(+t.getAttribute('data-t'),1);roll=null;renderPop();});
+  $('nftl_lpdemo').addEventListener('click',function(){var l=layers[editing];var c=PAL[(l.traits.length+editing*3)%PAL.length];l.traits.push({n:'Trait '+l.traits.length,c:c});roll=null;renderPop();});
+  $('nftl_lpfile').addEventListener('change',function(e){var l=layers[editing];[].slice.call(e.target.files).forEach(function(f){var u=URL.createObjectURL(f);l.traits.push({n:f.name.replace(/\.[^.]+$/,''),c:'#333',img:u});});roll=null;renderPop();e.target.value='';});
+  $('nftl_lpdel').addEventListener('click',function(){layers.splice(editing,1);roll=null;closeLayer();});
+  $('nftl_lpdone').addEventListener('click',closeLayer);$('nftl_lpclose').addEventListener('click',closeLayer);
+  lp.addEventListener('click',function(e){if(e.target===lp)closeLayer();});
+  // ---- upload a folder: real files -> report ----
+  var dropZ=lm.querySelector('.drop'),lres=$('nftl_lresult'),lwhy=$('nftl_lwhy');
+  function fmtKB(n){return n<1024?n+' B':n<1048576?(n/1024).toFixed(1)+' KB':(n/1048576).toFixed(2)+' MB'}
+  function handleFiles(files){
+    files=[].slice.call(files);if(!files.length)return;
+    var imgs=files.filter(function(f){return /^image\//.test(f.type)||/\.(png|jpe?g|gif|webp|svg)$/i.test(f.name)});
+    var jsons=files.filter(function(f){return /\.json$/i.test(f.name)});
+    var zips=files.filter(function(f){return /\.zip$/i.test(f.name)});
+    var base=function(f){return f.name.replace(/\.[^.]+$/,'')};
+    var colImg=imgs.find(function(f){return /^collection$/i.test(base(f))}),colJson=jsons.find(function(f){return /^collection$/i.test(base(f))});
+    var itemImgs=imgs.filter(function(f){return f!==colImg}),itemJsons=jsons.filter(function(f){return f!==colJson});
+    var nums=itemImgs.map(function(f){return parseInt(base(f),10)}).filter(function(n){return !isNaN(n)}).sort(function(a,b){return a-b});
+    var oneBased=nums.length&&nums[0]===1,zeroBased=nums.length&&nums[0]===0;
+    var gaps=0;for(var i=1;i<nums.length;i++)if(nums[i]!==nums[i-1]+1)gaps++;
+    var totalB=files.reduce(function(a,f){return a+f.size},0),maxImg=itemImgs.reduce(function(a,f){return Math.max(a,f.size)},0),avgImg=itemImgs.length?itemImgs.reduce(function(a,f){return a+f.size},0)/itemImgs.length:0;
+    var jsonMiss=itemImgs.filter(function(f){return !itemJsons.some(function(j){return base(j)===base(f)})}).length;
+    var over=itemImgs.filter(function(f){return f.size>1048576}).length;
+    var warn=[];if(gaps)warn.push(gaps+' gap'+(gaps>1?'s':'')+' in numbering');if(over)warn.push(over+' image'+(over>1?'s':'')+' over 1 MB');if(!itemImgs.length&&!zips.length)warn.push('no images found');
+    var g=function(s){return '<span style="color:#2BD52D">'+s+'</span>'},a=function(s){return '<span style="color:#e0a84e">'+s+'</span>'};
+    var html='<div class="lok'+(warn.length?' lwarn':'')+'"><span>'+(warn.length?'⚠ ':'✓ ')+(zips.length?zips.map(function(z){return z.name}).join(', ')+' · we unpack server-side':itemImgs.length.toLocaleString()+' images · '+itemJsons.length.toLocaleString()+' json'+(colImg?' · collection.png':'')+(colJson?' · collection.json':'')+(oneBased?' · 1-based names detected → normalized to 0-based':zeroBased?' · 0-based names':''))+'</span><span class="btn2" id="nftl_lclear">CLEAR</span></div>';
+    html+='<div class="lfiles">'+itemImgs.slice(0,16).map(function(f){var j=itemJsons.some(function(x){return base(x)===base(f)});return '<div><div class="fim" data-src="'+URL.createObjectURL(f)+'"></div><div class="fnm'+(j?' j':'')+'">#'+base(f)+(j?' +json':'')+'</div></div>'}).join('')+(itemImgs.length>16?'<div><div class="fim">+'+(itemImgs.length-16).toLocaleString()+'</div><div class="fnm">more</div></div>':'')+'</div>';
+    html+='<div class="lrep">'
+      +'<div class="kv"><span class="kvk">items</span><span>'+itemImgs.length.toLocaleString()+(nums.length?' · numbers '+nums[0]+' to '+nums[nums.length-1]+(gaps?' · '+a(gaps+' gaps'):' · '+g('no gaps')):' · '+a('not numbered'))+'</span></div>'
+      +'<div class="kv"><span class="kvk">images</span><span>'+(itemImgs.length?'avg '+fmtKB(Math.round(avgImg))+' · max '+fmtKB(maxImg)+' '+(over?a(over+' over 1 MB'):g('✓ under 1 MB')):'-')+'</span></div>'
+      +'<div class="kv"><span class="kvk">json</span><span>'+(itemJsons.length?itemJsons.length.toLocaleString()+' found'+(jsonMiss?' · '+a(jsonMiss+' items missing json → template'):' · '+g('✓ every item')):a('none → we build one per item from a template'))+'</span></div>'
+      +'<div class="kv"><span class="kvk">collection</span><span>'+(colImg?'collection.png '+fmtKB(colImg.size):a('no collection.png'))+' · '+(colJson?g('collection.json ✓'):a('no collection.json'))+'</span></div>'
+      +'<div class="kv" style="border-bottom:none"><span class="kvk">total bytes to inscribe</span><span>'+fmtKB(totalB)+' → est. '+Math.max(1,Math.round(totalB/1048576*3.4))+' min</span></div>'
+      +'</div>';
+    html+='<div class="cm" style="margin-top:8px">// buffer: cloudflare r2, temporary. deleted after inscription completes. nothing is on-chain until the deploy signature.</div>';
+    lres.innerHTML=html;lres.style.display='';dropZ.style.display='none';dropZ.nextElementSibling.style.display='none';lwhy.style.display='none';
+    lres.querySelectorAll('.fim[data-src]').forEach(function(d){d.style.backgroundImage='url('+d.getAttribute('data-src')+')'});
+    var nx=lm.querySelector('.lfoot .btn');if(nx)nx.disabled=!!warn.length&&!itemImgs.length&&!zips.length;
+  }
+  lres.addEventListener('click',function(e){if(e.target.id==='nftl_lclear'){lres.style.display='none';lres.innerHTML='';dropZ.style.display='';dropZ.nextElementSibling.style.display='';lwhy.style.display='';var nx=lm.querySelector('.lfoot .btn');if(nx)nx.disabled=true;}});
+  $('nftl_lfile').addEventListener('change',function(e){handleFiles(e.target.files);e.target.value='';});
+  $('nftl_lfiles').addEventListener('change',function(e){handleFiles(e.target.files);e.target.value='';});
+  ['dragenter','dragover'].forEach(function(ev){dropZ.addEventListener(ev,function(e){e.preventDefault();dropZ.classList.add('over');});});
+  ['dragleave','drop'].forEach(function(ev){dropZ.addEventListener(ev,function(e){e.preventDefault();dropZ.classList.remove('over');});});
+  dropZ.addEventListener('drop',function(e){
+    var dt=e.dataTransfer;if(!dt)return;
+    var items=[].slice.call(dt.items||[]).map(function(i){return i.webkitGetAsEntry&&i.webkitGetAsEntry()}).filter(Boolean);
+    if(!items.length){handleFiles(dt.files);return;}
+    var out=[],pending=0;
+    function walk(en){pending++;if(en.isFile){en.file(function(f){out.push(f);if(--pending===0)handleFiles(out);});}else if(en.isDirectory){var r=en.createReader();(function readAll(){r.readEntries(function(es){if(!es.length){if(--pending===0)handleFiles(out);return;}es.forEach(walk);readAll();});})();}else{pending--;}}
+    items.forEach(walk);
+  });
+  // ---- hand-craft 1/1 ----
+  var items=[{n:'Monk #0',c:'#2b3a67',t:''},{n:'Monk #1',c:'#8e3b46',t:''},{n:'Monk #2',c:'#3b6e4a',t:''}],sel=0;
+  var hand=$('nftl_hand'),hName=$('nftl_hname'),hTraits=$('nftl_htraits');
+  function renderHand(){
+    $('nftl_handn').textContent=items.length;
+    hand.innerHTML=items.map(function(it,i){return '<div class="lmini'+(i===sel?' on':'')+'" data-h="'+i+'" style="background:'+(it.img?'url('+it.img+') center/cover':it.c)+'"><span>'+it.n+'</span></div>'}).join('')+'<div class="lmini add" id="nftl_hadd"><span class="lab">+ ADD<br>ITEM</span></div>';
+    var it=items[sel];var th=lm.querySelector('.lthumb');
+    if(it){th.style.background=it.img?'url('+it.img+') center/cover':it.c;hName.value=it.n;hTraits.value=it.t;th.parentNode.style.display='';}else{th.parentNode.style.display='none';}
+  }
+  renderHand();
+  hand.addEventListener('click',function(e){
+    if(e.target.closest('#nftl_hadd')){items.push({n:'Item #'+items.length,c:PAL[items.length%PAL.length],t:''});sel=items.length-1;renderHand();hName.focus();hName.select();return;}
+    var t=e.target.closest('[data-h]');if(t){sel=+t.getAttribute('data-h');renderHand();}
+  });
+  hName.addEventListener('input',function(){if(items[sel]){items[sel].n=hName.value;var m=hand.querySelector('[data-h="'+sel+'"] span');if(m)m.textContent=hName.value;}});
+  hTraits.addEventListener('input',function(){if(items[sel])items[sel].t=hTraits.value;});
+  $('nftl_hdel').addEventListener('click',function(){if(!items.length)return;items.splice(sel,1);sel=Math.max(0,Math.min(sel,items.length-1));renderHand();});
+  lm.addEventListener('click',function(e){
+    var t=e.target.closest('[data-lt]');if(t){var k=t.getAttribute('data-lt');lm.querySelectorAll('[data-lt]').forEach(function(d){d.classList.toggle('on',d===t)});lm.querySelectorAll('[data-lp]').forEach(function(p){p.style.display=p.getAttribute('data-lp')===k?'':'none'});return;}
+    t=e.target.closest('[data-lm]');if(t){var m=t.getAttribute('data-lm');lm.querySelectorAll('[data-lm]').forEach(function(d){d.classList.toggle('on',d===t)});lm.querySelectorAll('[data-lmp]').forEach(function(p){p.style.display=p.getAttribute('data-lmp')===m?'':'none'});return;}
+  });
+  $('nftl_lclose').addEventListener('click',closeL);$('nftl_lcancel').addEventListener('click',closeL);
+  lm.addEventListener('click',function(e){if(e.target===lm)closeL();});
+  document.addEventListener('keydown',function(e){if(e.key!=='Escape')return;if(lp.classList.contains('open'))closeLayer();else closeL();});
+})();</script>
+<script>(function(){var mw=document.getElementById('nftl_mw');if(!mw)return;var fh=mw.querySelector('.fhead');if(!fh)return;fh.addEventListener('click',function(){if(document.body.clientWidth<=560)mw.classList.toggle('open');});})();</script>
+</body>
+</html>

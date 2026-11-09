@@ -1,0 +1,148 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet data-dc-atomics>
+<style>
+@font-face{font-family:'UnifontEX';src:url('https://cdn.jsdelivr.net/gh/stgiga/UnifontEX@main/UnifontExMono.woff2') format('woff2'),url('https://cdn.jsdelivr.net/gh/stgiga/UnifontEX@main/UnifontExMono.woff') format('woff');font-display:swap}
+body{margin:0;background:#0000a8;-webkit-font-smoothing:none;font:16px/1.5 'UnifontEX','Unifont',monospace;color:#00e8e8;text-transform:uppercase}
+a{color:#fff;text-decoration:none}a:hover{background:#fff;color:#0000d7}
+input{text-transform:uppercase}
+@keyframes flash{0%,49%{background:#ffff00;color:#0000d7}50%,100%{background:#0000d7;color:#ffff00}}
+@keyframes cur{0%,49%{opacity:1}50%,100%{opacity:0}}
+.w{color:#fff}.y{color:#ffff00}.g{color:#00e800}
+.opt{cursor:pointer;padding:0 6px;white-space:nowrap}.opt:hover{background:#00e8e8;color:#0000d7}
+.on{background:#ffff00;color:#0000d7}
+.inp{background:none;border:none;outline:none;color:#fff;font:16px/1.5 'UnifontEX','Unifont',monospace;padding:0;min-width:0}
+.kv{display:flex;gap:12px}.kvk{flex:0 0 160px;color:#fff}
+.act{display:inline-block;cursor:pointer;padding:0 6px;color:#fff}.act:hover{background:#fff;color:#0000d7}
+@media (max-width:720px){#scr{padding:16px !important}#tiles{grid-template-columns:1fr !important}.kvk{flex-basis:110px}}
+</style>
+</helmet>
+
+<div style="min-height:100vh;padding:32px 24px;box-sizing:border-box;display:flex;justify-content:center;align-items:flex-start">
+<div id="scr" style="width:100%;max-width:960px;min-height:calc(100vh - 64px);background:#0000d7;padding:28px 32px;box-sizing:border-box;display:flex;flex-direction:column;gap:18px">
+
+  <div class="w" style="display:flex;justify-content:space-between;gap:12px;flex-wrap:wrap" data-screen-label="header">
+    <span>launch_collection.exe</span>
+    <span>4 steps, 1 signature</span>
+  </div>
+
+  <div style="display:flex;flex-direction:column;gap:2px" data-screen-label="step options">
+    <sc-for list="{{ osteps }}" as="st" hint-placeholder-count="4"><span onClick="{{ st.click }}" class="opt" style="{{ st.style }}">{{ st.label }}</span></sc-for>
+  </div>
+
+  <div style="display:flex;flex-direction:column;gap:14px;max-width:760px" data-screen-label="step text">
+    <div class="w">step {{ ostep }} of 4: {{ oTitle }}</div>
+    <div style="text-wrap:pretty">{{ oBlurb }}</div>
+    <div class="y">{{ oFrom }}</div>
+
+    <sc-if value="{{ o1 }}" hint-placeholder-val="{{ true }}">
+      <div><span class="w">collection name</span> <span>(0/32, candy machine name prefix)</span><br><span class="w">&gt; </span><input class="inp" value="PIXEL MONKS" readOnly="true" style="width:60%"></div>
+      <div><span class="w">your collection link</span> <span>(pick a handle like a username)</span><br><span class="w">&gt; iq6900.com/c/</span><input class="inp" style="width:40%" value="{{ slug }}" onInput="{{ slugChange }}" placeholder="your-handle"><span style="display:inline-block;width:8px;height:16px;background:#fff;vertical-align:-2px;animation:cur .64s step-end infinite"></span><br><span>&rarr; {{ slugLink }} </span><span style="{{ slugTag }}">{{ slugState }}</span></div>
+      <div><span class="w">symbol</span> <span>(0/10, lives in the inscribed collection json)</span><br><span class="w">&gt; </span><input class="inp" value="MONK" readOnly="true" style="width:60%"></div>
+      <div>name and symbol go into collection.json and are inscribed at deploy; the authority can still change them later (new json + updatecollection, 1 signature). the link handle becomes your public mint page and is set once. item names freeze when minted.</div>
+    </sc-if>
+
+    <sc-if value="{{ o2 }}" hint-placeholder-val="{{ false }}">
+      <div id="tiles" style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px">
+        <div class="on" style="padding:6px 8px">solana<br>core + candy machine</div>
+        <div style="padding:6px 8px;border:2px solid #00e8e8">robinhood<br>hood in · erc-721</div>
+        <div style="padding:6px 8px;border:2px dashed #00e8e8;color:#00e8e8;opacity:.75;cursor:not-allowed">monad<br>coming soon</div>
+      </div>
+      <div>one chain per collection. solana and robinhood now, the two chains we inscribe on. monad next. devnet is a hidden ?net= switch, no testnet tile.</div>
+    </sc-if>
+
+    <sc-if value="{{ o4 }}" hint-placeholder-val="{{ false }}">
+      <div style="border:2px solid #00e8e8;padding:12px 14px;text-align:center"><span class="w">drop your image folder or zip</span><br>images: 0.png, 1.png … (or 1.png …). metadata: 0.json … optional. cover: collection.png + collection.json optional.</div>
+      <div style="display:flex;flex-direction:column;gap:2px">
+        <div class="kv"><span class="kvk">supply</span><span>2,000 images → 2,000 items (1 of 1 each)</span></div>
+        <div class="kv"><span class="kvk">metadata</span><span>json found → traits kept. no json → we fill name + image for you</span></div>
+        <div class="kv"><span class="kvk">check</span><span>no gaps · png avg 18 kb · schema ok · 3 names trimmed to 32</span></div>
+        <div class="kv"><span class="kvk">where it goes</span><span>temporary upload buffer, then inscribed on-chain at deploy</span></div>
+      </div>
+      <div>you upload your art folder. json is optional: if your generator made trait metadata, include it; if not, we create minimal metadata (name + image). the files sit in our temporary buffer only until deploy inscribes them on-chain, then the buffer is wiped. not your google drive, not kept on a server. the chain is the real host. every item is 1 of 1, so there is no format step. supply is fixed at deploy; more items later = run the wizard again on the same collection.</div>
+    </sc-if>
+
+    <sc-if value="{{ o5 }}" hint-placeholder-val="{{ false }}">
+      <div style="display:flex;gap:10px;flex-wrap:wrap">
+        <sc-for list="{{ lists }}" as="l" hint-placeholder-count="3"><span onClick="{{ l.click }}" class="opt" style="{{ l.style }}">{{ l.name }}</span></sc-for>
+        <span class="act">[ + new list ]</span>
+      </div>
+      <div style="display:flex;flex-direction:column;gap:2px">
+        <sc-for list="{{ listFields }}" as="f" hint-placeholder-count="7"><div class="kv"><span class="kvk">{{ f.k }}</span><span style="{{ f.s }}">{{ f.v }}</span></div></sc-for>
+      </div>
+      <div>scatter's mint lists, one to one: each list = one candy guard group. public list = a group without allowlist. self-mint = the deployer list (your wallet, price 0). platform fee = solfixedfee 0.001 sol on public lists, paid by the minter, zero on private free lists (same rule as scatter).</div>
+      <div style="border:2px solid #ffff00;padding:10px 12px">
+        <div class="y">deploy · 9.654 sol · 1 signature</div>
+        <div>inscribe 2,000 images + json 8.000 · collection + candy machine rent 1.354 (refundable after mint-out) · fees + margin 0.300 (unused part refunded). authority comes back to you when it finishes.</div>
+        <div style="margin-top:8px"><span class="act on">[ review → sign (1 of 1) ]</span></div>
+      </div>
+      <div>no separate deploy step: a confirm screen shows everything above once more, then one signature. everything on it is final.</div>
+    </sc-if>
+  </div>
+
+  <div style="margin-top:auto;display:flex;justify-content:space-between;gap:12px;flex-wrap:wrap;padding-top:18px" data-screen-label="footer">
+    <div style="display:flex;gap:16px;flex-wrap:wrap">
+      <span onClick="{{ oBack }}" class="act">[ f3 ] back</span>
+      <a href="NFT Launchpad Flow.dc.html" class="act">[ q ] quit to launchpad</a>
+      <a href="https://iqlabs.dev" target="_blank" rel="noopener" class="act">[ h ] iqlabs.dev</a>
+    </div>
+    <span onClick="{{ oNext }}" style="cursor:pointer;padding:0 6px;animation:flash .64s step-end infinite">{{ pressLabel }}</span>
+  </div>
+</div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script>
+class Component extends DCLogic {
+  state = { ostep: 1, list: 0, slug: 'pixel-monks' };
+  componentDidMount() {
+    this._k = (e) => {
+      if (e.target && e.target.tagName === 'INPUT') return;
+      if (e.key === 'F2' || e.key === 'Enter' || e.key === ' ') { e.preventDefault(); this.setState(s => ({ ostep: Math.min(4, s.ostep + 1) })); }
+      else if (e.key === 'F3' || e.key === 'Backspace') { e.preventDefault(); this.setState(s => ({ ostep: Math.max(1, s.ostep - 1) })); }
+      else if (/^[1-4]$/.test(e.key)) this.setState({ ostep: +e.key });
+      else if (e.key === 'q' || e.key === 'Q') location.href = 'NFT Launchpad Flow.dc.html';
+      else if (e.key === 'h' || e.key === 'H') window.open('https://iqlabs.dev', '_blank', 'noopener');
+    };
+    window.addEventListener('keydown', this._k);
+  }
+  componentWillUnmount() { window.removeEventListener('keydown', this._k); }
+  renderVals() {
+    const s = this.state;
+    const taken = ['pudgy', 'monks', 'degods'];
+    const slugClean = (s.slug || '').toLowerCase().replace(/[^a-z0-9-]/g, '').replace(/-+/g, '-').replace(/^-|-$/g, '');
+    const slugLink = 'iq6900.com/c/' + (slugClean || 'your-handle');
+    const slugOk = slugClean.length >= 3 && !taken.includes(slugClean);
+    const slugState = !slugClean ? 'pick a handle' : slugClean.length < 3 ? 'too short' : taken.includes(slugClean) ? 'already taken' : 'available';
+    const slugTag = slugOk ? 'color:#00e800' : (!slugClean || slugClean.length < 3) ? 'color:#00e8e8' : 'color:#ff5555';
+    const oNames = ['name', 'network', 'items', 'mint lists'];
+    const osteps = oNames.map((n, i) => ({ label: (i + 1) + ') ' + n, style: s.ostep === i + 1 ? 'background:#ffff00;color:#0000d7;width:fit-content' : 'width:fit-content', click: () => this.setState({ ostep: i + 1 }) }));
+    const oTitles = { 1: 'name your collection', 2: 'pick the chain', 3: 'drop + check items', 4: 'mint lists, then sign' };
+    const oBlurbs = { 1: 'Name, link handle, symbol. Pick the handle like a username, the mint page link previews as you type.', 2: 'Solana and Robinhood, the two chains we inscribe on today. Monad is next.', 3: 'Drop your art folder. We stage it in a temporary buffer, then inscribe every item on-chain at deploy. Supply is however many images you drop. Every item is 1 of 1.', 4: 'Scatter mint lists, kept almost verbatim. Each list becomes one candy guard group. The deploy is the signature at the bottom of this step, after a confirm screen.' };
+    const oFrom = { 1: 'from scatter step 1 · keep', 2: 'from scatter step 2 · adapt', 3: 'your art folder → temporary buffer → inscribed on-chain', 4: 'from scatter mint lists + step 5 deploy · folded' };
+    const listNames = ['allowlist', 'public', 'deployer'];
+    const lists = listNames.map((name, i) => ({ name: '[ ' + name + ' ]', style: s.list === i ? 'background:#ffff00;color:#0000d7' : '', click: () => this.setState({ list: i }) }));
+    const listData = [
+      [['name', 'ALLOWLIST', ''], ['addresses', '412 wallets pasted, de-duplicated → merkle root', 'color:#00e800'], ['start / end', 'oct 20 14:00 → oct 21 14:00 (startDate / endDate)', ''], ['price', '0.03 SOL (solPayment → your wallet)', ''], ['wallet limit', '2 (mintLimit)', ''], ['list limit', '500 (allocation)', ''], ['platform fee', '0.001 SOL per mint, minter pays (solFixedFee)', '']],
+      [['name', 'PUBLIC', ''], ['addresses', 'blank = anyone (no allowList guard)', 'color:#00e800'], ['start / end', 'oct 21 14:00 → open', ''], ['price', '0.05 SOL', ''], ['wallet limit', '3', ''], ['list limit', 'rest of supply', ''], ['platform fee', '0.001 SOL per mint, minter pays', '']],
+      [['name', 'DEPLOYER (self mint)', ''], ['addresses', 'your wallet only', 'color:#00e800'], ['start / end', 'now → open', ''], ['price', '0 SOL', ''], ['wallet limit', 'off', ''], ['list limit', '50 reserved', ''], ['platform fee', '0 (private free list, same rule as scatter)', 'color:#00e800']]
+    ];
+    const listFields = listData[s.list].map(([k, v, st]) => ({ k, v, s: st }));
+    return {
+      osteps, ostep: s.ostep, oTitle: oTitles[s.ostep], oBlurb: oBlurbs[s.ostep], oFrom: oFrom[s.ostep], o1: s.ostep === 1, o2: s.ostep === 2, o4: s.ostep === 3, o5: s.ostep === 4,
+      oBack: () => this.setState({ ostep: Math.max(1, s.ostep - 1) }), oNext: () => this.setState({ ostep: Math.min(4, s.ostep + 1) }),
+      pressLabel: s.ostep < 4 ? 'press any key to continue' : 'press enter to review and sign',
+      slug: s.slug, slugLink, slugState, slugTag, slugChange: (e) => this.setState({ slug: e.target.value }),
+      lists, listFields
+    };
+  }
+}
+</script>
+</body>
+</html>

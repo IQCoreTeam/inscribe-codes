@@ -1,0 +1,1121 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet data-dc-atomics>
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Jersey+15&family=Silkscreen&display=swap" rel="stylesheet">
+<style>
+/* drop MonoMEK.otf + MEKmode.otf (CC0, mek.gallery) into fonts/ and uncomment:
+@font-face{font-family:'MonoMEK';src:url('fonts/MonoMEK.otf') format('opentype')}
+@font-face{font-family:'MEKmode';src:url('fonts/MEKmode.otf') format('opentype')} */
+@font-face{font-family:'Alagard';src:url('fonts/alagard.ttf') format('truetype');font-display:swap}
+body{margin:0;background:#f3f2ec;color:#121212;font:400 16px/1.3 'MonoMEK','Jersey 15',monospace;-webkit-font-smoothing:none}a{color:#121212;text-decoration:none}a:hover{color:#8a8a84}.hood a{color:#1a7f2e}.hood a:hover{color:#121212}
+@keyframes blink{0%,49%{opacity:1}50%,100%{opacity:0}}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.35}}
+@media (max-width: 900px){#desk{flex-direction:column !important}#markets{flex:none !important}}
+@media (max-width: 940px){#board_grid{grid-template-columns:repeat(2,1fr) !important}#stepper{display:none !important}}
+@media (max-width: 1100px){#nav_mid{display:none !important}}@media (max-width: 1280px){.navlbl{display:none !important}}
+/* tty: discrete-only motion */
+@keyframes ttycur{0%,49%{opacity:1}50%,100%{opacity:0}}
+.ttycur{display:inline-block;width:.55em;height:1em;background:currentColor;vertical-align:-.12em;margin-left:.1em;animation:ttycur 1.06s steps(1,end) infinite}
+@keyframes ttyrow{0%{visibility:hidden}100%{visibility:visible}}
+.ttyrows>*{animation:ttyrow 0s steps(1,end) both}
+.ttyrows>*:nth-child(1){animation-delay:.04s}.ttyrows>*:nth-child(2){animation-delay:.12s}.ttyrows>*:nth-child(3){animation-delay:.19s}.ttyrows>*:nth-child(4){animation-delay:.28s}.ttyrows>*:nth-child(5){animation-delay:.34s}.ttyrows>*:nth-child(6){animation-delay:.43s}.ttyrows>*:nth-child(7){animation-delay:.49s}.ttyrows>*:nth-child(8){animation-delay:.58s}.ttyrows>*:nth-child(9){animation-delay:.64s}.ttyrows>*:nth-child(10){animation-delay:.73s}.ttyrows>*:nth-child(11){animation-delay:.79s}.ttyrows>*:nth-child(12){animation-delay:.88s}
+@keyframes ttyspin{0%{content:'⠋'}12.5%{content:'⠙'}25%{content:'⠹'}37.5%{content:'⠸'}50%{content:'⠼'}62.5%{content:'⠴'}75%{content:'⠦'}87.5%{content:'⠧'}100%{content:'⠋'}}
+.ttyspin::before{content:'⠋';display:inline-block;width:1.2em;animation:ttyspin .8s steps(1,end) infinite}
+.ttybar{font:400 18px/1.2 'MonoMEK','Jersey 15',monospace;letter-spacing:0;white-space:pre;overflow:hidden;text-overflow:clip}
+.dwh>span,.dwh>a,.dwh>div{background:#f3f2ec;padding:2px 8px}.dwh>span[style*="display:none"]{display:none}
+</style>
+<script>
+(function(){
+  if (window.__tty) return; window.__tty = 1;
+  var speed = function(ch){ return ch === ' ' ? 20 : /[.:]/.test(ch) ? 110 : 9 + Math.random() * 20; };
+  function type(el){
+    if (el.__ttyDone) return; el.__ttyDone = 1;
+    if (el.childNodes.length !== 1 || el.childNodes[0].nodeType !== 3) return;
+    var tn = el.childNodes[0], full = tn.nodeValue; if (!full || !full.trim()) return;
+    var n = 0; tn.nodeValue = ''; el.setAttribute('data-tty-on', '');
+    (function step(){ n++; tn.nodeValue = full.slice(0, n); if (n < full.length) setTimeout(step, speed(full[n - 1])); else el.removeAttribute('data-tty-on'); })();
+  }
+  function scan(root){ if (!root.querySelectorAll) return; if (root.hasAttribute && root.hasAttribute('data-tty')) type(root); var l = root.querySelectorAll('[data-tty]'); for (var i = 0; i < l.length; i++) type(l[i]); }
+  var mo = new MutationObserver(function(ms){ ms.forEach(function(m){ m.addedNodes.forEach(function(nd){ if (nd.nodeType === 1) setTimeout(function(){ scan(nd); }, 30); }); }); });
+  function start(){ scan(document.body); mo.observe(document.body, { childList: true, subtree: true }); }
+  if (document.body) start(); else document.addEventListener('DOMContentLoaded', start);
+})();
+</script>
+<style>[data-tty-on]::after{content:'█';margin-left:.08em;animation:ttycur 1.06s steps(1,end) infinite}@keyframes ttycur{0%,49%{opacity:1}50%,100%{opacity:0}}</style>
+</helmet>
+<sc-if value="{{ isSol }}" hint-placeholder-val="{{ true }}">
+
+
+<div style="position:relative;z-index:1;color:#121212;min-height:100vh;display:flex;flex-direction:column">
+
+  <div style="position:sticky;top:0;z-index:10;padding:12px 16px 0">
+    <div style="display:flex;justify-content:space-between;align-items:center;gap:14px;border:2px solid #121212;border-radius:0;background:rgba(243,242,236,.9);padding:11px 16px">
+      <div style="display:flex;align-items:center;gap:14px">
+        <a href="Home v4.dc.html?view=home" style="white-space:nowrap;font:400 13px 'MonoMEK','Jersey 15',monospace;letter-spacing:.14em;border:1px solid rgba(18,18,18,.5);border-radius:0;padding:7px 12px;transition:all .3s" style-hover="border-color:#121212;background:rgba(18,18,18,.1)">← HOME</a>
+        <a href="https://iqlabs.dev"><img src="img/text_logo.webp" alt="IQLabs" style="height:18px;display:block;filter:brightness(0)"></a>
+        <span class="navlbl" style="white-space:nowrap;font:400 18px/1.1 'Alagard','MonoMEK','Jersey 15',monospace;letter-spacing:.02em;color:#8a8a84">INSCRIBE.CODES · SOLANA</span>
+        <a href="#" onClick="{{ toHood }}" style="white-space:nowrap;font:400 16px/1.1 'Alagard','MonoMEK','Jersey 15',monospace;letter-spacing:.02em;border:1px solid #121212;color:#121212;padding:6px 10px" style-hover="background:#121212;color:#f3f2ec">ROBINHOOD CHAIN →</a>
+        <a href="Home v4.dc.html?view=nft" style="white-space:nowrap;font:400 16px/1.1 'Alagard','MonoMEK','Jersey 15',monospace;letter-spacing:.02em;border:1px solid #121212;color:#121212;padding:6px 10px" style-hover="background:#121212;color:#f3f2ec">NFT LAUNCHPAD →</a>
+      </div>
+      <div id="nav_mid" style="white-space:nowrap;font:400 18px/1.1 'Alagard','MonoMEK','Jersey 15',monospace;letter-spacing:.02em;color:#8a8a84">LAUNCH + MARKETS</div>
+      <sc-if value="{{ isConnected }}" hint-placeholder-val="{{ false }}">
+        <div style="font:400 16px/1.1 'Alagard','MonoMEK','Jersey 15',monospace;letter-spacing:.02em;display:flex;align-items:center;gap:8px;padding:7px 12px;color:#121212;border:1px solid #121212;background-color:#f3f2ec;background-image:linear-gradient(#f3f2ec,#f3f2ec),radial-gradient(#121212 1px,transparent 1.2px);background-size:calc(100% - 12px) calc(100% - 12px),4px 4px;background-position:center,0 0;background-repeat:no-repeat,repeat"><span style="width:7px;height:7px;background:#121212"></span>7xKq...Labs</div>
+      </sc-if>
+      <sc-if value="{{ isDisconnected }}" hint-placeholder-val="{{ true }}">
+        <div onClick="{{ connect }}" style="font:400 16px/1.1 'Alagard','MonoMEK','Jersey 15',monospace;letter-spacing:.02em;white-space:nowrap;flex-shrink:0;letter-spacing:.12em;border:1px solid #121212;color:#121212;padding:7px 12px;cursor:pointer" style-hover="background:#121212;color:#f3f2ec">CONNECT WALLET</div>
+      </sc-if>
+    </div>
+  </div>
+
+  <!-- ============ BOARD (home) + MARKETS side by side ============ -->
+  <div id="desk" style="padding:14px 16px 16px;flex:1;display:flex;gap:14px;align-items:stretch">
+    <div style="border:2px solid #121212;border-radius:0;background:rgba(243,242,236,.88);overflow:hidden;flex:1.45;min-width:0;display:flex;flex-direction:column">
+      <div class="dwh" style="display:flex;align-items:center;gap:8px;border-bottom:2px solid #121212;padding:7px 10px;background-color:#f3f2ec;background-image:radial-gradient(#121212 1px,transparent 1.2px);background-size:4px 4px;font:400 10px/1.6 'MEKmode','Silkscreen',monospace;letter-spacing:.06em;text-transform:uppercase">
+          <span style="display:none"></span>
+          <span data-tty style="margin-left:6px;opacity:.8">Launch a token</span><span style="margin-left:auto;opacity:.6">{{ launchStepLabel }}</span>
+        </div>
+      <sc-if value="{{ showHints }}" hint-placeholder-val="{{ false }}"><div style="display:flex;justify-content:space-between;gap:12px;align-items:center;padding:7px 14px;border-bottom:1px solid #8a8a84;font:400 14px/1.4 'MonoMEK','Jersey 15',monospace;color:#121212"><span>Turn an image into a token in two steps. Connect a wallet to begin.</span><span onClick="{{ hideHints }}" style="cursor:pointer;color:#8a8a84;padding:0 4px">x</span></div></sc-if><div style="padding:20px 22px 22px;flex:1">
+
+          <sc-if value="{{ lMenu }}" hint-placeholder-val="{{ true }}">
+            <div data-tty style="font:400 20px/1.1 'Alagard','MonoMEK','Jersey 15',monospace;letter-spacing:.02em;color:#1a7f2e">Step 1 of 2: pick your image</div>
+            <p style="margin:10px 0 12px;font:400 13px/1.8 'MonoMEK','Jersey 15',monospace;opacity:.6">Your token needs an image that lives on chain. Upload a new one, or pick one you already saved under My inscriptions.</p>
+          <sc-if value="{{ showResume }}" hint-placeholder-val="{{ false }}">
+            <div style="display:flex;justify-content:space-between;align-items:center;gap:12px;border:1px solid #121212;padding:12px 16px;margin-bottom:12px;font:400 13px/1.6 'MonoMEK','Jersey 15',monospace">
+              <span style="color:#1a7f2e">Unfinished upload: {{ resumeLabel }}. Only the missing parts are redone.</span>
+              <span onClick="{{ resume }}" style="font-weight:400;letter-spacing:.1em;background:#1a7f2e;color:#0b0f0a;border-radius:0;padding:7px 14px;cursor:pointer;white-space:nowrap">RESUME →</span>
+            </div>
+          </sc-if>
+          <div style="display:flex;border:1px solid rgba(18,18,18,.5);border-radius:0;overflow:hidden;font:400 13px 'MonoMEK','Jersey 15',monospace;letter-spacing:.1em">
+            <sc-for list="{{ typeTabs }}" as="tt" hint-placeholder-count="4">
+              <div onClick="{{ tt.click }}" style="{{ tt.style }}" style-hover="background-size:calc(100% - 12px) calc(100% - 12px),2.5px 2.5px">{{ tt.label }}</div>
+            </sc-for>
+          </div>
+
+          <sc-if value="{{ isText }}" hint-placeholder-val="{{ true }}">
+            <textarea value="{{ text }}" onChange="{{ onText }}" style="width:100%;box-sizing:border-box;min-height:110px;resize:vertical;margin-top:12px;background:rgba(18,18,18,.04);color:#121212;border:1px solid rgba(18,18,18,.5);border-radius:0;font:400 14px/1.8 'MonoMEK','Jersey 15',monospace;padding:12px"></textarea>
+            <div style="margin-top:8px;font:400 13px 'MonoMEK','Jersey 15',monospace;opacity:.55">{{ sizeLabel }} → {{ chunkLabel }}</div>
+          </sc-if>
+
+          <sc-if value="{{ isAscii }}" hint-placeholder-val="{{ false }}">
+            <label style="margin-top:12px;display:flex;flex-direction:column;align-items:center;gap:8px;border:1px dashed rgba(18,18,18,.45);border-radius:0;padding:20px;text-align:center;cursor:pointer" style-hover="border-color:#121212;background:rgba(18,18,18,.05)">
+              <span style="font:400 14px 'MonoMEK','Jersey 15',monospace;letter-spacing:.14em">SELECT IMAGE</span>
+              <span style="font:400 13px 'MonoMEK','Jersey 15',monospace;letter-spacing:.16em;opacity:.5">PNG / JPG / WEBP</span>
+            </label>
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:12px">
+              <div style="border:1px solid rgba(18,18,18,.35);border-radius:0;padding:12px 14px">
+                <div style="display:flex;justify-content:space-between;align-items:baseline;font:400 13px 'MonoMEK','Jersey 15',monospace"><span style="letter-spacing:.14em;opacity:.7">FONT SIZE</span><span style="opacity:.4">5 to 50</span></div>
+                <div style="display:inline-flex;border:1px solid rgba(18,18,18,.5);border-radius:0;overflow:hidden;margin-top:10px;font:400 18px 'Alagard','MonoMEK','Jersey 15',monospace">
+                  <div onClick="{{ fontDec }}" style="width:32px;text-align:center;padding:5px 0;cursor:pointer" style-hover="background:rgba(18,18,18,.14)">-</div>
+                  <div style="width:46px;text-align:center;padding:5px 0;border-left:1px solid rgba(18,18,18,.4);border-right:1px solid rgba(18,18,18,.4);color:#1a7f2e">{{ asciiFont }}</div>
+                  <div onClick="{{ fontInc }}" style="width:32px;text-align:center;padding:5px 0;cursor:pointer" style-hover="background:rgba(18,18,18,.14)">+</div>
+                </div>
+                <div style="margin-top:8px;font:400 13px 'MonoMEK','Jersey 15',monospace;opacity:.4">Smaller packs in more characters.</div>
+              </div>
+              <div style="border:1px solid rgba(18,18,18,.35);border-radius:0;padding:12px 14px">
+                <div style="display:flex;justify-content:space-between;align-items:baseline;font:400 13px 'MonoMEK','Jersey 15',monospace"><span style="letter-spacing:.14em;opacity:.7">SPACING</span><span style="opacity:.4">-50 to 50</span></div>
+                <div style="display:inline-flex;border:1px solid rgba(18,18,18,.5);border-radius:0;overflow:hidden;margin-top:10px;font:400 18px 'Alagard','MonoMEK','Jersey 15',monospace">
+                  <div onClick="{{ spaceDec }}" style="width:32px;text-align:center;padding:5px 0;cursor:pointer" style-hover="background:rgba(18,18,18,.14)">-</div>
+                  <div style="width:46px;text-align:center;padding:5px 0;border-left:1px solid rgba(18,18,18,.4);border-right:1px solid rgba(18,18,18,.4);color:#1a7f2e">{{ asciiSpacing }}</div>
+                  <div onClick="{{ spaceInc }}" style="width:32px;text-align:center;padding:5px 0;cursor:pointer" style-hover="background:rgba(18,18,18,.14)">+</div>
+                </div>
+                <div style="margin-top:8px;font:400 13px 'MonoMEK','Jersey 15',monospace;opacity:.4">Distance between characters.</div>
+              </div>
+            </div>
+            <div style="display:flex;justify-content:space-between;align-items:center;border:1px solid rgba(18,18,18,.35);border-radius:0;padding:11px 14px;margin-top:10px">
+              <div><div style="font:400 13px 'MonoMEK','Jersey 15',monospace;letter-spacing:.14em;opacity:.7">IQ LOGO</div><div style="margin-top:3px;font:400 13px 'MonoMEK','Jersey 15',monospace;opacity:.4">Stamp the IQ logo onto the output.</div></div>
+              <div onClick="{{ toggleLogo }}" style="{{ logoSwitch }}"><div style="{{ logoKnob }}"></div></div>
+            </div>
+            <pre style="margin:12px 0 0;border:1px solid rgba(18,18,18,.35);border-radius:0;padding:14px;font:400 14px/1.15 'MonoMEK','Jersey 15',monospace;color:#1a7f2e;background:rgba(18,18,18,.12);overflow:auto"> /\_/\
+( o.o )   preview · font {{ asciiFont }} · spacing {{ asciiSpacing }}{{ logoTag }}
+ &gt; ^ &lt;</pre>
+          </sc-if>
+
+          <sc-if value="{{ isImage }}" hint-placeholder-val="{{ false }}">
+            <div style="margin-top:12px;border:1px dashed rgba(18,18,18,.45);border-radius:0;padding:26px;text-align:center;font:400 13px/1.9 'MonoMEK','Jersey 15',monospace;opacity:.7">Drop an image here<br><span style="opacity:.6">You see a preview before anything is paid.</span></div>
+          </sc-if>
+
+          <sc-if value="{{ isFile }}" hint-placeholder-val="{{ false }}">
+            <div style="margin-top:12px;border:1px dashed rgba(18,18,18,.45);border-radius:0;padding:20px;text-align:center;font:400 13px/1.9 'MonoMEK','Jersey 15',monospace;opacity:.7">Drop any file here</div>
+            <div onClick="{{ openOvercap }}" style="margin-top:10px;display:flex;justify-content:space-between;border:1px solid rgba(176,122,26,.55);border-radius:0;padding:10px 14px;font:400 13px 'MonoMEK','Jersey 15',monospace;cursor:pointer" style-hover="background:rgba(176,122,26,.08)"><span>dataset.bin · application/octet-stream · <span style="color:#b07a1a">9.2 MB</span></span><span style="color:#b07a1a;font-weight:400">OVER CAP →</span></div>
+          </sc-if>
+
+          <sc-if value="{{ isPick }}" hint-placeholder-val="{{ false }}">
+            <div style="margin-top:12px"></div>
+            <sc-if value="{{ isConnected }}" hint-placeholder-val="{{ false }}">
+            <sc-if value="{{ lHasImages }}" hint-placeholder-val="{{ true }}">
+              <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px;max-height:236px;overflow-y:auto;padding-right:4px">
+                <sc-for list="{{ lItems }}" as="it" hint-placeholder-count="3">
+                  <div onClick="{{ it.pick }}" style="{{ it.style }}"><div style="{{ it.thStyle }}">{{ it.th }}</div><div style="padding:7px 9px;font:400 13px 'MonoMEK','Jersey 15',monospace"><span style="border:1px solid rgba(18,18,18,.35);border-radius:0;padding:1px 6px;letter-spacing:.08em">{{ it.tag }}</span> <span style="opacity:.6">{{ it.time }}</span><div style="opacity:.45;margin-top:4px">{{ it.src }}</div></div></div>
+                </sc-for>
+              </div>
+            </sc-if>
+            <sc-if value="{{ lNoImages }}" hint-placeholder-val="{{ false }}">
+              <div style="text-align:center;padding:16px 0 6px">
+                <div style="font:400 26px 'Alagard','MonoMEK','Jersey 15',monospace;color:#1a7f2e">Nothing saved yet</div>
+                <p style="margin:12px 0 0;font:400 13px/1.8 'MonoMEK','Jersey 15',monospace;opacity:.6">Upload an image first. It is saved on chain, then you come straight back here to launch it.</p>
+              </div>
+            </sc-if>
+            </sc-if>
+            <sc-if value="{{ isDisconnected }}" hint-placeholder-val="{{ true }}">
+              <div style="border:1px dashed rgba(18,18,18,.45);border-radius:0;padding:22px;text-align:center">
+                <div style="font:400 13px/1.8 'MonoMEK','Jersey 15',monospace;opacity:.6">Connect your wallet to see what you have saved. Anything from inscribe.codes or iqlabs.dev shows up here.</div>
+              </div>
+            </sc-if>
+          </sc-if>
+
+          <sc-if value="{{ notPick }}" hint-placeholder-val="{{ true }}">
+          <details style="margin-top:12px"><summary style="cursor:pointer;list-style:none;font:400 13px 'MonoMEK','Jersey 15',monospace;letter-spacing:.1em;color:#8a8a84;padding:6px 0;text-transform:uppercase">details ▸</summary><div style="margin-top:4px;border:1px solid rgba(18,18,18,.4);border-radius:0;font:400 14px 'MonoMEK','Jersey 15',monospace">
+            <div style="display:flex;justify-content:space-between;padding:8px 14px;border-bottom:1px dotted rgba(18,18,18,.25)"><span style="opacity:.6">size</span><span>{{ sizeLabel }}</span></div>
+            <div style="display:flex;justify-content:space-between;padding:8px 14px;border-bottom:1px dotted rgba(18,18,18,.25)"><span style="opacity:.6">parts</span><span>{{ chunkLabel }}</span></div>
+            <div style="display:flex;justify-content:space-between;padding:8px 14px;border-bottom:1px dotted rgba(18,18,18,.25)"><span style="opacity:.6">network fee</span><span>{{ netFee }}</span></div>
+            <div style="display:flex;justify-content:space-between;padding:8px 14px;border-bottom:1px dotted rgba(18,18,18,.25)"><span style="opacity:.6">service fee</span><span>0.00050</span></div>
+            <div style="display:flex;justify-content:space-between;padding:8px 14px;border-bottom:1px dotted rgba(18,18,18,.25)"><span style="opacity:.6">temporary deposit</span><span>0.00150</span></div>
+            <div style="display:flex;justify-content:space-between;padding:9px 14px;border-top:1px solid rgba(18,18,18,.4);font-weight:400"><span>you pay</span><span style="color:#1a7f2e">{{ totalLabel }} SOL</span></div>
+          </div><div style="margin-top:12px;font:400 13px/1.9 'MonoMEK','Jersey 15',monospace;opacity:.55">
+            <div>Connection: default · <span onClick="{{ openRpc }}" style="text-decoration:underline;cursor:pointer">use your own for speed</span> (helius)</div>
+            <div>File too big? <span onClick="{{ openOvercap }}" style="text-decoration:underline;cursor:pointer">upload large files from the terminal →</span></div>
+          </div></details>
+          </sc-if>
+            <div onClick="{{ goContinue }}" style="{{ goStyle }}" style-hover="background-size:calc(100% - 12px) calc(100% - 12px),2.5px 2.5px;filter:brightness(1.15)">{{ goLabel }}</div>
+            <sc-if value="{{ hasPick }}" hint-placeholder-val="{{ false }}">
+              <div style="margin-top:8px;text-align:center;font:400 13px 'MonoMEK','Jersey 15',monospace;opacity:.5">Using {{ lPickedTh }} · <span onClick="{{ clearPick }}" style="text-decoration:underline;cursor:pointer">upload a new one instead</span></div>
+            </sc-if>
+          </sc-if>
+
+
+          <sc-if value="{{ lForm }}" hint-placeholder-val="{{ false }}">
+            <div data-tty style="font:400 20px/1.1 'Alagard','MonoMEK','Jersey 15',monospace;letter-spacing:.02em;color:#1a7f2e">Step 2 of 2: name it and launch</div>
+            <div style="display:flex;gap:10px;margin-top:14px">
+              <div style="flex:1"><div style="font:400 13px 'MonoMEK','Jersey 15',monospace;opacity:.55;letter-spacing:.1em;margin-bottom:4px">NAME</div><input value="{{ lName }}" onChange="{{ onLName }}" style="width:100%;box-sizing:border-box;background:rgba(18,18,18,.04);color:#121212;border:1px solid rgba(18,18,18,.5);border-radius:0;font:400 16px 'MonoMEK','Jersey 15',monospace;padding:9px 10px"></div>
+              <div style="flex:0 0 120px"><div style="font:400 13px 'MonoMEK','Jersey 15',monospace;opacity:.55;letter-spacing:.1em;margin-bottom:4px">SYMBOL</div><input value="{{ lSym }}" onChange="{{ onLSym }}" style="width:100%;box-sizing:border-box;background:rgba(18,18,18,.04);color:#121212;border:1px solid rgba(18,18,18,.5);border-radius:0;font:400 16px 'MonoMEK','Jersey 15',monospace;padding:9px 10px"></div>
+            </div>
+            <div style="font:400 13px 'MonoMEK','Jersey 15',monospace;opacity:.55;letter-spacing:.1em;margin:10px 0 4px">DESCRIPTION</div>
+            <textarea value="{{ lDesc }}" onChange="{{ onLDesc }}" style="width:100%;box-sizing:border-box;min-height:54px;resize:vertical;background:rgba(18,18,18,.04);color:#121212;border:1px solid rgba(18,18,18,.5);border-radius:0;font:400 14px/1.6 'MonoMEK','Jersey 15',monospace;padding:9px 10px"></textarea>
+            <div style="display:flex;gap:12px;align-items:center;margin:12px 0">
+              <div style="width:64px;height:64px;border:1px solid rgba(18,18,18,.5);border-radius:0;background:rgba(18,18,18,.04);display:grid;place-items:center;font:400 13px 'MonoMEK','Jersey 15',monospace;color:#1a7f2e;text-align:center;white-space:pre">{{ lPickedTh }}</div>
+              <span style="font:400 13px/1.7 'MonoMEK','Jersey 15',monospace;opacity:.55">{{ lPickedTag }} inscription {{ lPickedSig }}<br>The coin page links back to your original image.</span>
+            </div>
+            <div style="display:flex;gap:10px">
+              <div style="flex:0 0 160px"><div style="font:400 13px 'MonoMEK','Jersey 15',monospace;opacity:.55;letter-spacing:.1em;margin-bottom:4px">INITIAL DEV BUY (SOL)</div><input value="{{ lBuy }}" onChange="{{ onLBuy }}" style="width:100%;box-sizing:border-box;background:rgba(18,18,18,.04);color:#121212;border:1px solid rgba(18,18,18,.5);border-radius:0;font:400 16px 'MonoMEK','Jersey 15',monospace;padding:9px 10px"></div>
+              <div style="flex:1"><div style="font:400 13px 'MonoMEK','Jersey 15',monospace;opacity:.55;letter-spacing:.1em;margin-bottom:4px">X LINK (OPTIONAL)</div><input placeholder="https://x.com/..." style="width:100%;box-sizing:border-box;background:rgba(18,18,18,.04);color:#121212;border:1px solid rgba(18,18,18,.5);border-radius:0;font:400 16px 'MonoMEK','Jersey 15',monospace;padding:9px 10px"></div>
+            </div>
+            <div style="margin-top:12px;border:1px solid rgba(18,18,18,.4);border-radius:0;font:400 14px 'MonoMEK','Jersey 15',monospace">
+              <div style="display:flex;justify-content:space-between;padding:8px 14px;border-bottom:1px dotted rgba(18,18,18,.25)"><span style="opacity:.6">platform fee</span><span>0.069 SOL</span></div>
+              <div style="display:flex;justify-content:space-between;padding:8px 14px;border-bottom:1px dotted rgba(18,18,18,.25)"><span style="opacity:.6">dev buy</span><span>{{ lBuy }} SOL</span></div>
+              <div style="display:flex;justify-content:space-between;padding:9px 14px;font-weight:400"><span>total</span><span style="color:#1a7f2e">{{ lTotal }} SOL</span></div>
+            </div>
+            <div style="margin:8px 2px 0;font:400 13px 'MonoMEK','Jersey 15',monospace;opacity:.45">If the launch does not go through, nothing is charged.</div>
+            <sc-if value="{{ lIdle }}" hint-placeholder-val="{{ true }}">
+              <div onClick="{{ lLaunch }}" style="margin-top:12px;background:#121212;color:#f3f2ec;border-radius:0;text-align:center;padding:13px 0;font:400 14px 'MonoMEK','Jersey 15',monospace;letter-spacing:.12em;cursor:pointer;transition:all .35s cubic-bezier(.2,.7,.2,1)" style-hover="background:#ffffff;transform:translateY(-2px);box-shadow:0 6px 20px rgba(18,18,18,.12)">LAUNCH ON PUMP.FUN</div>
+            </sc-if>
+            <sc-if value="{{ lWaiting }}" hint-placeholder-val="{{ false }}">
+              <div class="ttyspin" style="margin-top:12px;border:1px solid rgba(26,127,46,.55);border-radius:0;text-align:center;padding:13px 0;font:400 14px 'MonoMEK','Jersey 15',monospace;letter-spacing:.12em;color:#1a7f2e;">Approve in your wallet…</div>
+            </sc-if>
+            <div onClick="{{ lBack }}" style="margin-top:10px;text-align:center;font:400 13px 'MonoMEK','Jersey 15',monospace;opacity:.5;cursor:pointer;text-decoration:underline">← back</div>
+          </sc-if>
+
+          <sc-if value="{{ lDone }}" hint-placeholder-val="{{ false }}">
+            <div style="text-align:center;padding:16px 0 4px">
+              <div data-tty style="font:400 39px 'Alagard','MonoMEK','Jersey 15',monospace;color:#1a7f2e">LAUNCHED.</div>
+              <div style="margin-top:12px;font:400 14px 'MonoMEK','Jersey 15',monospace">{{ lSym }} · {{ lName }}</div>
+              <div style="margin-top:8px;font:400 13px 'MonoMEK','Jersey 15',monospace;opacity:.6">mint: {{ lMint }} · a kind=token row was inscribed, so it shows in Markets and on the iqlabs.dev board</div>
+            </div>
+            <div style="display:flex;gap:10px;justify-content:center;flex-wrap:wrap;margin-top:18px;font:400 13px 'MonoMEK','Jersey 15',monospace;letter-spacing:.1em">
+              <a href="#" style="background:#121212;color:#f3f2ec;border-radius:0;padding:11px 18px;transition:all .3s" style-hover="background:#ffffff">VIEW ON PUMP.FUN</a>
+              <div onClick="{{ lViewMarkets }}" style="border:1px solid rgba(18,18,18,.5);border-radius:0;padding:10px 18px;cursor:pointer;transition:all .3s" style-hover="background:rgba(18,18,18,.1)">OPEN IN MARKETS</div>
+              <div onClick="{{ lAgain }}" style="border:1px solid rgba(18,18,18,.5);border-radius:0;padding:10px 18px;cursor:pointer;transition:all .3s" style-hover="background:rgba(18,18,18,.1)">LAUNCH ANOTHER</div>
+            </div>
+          </sc-if>
+
+        </div>
+    </div>
+    <div id="markets" style="border:2px solid #121212;border-radius:0;background:rgba(243,242,236,.88);overflow:hidden;flex:1;min-width:0;display:flex;flex-direction:column">
+      <div class="dwh" style="display:flex;align-items:center;gap:8px;border-bottom:2px solid #121212;padding:7px 10px;background-color:#f3f2ec;background-image:radial-gradient(#121212 1px,transparent 1.2px);background-size:4px 4px;font:400 10px/1.6 'MEKmode','Silkscreen',monospace;letter-spacing:.06em;text-transform:uppercase">
+        <span style="display:none"></span>
+        <span data-tty style="margin-left:6px;opacity:.8">Markets</span>
+        <span onClick="{{ openLaunch }}" style="margin-left:auto;font:400 13px 'MonoMEK','Jersey 15',monospace;letter-spacing:.1em;background:#121212;color:#f3f2ec;border-radius:0;padding:7px 12px;cursor:pointer;white-space:nowrap;transition:all .3s" style-hover="background:#8a8a84">LAUNCH A TOKEN</span>
+      </div>
+      <sc-if value="{{ showHints }}" hint-placeholder-val="{{ false }}"><div style="display:flex;justify-content:space-between;gap:12px;align-items:center;padding:7px 14px;border-bottom:1px solid #8a8a84;font:400 14px/1.4 'MonoMEK','Jersey 15',monospace;color:#121212"><span>Click any token to see its chart.</span><span onClick="{{ hideHints }}" style="cursor:pointer;color:#8a8a84;padding:0 4px">x</span></div></sc-if><div class="ttyrows" style="background:rgba(18,18,18,.03);flex:1;display:flex;flex-direction:column;font-family:'MonoMEK','Jersey 15',monospace">
+        <div style="display:grid;grid-template-columns:minmax(0,1fr) auto auto auto;gap:10px;padding:10px 14px;font-size:13px;letter-spacing:.06em;opacity:.55;border-bottom:1px solid rgba(18,18,18,.16)"><span>NAME</span><span>PRICE</span><span>24H</span><span style="text-align:right">ACTION</span></div>
+        <sc-for list="{{ coins }}" as="c" hint-placeholder-count="4">
+          <div onClick="{{ c.open }}" style="{{ c.rowStyle }}" style-hover="background:rgba(18,18,18,.06)">
+            <div style="display:flex;align-items:center;gap:8px;min-width:0;overflow:hidden"><span style="width:26px;height:26px;border-radius:0;border:1px solid rgba(18,18,18,.35);display:grid;place-items:center;font:400 13px 'MonoMEK','Jersey 15',monospace;color:#1a7f2e;background:rgba(18,18,18,.04);flex:0 0 auto">{{ c.ini }}</span><div style="min-width:0"><div style="font:400 16px/1 'Alagard','MonoMEK','Jersey 15',monospace;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">{{ c.sym }}</div><div style="font-size:13px;opacity:.4;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">{{ c.name }} · {{ c.cap }}</div></div></div>
+            <span style="{{ c.priceStyle }}">{{ c.price }}</span><span style="{{ c.chgStyle }}">{{ c.chg }}</span>
+            <span style="text-align:right;font-size:13px;opacity:.6">{{ c.act }}</span>
+          </div>
+        </sc-for>
+        <p style="margin:auto 0 0;padding:10px 14px;border-top:1px solid rgba(18,18,18,.16);font:400 13px/1.7 'MonoMEK','Jersey 15',monospace;opacity:.45">Tokens launched here, biggest first. Prices refresh every 30 seconds. New launches show "indexing" for a few minutes.</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- ============ INSCRIBE (modal flow) ============ -->
+  <sc-if value="{{ inscribeOpen }}" hint-placeholder-val="{{ false }}">
+  <div onClick="{{ backdropClose }}" style="position:fixed;inset:0;z-index:30;background:rgba(243,242,236,.88);display:flex;align-items:flex-start;justify-content:center;padding:26px 16px;overflow:auto">
+  <div onClick="{{ stopClick }}" style="width:680px;max-width:100%;display:flex;flex-direction:column">
+    <div id="stepper" style="display:flex;gap:8px;margin-bottom:12px;font:400 13px 'MonoMEK','Jersey 15',monospace;letter-spacing:.14em">
+      <sc-for list="{{ steps }}" as="st" hint-placeholder-count="4">
+        <div style="{{ st.style }}" style-hover="background-size:calc(100% - 12px) calc(100% - 12px),2.5px 2.5px">{{ st.label }}</div>
+      </sc-for>
+    </div>
+
+    <div style="border:2px solid #121212;border-radius:0;background:rgba(243,242,236,.97);overflow:hidden;display:flex;flex-direction:column">
+      <div class="dwh" style="display:flex;align-items:center;gap:8px;border-bottom:2px solid #121212;padding:7px 10px;background-color:#f3f2ec;background-image:radial-gradient(#121212 1px,transparent 1.2px);background-size:4px 4px;font:400 10px/1.6 'MEKmode','Silkscreen',monospace;letter-spacing:.06em;text-transform:uppercase">
+        <span style="display:none"></span>
+        <span data-tty style="display:inline-block;background:#f3f2ec;padding:2px 8px">{{ winTitle }}</span><span style="margin-left:auto;background:#f3f2ec;padding:2px 8px">{{ winRight }}</span>
+        <span onClick="{{ minimize }}" title="minimize: upload keeps running" style="margin-left:12px;cursor:pointer;opacity:.7;border:1px solid rgba(18,18,18,.4);border-radius:0;padding:0 8px" style-hover="opacity:1;background:rgba(18,18,18,.1)">–</span>
+        <span onClick="{{ closeInscribe }}" style="background:#f3f2ec;padding:0 8px;margin-left:6px;cursor:pointer;opacity:.7;border:1px solid rgba(18,18,18,.4);border-radius:0;padding:0 8px" style-hover="opacity:1;background:rgba(18,18,18,.1)">x</span>
+      </div>
+      <div style="padding:22px 24px 24px;flex:1">
+
+                <!-- STEP 2: FUND -->
+        <sc-if value="{{ isStep2 }}" hint-placeholder-val="{{ false }}">
+          <div data-tty style="font:400 20px/1.1 'Alagard','MonoMEK','Jersey 15',monospace;letter-spacing:.02em;">Pay once. One signature.</div>
+          <div style="margin:18px 0 0;text-align:center;padding:26px 0 8px">
+            <div style="font:400 60px 'Alagard','MonoMEK','Jersey 15',monospace;color:#1a7f2e">{{ totalLabel }} <span style="font-size:29px">SOL</span></div>
+            <div style="margin-top:10px;font:400 13px 'MonoMEK','Jersey 15',monospace;opacity:.55">Exact amount for your file. Nothing hidden.</div>
+          </div>
+          <div style="margin-top:18px;border:1px solid rgba(18,18,18,.4);border-radius:0;font:400 14px 'MonoMEK','Jersey 15',monospace">
+            <div style="display:flex;justify-content:space-between;padding:9px 14px;border-bottom:1px dotted rgba(18,18,18,.25)"><span style="opacity:.6">from</span><span>7xKq...Labs (you)</span></div>
+            <div style="display:flex;justify-content:space-between;padding:9px 14px;border-bottom:1px dotted rgba(18,18,18,.25)"><span style="opacity:.6">to</span><span>brnr...9xQ2 <span style="opacity:.5">(temporary account)</span></span></div>
+            <div style="display:flex;justify-content:space-between;padding:9px 14px"><span style="opacity:.6">after finish</span><span style="color:#1a7f2e">anything left comes back to you ✓</span></div>
+          </div>
+          <sc-if value="{{ fundIdle }}" hint-placeholder-val="{{ true }}">
+            <div onClick="{{ approve }}" style="margin-top:16px;background:#121212;color:#f3f2ec;border-radius:0;text-align:center;padding:14px 0;font:400 14px 'MonoMEK','Jersey 15',monospace;letter-spacing:.12em;cursor:pointer;transition:all .35s cubic-bezier(.2,.7,.2,1)" style-hover="background:#8a8a84;transform:translateY(-2px);box-shadow:0 6px 20px rgba(18,18,18,.12)">SIGN AND PAY</div>
+          </sc-if>
+          <sc-if value="{{ fundWaiting }}" hint-placeholder-val="{{ false }}">
+            <div class="ttyspin" style="margin-top:16px;border:1px solid rgba(26,127,46,.55);border-radius:0;text-align:center;padding:14px 0;font:400 14px 'MonoMEK','Jersey 15',monospace;letter-spacing:.12em;color:#1a7f2e;">Approve in your wallet…</div>
+          </sc-if>
+          <div onClick="{{ backToCompose }}" style="margin-top:12px;text-align:center;font:400 13px 'MonoMEK','Jersey 15',monospace;opacity:.5;cursor:pointer;text-decoration:underline">← back</div>
+        </sc-if>
+
+        <!-- STEP 3: PROGRESS -->
+        <sc-if value="{{ isStep3 }}" hint-placeholder-val="{{ false }}">
+          <div data-tty style="font:400 20px/1.1 'Alagard','MonoMEK','Jersey 15',monospace;letter-spacing:.02em;">Writing to Solana. Keep this tab open.</div>
+          <div style="margin-top:18px;border:1px solid #121212;outline:1px dotted #121212;outline-offset:4px;background:#f3f2ec">
+            <div style="display:flex;align-items:center;gap:8px;border-bottom:1px solid #121212;padding:6px 10px;background-color:#f3f2ec;background-image:radial-gradient(#121212 1px,transparent 1.2px);background-size:4px 4px"><span style="background:#f3f2ec;padding:2px 8px;font:400 10px/1.6 'MEKmode','Silkscreen',monospace;letter-spacing:.06em;text-transform:uppercase">Progress</span><span style="margin-left:auto;background:#f3f2ec;padding:2px 8px;font:400 13px 'MonoMEK','Jersey 15',monospace;letter-spacing:.12em">{{ writingLabel }}</span></div>
+            <div class="ttybar" style="padding:12px 14px 4px">{{ pctBar }}</div>
+            <div class="ttyrows" style="padding:4px 14px 12px;font:400 13px/2 'MonoMEK','Jersey 15',monospace">
+              <sc-for list="{{ progressLog }}" as="ln" hint-placeholder-count="3">
+                <div style="{{ ln.style }}">{{ ln.text }}</div>
+              </sc-for>
+            </div>
+          </div>
+          <div style="margin-top:14px;display:flex;justify-content:space-between;align-items:center;font:400 13px 'MonoMEK','Jersey 15',monospace;opacity:.6">
+            <span>&gt; keep this tab open until every part lands</span>
+            </div>
+        </sc-if>
+
+        <!-- STEP 4: DONE / ERROR -->
+        <sc-if value="{{ doneOk }}" hint-placeholder-val="{{ false }}">
+          <div style="text-align:center;padding:18px 0 6px">
+            <div style="font:400 44px 'Alagard','MonoMEK','Jersey 15',monospace;color:#1a7f2e">INSCRIBED.</div>
+            <div style="margin-top:14px;font:400 13px 'MonoMEK','Jersey 15',monospace;opacity:.65">id: 5BVWQ7FE...uHwDV93 · saved to your wallet</div>
+            <div style="margin-top:10px;font:400 13px 'MonoMEK','Jersey 15',monospace;color:#1a7f2e">✓ leftover returned to 7xKq...Labs</div>
+          </div>
+          <sc-if value="{{ doneFromLaunch }}" hint-placeholder-val="{{ false }}">
+            <div style="margin-top:14px;display:flex;justify-content:space-between;align-items:center;gap:12px;border:1px solid #121212;outline:1px dotted #121212;outline-offset:3px;padding:10px 12px;font:400 14px/1.5 'MonoMEK','Jersey 15',monospace;background-color:#f3f2ec;background-image:linear-gradient(#f3f2ec,#f3f2ec),radial-gradient(#121212 1px,transparent 1.2px);background-size:calc(100% - 10px) calc(100% - 10px),4px 4px;background-position:center,0 0;background-repeat:no-repeat,repeat">
+              <span style="color:#1a7f2e"><span style="color:#121212">&gt;</span> Your image is on chain. Launch it as a token?</span>
+            </div>
+          </sc-if>
+          <div style="display:flex;gap:10px;justify-content:center;flex-wrap:wrap;margin-top:18px;font:400 13px 'MonoMEK','Jersey 15',monospace;letter-spacing:.1em">
+            <sc-if value="{{ doneIsImage }}" hint-placeholder-val="{{ false }}">
+              <div onClick="{{ launchFromDone }}" style="background:#1a7f2e;color:#f3f2ec;border-radius:0;padding:11px 18px;cursor:pointer;transition:all .3s" style-hover="background:#2a9a3e">LAUNCH IT AS TOKEN →</div>
+            </sc-if>
+            <a href="https://iqlabs.dev" style="{{ viewOnBoardStyle }}" style-hover="background:#8a8a84">SEE IT ON IQLABS.DEV ↗</a>
+            <a href="#" style="border:1px solid rgba(18,18,18,.5);border-radius:0;padding:10px 18px;transition:all .3s" style-hover="border-color:#121212;background:rgba(18,18,18,.1)">SOLSCAN</a>
+            <a href="#" style="border:1px solid rgba(18,18,18,.5);border-radius:0;padding:10px 18px;transition:all .3s" style-hover="border-color:#121212;background:rgba(18,18,18,.1)">SHARE</a>
+            <div onClick="{{ again }}" style="border:1px solid rgba(18,18,18,.5);border-radius:0;padding:10px 18px;cursor:pointer;transition:all .3s" style-hover="border-color:#121212;background:rgba(18,18,18,.1)">UPLOAD ANOTHER</div>
+          </div>
+        </sc-if>
+
+        <sc-if value="{{ doneErr }}" hint-placeholder-val="{{ false }}">
+          <div style="text-align:center;padding:18px 0 6px">
+            <div style="font:400 39px 'Alagard','MonoMEK','Jersey 15',monospace;color:#c0392b">INCOMPLETE.</div>
+            <div style="margin-top:14px;font:400 13px/1.9 'MonoMEK','Jersey 15',monospace;opacity:.65">{{ failLabel }}. Your money is safe and waiting.<br>Resume only redoes the missing parts.</div>
+          </div>
+          <div style="display:flex;gap:10px;justify-content:center;margin-top:18px;font:400 13px 'MonoMEK','Jersey 15',monospace;letter-spacing:.1em">
+            <div onClick="{{ resume }}" style="background:#1a7f2e;color:#0b0f0a;border-radius:0;padding:11px 20px;cursor:pointer;transition:all .3s" style-hover="background:#4ee650">RESUME → {{ resumeLabel }}</div>
+            <div onClick="{{ again }}" style="border:1px solid rgba(18,18,18,.5);border-radius:0;padding:10px 18px;cursor:pointer;transition:all .3s" style-hover="background:rgba(18,18,18,.1)">START OVER</div>
+          </div>
+        </sc-if>
+
+      </div>
+    </div>
+  </div>
+  </div>
+  </sc-if>
+
+  <sc-if value="{{ pillVisible }}" hint-placeholder-val="{{ false }}">
+    <div onClick="{{ reopen }}" style="position:fixed;right:18px;bottom:18px;z-index:35;display:flex;align-items:center;gap:10px;border:1px solid rgba(26,127,46,.6);border-radius:0;background:rgba(243,242,236,.96);padding:12px 16px;font:400 13px 'MonoMEK','Jersey 15',monospace;letter-spacing:.12em;color:#1a7f2e;cursor:pointer;box-shadow:0 8px 28px rgba(18,18,18,.12);transition:all .3s" style-hover="background:rgba(30,29,24,.98);transform:translateY(-2px)"><span style="width:8px;height:8px;border-radius:0;background:#1a7f2e;animation:pulse 1.2s ease-in-out infinite"></span>{{ pillLabel }}</div>
+  </sc-if>
+
+  <sc-if value="{{ chartOpen }}" hint-placeholder-val="{{ false }}">
+    <div onClick="{{ closeChart }}" style="position:fixed;inset:0;z-index:40;background:rgba(243,242,236,.88);display:flex;align-items:center;justify-content:center;padding:24px">
+      <div onClick="{{ stopClick }}" style="outline:1px dotted #121212;outline-offset:4px;border:2px solid #121212;border-radius:0;background:rgba(243,242,236,.97);width:860px;max-width:100%;overflow:hidden;font-family:'MonoMEK','Jersey 15',monospace">
+        <div class="dwh" style="display:flex;align-items:center;gap:8px;border-bottom:2px solid #121212;padding:7px 10px;background-color:#f3f2ec;background-image:radial-gradient(#121212 1px,transparent 1.2px);background-size:4px 4px;font:400 10px/1.6 'MEKmode','Silkscreen',monospace;letter-spacing:.06em;text-transform:uppercase">
+          <span style="display:none"></span>
+          <span data-tty style="margin-left:6px;opacity:.8">Chart</span><span style="margin-left:12px;color:#1a7f2e">{{ chSym }} {{ chName }}</span>
+          <span style="margin-left:auto;opacity:.5;font-size:13px">mint: 7xKX...9agh [copy]</span>
+          <span onClick="{{ closeChart }}" style="margin-left:12px;cursor:pointer;opacity:.7;border:1px solid rgba(18,18,18,.4);border-radius:0;padding:0 8px">x</span>
+        </div>
+        <div style="background:rgba(18,18,18,.03)">
+          <div style="display:flex;align-items:baseline;gap:14px;padding:14px 16px;border-bottom:1px solid rgba(18,18,18,.16)">
+            <span style="font-size:26px;font-weight:400">{{ chPrice }}</span><span style="{{ chChgStyle }}">{{ chChg }} (24h)</span>
+            <span style="margin-left:auto;font-size:13px;opacity:.45">market cap {{ chCap }}</span>
+          </div>
+          <sc-if value="{{ chIndexing }}" hint-placeholder-val="{{ false }}">
+            <div style="height:200px;margin:10px 16px 4px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:10px;border:1px dashed rgba(18,18,18,.3);border-radius:0;font:400 14px 'MonoMEK','Jersey 15',monospace;opacity:.6">
+              <div class="ttyspin">indexing</div><div style="font-size:13px;opacity:.7">Brand new. The chart appears within minutes. You can trade on pump.fun meanwhile.</div>
+            </div>
+          </sc-if>
+          <sc-if value="{{ chHasChart }}" hint-placeholder-val="{{ true }}">
+            <div style="padding:10px 16px 4px">
+              <svg width="100%" height="200" viewBox="0 0 820 200" preserveAspectRatio="none"><g stroke="rgba(18,18,18,.1)"><line x1="0" y1="50" x2="820" y2="50"></line><line x1="0" y1="100" x2="820" y2="100"></line><line x1="0" y1="150" x2="820" y2="150"></line></g><g>
+<rect x="20" y="158" width="9" height="22" fill="#1a7f2e"/><line x1="24.5" y1="151" x2="24.5" y2="185" stroke="#1a7f2e"/><rect x="48" y="148" width="9" height="17" fill="#1a7f2e"/><line x1="52.5" y1="141" x2="52.5" y2="170" stroke="#1a7f2e"/><rect x="76" y="153" width="9" height="12" fill="#c0392b"/><line x1="80.5" y1="146" x2="80.5" y2="171" stroke="#c0392b"/><rect x="104" y="133" width="9" height="25" fill="#1a7f2e"/><line x1="108.5" y1="125" x2="108.5" y2="163" stroke="#1a7f2e"/><rect x="132" y="123" width="9" height="15" fill="#1a7f2e"/><line x1="136.5" y1="116" x2="136.5" y2="143" stroke="#1a7f2e"/><rect x="160" y="130" width="9" height="10" fill="#c0392b"/><line x1="164.5" y1="123" x2="164.5" y2="146" stroke="#c0392b"/><rect x="188" y="108" width="9" height="25" fill="#1a7f2e"/><line x1="192.5" y1="101" x2="192.5" y2="138" stroke="#1a7f2e"/><rect x="216" y="98" width="9" height="15" fill="#1a7f2e"/><line x1="220.5" y1="91" x2="220.5" y2="118" stroke="#1a7f2e"/><rect x="244" y="105" width="9" height="12" fill="#c0392b"/><line x1="248.5" y1="98" x2="248.5" y2="122" stroke="#c0392b"/><rect x="272" y="83" width="9" height="25" fill="#1a7f2e"/><line x1="276.5" y1="76" x2="276.5" y2="113" stroke="#1a7f2e"/><rect x="300" y="73" width="9" height="15" fill="#1a7f2e"/><line x1="304.5" y1="66" x2="304.5" y2="93" stroke="#1a7f2e"/><rect x="328" y="80" width="9" height="10" fill="#c0392b"/><line x1="332.5" y1="73" x2="332.5" y2="95" stroke="#c0392b"/><rect x="356" y="58" width="9" height="25" fill="#1a7f2e"/><line x1="360.5" y1="51" x2="360.5" y2="88" stroke="#1a7f2e"/><rect x="384" y="48" width="9" height="15" fill="#1a7f2e"/><line x1="388.5" y1="41" x2="388.5" y2="68" stroke="#1a7f2e"/><rect x="412" y="55" width="9" height="12" fill="#c0392b"/><line x1="416.5" y1="48" x2="416.5" y2="72" stroke="#c0392b"/><rect x="440" y="40" width="9" height="20" fill="#1a7f2e"/><line x1="444.5" y1="33" x2="444.5" y2="65" stroke="#1a7f2e"/><rect x="468" y="33" width="9" height="12" fill="#1a7f2e"/><line x1="472.5" y1="26" x2="472.5" y2="50" stroke="#1a7f2e"/><rect x="496" y="43" width="9" height="13" fill="#c0392b"/><line x1="500.5" y1="36" x2="500.5" y2="61" stroke="#c0392b"/><rect x="524" y="36" width="9" height="12" fill="#1a7f2e"/><line x1="528.5" y1="29" x2="528.5" y2="53" stroke="#1a7f2e"/><rect x="552" y="29" width="9" height="10" fill="#1a7f2e"/><line x1="556.5" y1="22" x2="556.5" y2="44" stroke="#1a7f2e"/><rect x="580" y="35" width="9" height="10" fill="#c0392b"/><line x1="584.5" y1="28" x2="584.5" y2="50" stroke="#c0392b"/><rect x="608" y="25" width="9" height="13" fill="#1a7f2e"/><line x1="612.5" y1="18" x2="612.5" y2="43" stroke="#1a7f2e"/><rect x="636" y="19" width="9" height="9" fill="#1a7f2e"/><line x1="640.5" y1="12" x2="640.5" y2="33" stroke="#1a7f2e"/><rect x="664" y="24" width="9" height="8" fill="#c0392b"/><line x1="668.5" y1="17" x2="668.5" y2="37" stroke="#c0392b"/><rect x="692" y="16" width="9" height="11" fill="#1a7f2e"/><line x1="696.5" y1="9" x2="696.5" y2="32" stroke="#1a7f2e"/><rect x="720" y="11" width="9" height="8" fill="#1a7f2e"/><line x1="724.5" y1="4" x2="724.5" y2="24" stroke="#1a7f2e"/><rect x="748" y="15" width="9" height="7" fill="#c0392b"/><line x1="752.5" y1="8" x2="752.5" y2="27" stroke="#c0392b"/>
+</g></svg>
+              <div style="font:400 13px/1.6 'MonoMEK','Jersey 15',monospace;opacity:.45">Live price chart, from launch on pump.fun through to PumpSwap.</div>
+            </div>
+          </sc-if>
+          <div style="display:flex;gap:8px;flex-wrap:wrap;padding:12px 16px;border-top:1px solid rgba(18,18,18,.16);font:400 13px 'MonoMEK','Jersey 15',monospace;letter-spacing:.1em">
+            <a href="#" style="background:#121212;color:#f3f2ec;border-radius:0;padding:10px 14px;transition:all .3s" style-hover="background:#8a8a84">VIEW ON PUMP.FUN</a>
+            <a href="#" style="border:1px solid rgba(18,18,18,.5);border-radius:0;padding:9px 14px;transition:all .3s" style-hover="background:rgba(18,18,18,.1)">OPEN ON DEXSCREENER</a>
+            <a href="#" style="border:1px solid rgba(18,18,18,.5);border-radius:0;padding:9px 14px;transition:all .3s" style-hover="background:rgba(18,18,18,.1)">COPY MINT</a>
+            <div onClick="{{ chViewPost }}" style="border:1px solid rgba(18,18,18,.5);border-radius:0;padding:9px 14px;cursor:pointer;transition:all .3s" style-hover="background:rgba(18,18,18,.1)">VIEW LAUNCH POST</div>
+            <div onClick="{{ closeChart }}" style="margin-left:auto;border:1px solid rgba(18,18,18,.5);border-radius:0;padding:9px 14px;cursor:pointer;transition:all .3s" style-hover="background:rgba(18,18,18,.1)">BACK TO LIST</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </sc-if>
+
+  <!-- ============ MODALS ============ -->
+  <sc-if value="{{ viewerOpen }}" hint-placeholder-val="{{ false }}">
+    <div onClick="{{ closeViewer }}" style="position:fixed;inset:0;z-index:40;background:rgba(4,6,4,.7);display:flex;align-items:center;justify-content:center;padding:24px">
+      <div style="outline:1px dotted #121212;outline-offset:4px;border:2px solid #121212;border-radius:0;background:rgba(243,242,236,.97);width:640px;max-width:100%;overflow:hidden">
+        <div class="dwh" style="display:flex;align-items:center;gap:8px;border-bottom:2px solid #121212;padding:7px 10px;background-color:#f3f2ec;background-image:radial-gradient(#121212 1px,transparent 1.2px);background-size:4px 4px;font:400 10px/1.6 'MEKmode','Silkscreen',monospace;letter-spacing:.06em;text-transform:uppercase">
+          <span style="display:none"></span>
+          <span data-tty style="margin-left:6px;opacity:.8">Record</span><span onClick="{{ closeViewer }}" style="margin-left:auto;cursor:pointer;opacity:.7">[ x ]</span>
+        </div>
+        <div style="padding:20px 22px 22px">
+          <pre style="margin:0;border:1px solid rgba(18,18,18,.35);border-radius:0;padding:16px;min-height:90px;font:400 16px/1.5 'MonoMEK','Jersey 15',monospace;color:#1a7f2e;white-space:pre;overflow:auto;background:rgba(18,18,18,.12)">{{ vBody }}</pre>
+          <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px;margin-top:14px;font:400 13px 'MonoMEK','Jersey 15',monospace">
+            <span style="opacity:.55">sig: {{ vSig }} · owner: {{ vWho }}</span>
+            <div style="display:flex;gap:10px;font-weight:400;letter-spacing:.08em"><a href="#" style="border:1px solid rgba(18,18,18,.5);border-radius:0;padding:6px 12px" style-hover="background:rgba(18,18,18,.1)">SOLSCAN</a><a href="#" style="border:1px solid rgba(18,18,18,.5);border-radius:0;padding:6px 12px" style-hover="background:rgba(18,18,18,.1)">SHARE</a><a href="#" style="border:1px solid rgba(18,18,18,.5);border-radius:0;padding:6px 12px" style-hover="background:rgba(18,18,18,.1)">RAW TX</a></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </sc-if>
+
+  <sc-if value="{{ safetyOpen }}" hint-placeholder-val="{{ false }}">
+    <div style="position:fixed;inset:0;z-index:40;background:rgba(4,6,4,.7);display:flex;align-items:center;justify-content:center;padding:24px">
+      <div style="border:1px solid #b07a1a;outline:1px dotted #b07a1a;outline-offset:5px;border-radius:0;background:rgba(243,242,236,.97);width:480px;max-width:100%;overflow:hidden">
+        <div style="border-bottom:1px solid #b07a1a;padding:8px 10px;background-color:#f3f2ec;background-image:radial-gradient(#b07a1a 1px,transparent 1.2px);background-size:4px 4px"><span style="display:inline-block;background:#f3f2ec;padding:3px 8px 1px;font:400 20px/1.1 'Alagard','MonoMEK','Jersey 15',monospace;letter-spacing:.02em;color:#b07a1a">Before you upload a file</span></div>
+        <div style="padding:18px 22px 16px;font:400 15px/2 'MonoMEK','Jersey 15',monospace">
+          <div style="display:flex;gap:10px"><span style="color:#b07a1a">01</span><span>Files are shown <b>read-only</b>. Nothing you upload ever runs as code.</span></div>
+          <div style="display:flex;gap:10px;border-top:1px dotted rgba(176,122,26,.5)"><span style="color:#b07a1a">02</span><span>Only images and audio are displayed, in a locked frame.</span></div>
+          <div style="display:flex;gap:10px;border-top:1px dotted rgba(176,122,26,.5)"><span style="color:#b07a1a">03</span><span>What you upload is permanent. No delete, no edit.</span></div>
+        </div>
+        <div style="display:flex;gap:10px;padding:0 22px 20px;font:400 13px 'MonoMEK','Jersey 15',monospace;letter-spacing:.1em">
+          <div onClick="{{ ackSafety }}" style="font:400 16px/1.1 'Alagard','MonoMEK','Jersey 15',monospace;letter-spacing:.02em;flex:1;background:#121212;color:#f3f2ec;border-radius:0;text-align:center;padding:11px 0;cursor:pointer" style-hover="background:#8a8a84">UNDERSTOOD, CONTINUE</div>
+          <div onClick="{{ cancelSafety }}" style="font:400 16px/1.1 'Alagard','MonoMEK','Jersey 15',monospace;letter-spacing:.02em;border:1px solid rgba(18,18,18,.5);border-radius:0;padding:11px 16px;cursor:pointer;opacity:.7" style-hover="background:rgba(18,18,18,.1)">CANCEL</div>
+        </div>
+      </div>
+    </div>
+  </sc-if>
+
+  <sc-if value="{{ overcapOpen }}" hint-placeholder-val="{{ false }}">
+    <div style="position:fixed;inset:0;z-index:40;background:rgba(4,6,4,.7);display:flex;align-items:center;justify-content:center;padding:24px">
+      <div style="outline:1px dotted #121212;outline-offset:4px;border:2px solid #121212;border-radius:0;background:rgba(243,242,236,.97);width:560px;max-width:100%;overflow:hidden">
+        <div class="dwh" style="display:flex;align-items:center;border-bottom:1px solid #121212;padding:7px 10px;background-color:#f3f2ec;background-image:radial-gradient(#121212 1px,transparent 1.2px);background-size:4px 4px;font:400 13px 'MonoMEK','Jersey 15',monospace;letter-spacing:.16em"><span style="color:#b07a1a">This file is too big for the browser</span><span onClick="{{ closeOvercap }}" style="margin-left:auto;cursor:pointer;opacity:.7">[ x ]</span></div>
+        <div style="padding:20px 22px 22px">
+          <div style="font:400 14px/1.9 'MonoMEK','Jersey 15',monospace;opacity:.7">dataset.bin is 9.2 MB. Two ways forward:</div>
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:16px">
+            <div onClick="{{ openRpc }}" style="border:1px solid rgba(18,18,18,.5);border-radius:0;padding:16px;cursor:pointer;transition:all .3s" style-hover="border-color:#121212;background:rgba(18,18,18,.05)">
+              <div style="font:400 14px 'MonoMEK','Jersey 15',monospace">1 · Use your own connection</div>
+              <div style="margin-top:8px;font:400 13px/1.8 'MonoMEK','Jersey 15',monospace;opacity:.6">Paste a Helius key: faster, higher limit, still in the browser.</div>
+            </div>
+            <a href="https://iqlabs.mintlify.app/docs-typescript" target="_blank" rel="noopener" style="border:1px solid rgba(18,18,18,.5);border-radius:0;padding:16px;cursor:pointer;display:block;transition:all .3s" style-hover="border-color:#121212;background:rgba(18,18,18,.05)">
+              <div style="font:400 14px 'MonoMEK','Jersey 15',monospace">2 · Use the terminal ↗</div>
+              <div style="margin-top:8px;font:400 13px/1.8 'MonoMEK','Jersey 15',monospace;opacity:.6">No size limit. One command, same payment flow. Opens the developer docs.</div>
+            </a>
+          </div>
+          <sc-if value="{{ sdkOpen }}" hint-placeholder-val="{{ false }}">
+            <div style="display:flex;align-items:center;gap:10px;margin-top:12px;border:1px solid rgba(26,127,46,.5);border-radius:0;background:rgba(18,18,18,.12);padding:12px 14px;font:400 13px 'MonoMEK','Jersey 15',monospace">
+              <span style="color:#1a7f2e;flex:1;overflow:auto;white-space:nowrap">$ npx iq-sdk inscribe ./dataset.bin --net mainnet-beta --rpc $HELIUS</span>
+              <span onClick="{{ copyCli }}" style="font-weight:400;letter-spacing:.1em;border:1px solid rgba(18,18,18,.5);border-radius:0;padding:5px 10px;cursor:pointer" style-hover="background:rgba(18,18,18,.1)">{{ copyLabel }}</span>
+            </div>
+          </sc-if>
+        </div>
+      </div>
+    </div>
+  </sc-if>
+
+  <sc-if value="{{ rpcOpen }}" hint-placeholder-val="{{ false }}">
+    <div style="position:fixed;inset:0;z-index:41;background:rgba(4,6,4,.5);display:flex;justify-content:flex-end">
+      <div style="width:340px;max-width:88%;background:rgba(243,242,236,.98);border-left:1px solid #121212;padding:22px;display:flex;flex-direction:column;gap:14px">
+        <div style="display:flex;font:400 13px 'MonoMEK','Jersey 15',monospace;letter-spacing:.16em"><span data-tty style="font:400 20px/1.1 'Alagard','MonoMEK','Jersey 15',monospace;letter-spacing:.02em">Connection settings</span><span onClick="{{ closeRpc }}" style="margin-left:auto;cursor:pointer;opacity:.7">[ x ]</span></div>
+        <div style="font:400 13px/1.9 'MonoMEK','Jersey 15',monospace;opacity:.6">Uploads go through your connection. The key stays on this device.</div>
+        <input placeholder="helius api key…" style="background:rgba(18,18,18,.04);color:#121212;border:1px solid rgba(18,18,18,.5);border-radius:0;font:400 14px 'MonoMEK','Jersey 15',monospace;padding:11px 12px">
+        <div onClick="{{ closeRpc }}" style="background:#121212;color:#f3f2ec;border-radius:0;text-align:center;padding:11px 0;font:400 13px 'MonoMEK','Jersey 15',monospace;letter-spacing:.12em;cursor:pointer" style-hover="background:#8a8a84">SAVE AND USE</div>
+        <div style="font:400 13px 'MonoMEK','Jersey 15',monospace;opacity:.45">current: default</div>
+      </div>
+    </div>
+  </sc-if>
+
+</div>
+</sc-if>
+<sc-if value="{{ isHood }}" hint-placeholder-val="{{ false }}">
+
+
+<div class="hood" style="position:relative;z-index:1;color:#1a7f2e;min-height:100vh;display:flex;flex-direction:column">
+
+  <div style="position:sticky;top:0;z-index:10;padding:12px 16px 0">
+    <div style="display:flex;justify-content:space-between;align-items:center;gap:14px;border:2px solid #1a7f2e;border-radius:0;background:rgba(243,242,236,.9);padding:11px 16px">
+      <div style="display:flex;align-items:center;gap:14px">
+        <a href="Home v4.dc.html?view=home" style="white-space:nowrap;font:400 13px 'MonoMEK','Jersey 15',monospace;letter-spacing:.14em;border:1px solid rgba(26,127,46,.5);border-radius:0;padding:7px 12px;transition:all .3s" style-hover="border-color:#1a7f2e;background:rgba(26,127,46,.1)">← HOME</a>
+        <a href="https://iqlabs.dev"><img src="img/text_logo.webp" alt="IQLabs" style="height:18px;display:block;filter:brightness(0) invert(.32) sepia(1) hue-rotate(75deg) saturate(3)"></a>
+        <span class="navlbl" style="white-space:nowrap;font:400 18px/1.1 'Alagard','MonoMEK','Jersey 15',monospace;letter-spacing:.02em;color:#8a8a84">INSCRIBE.CODES · ROBINHOOD CHAIN</span>
+        <a href="#" onClick="{{ toSol }}" style="white-space:nowrap;font:400 16px/1.1 'Alagard','MonoMEK','Jersey 15',monospace;letter-spacing:.02em;border:1px solid #121212;color:#121212;padding:6px 10px" style-hover="background:#121212;color:#f3f2ec">SOLANA →</a>
+        <a href="Home v4.dc.html?view=nft" style="white-space:nowrap;font:400 16px/1.1 'Alagard','MonoMEK','Jersey 15',monospace;letter-spacing:.02em;border:1px solid #121212;color:#121212;padding:6px 10px" style-hover="background:#121212;color:#f3f2ec">NFT LAUNCHPAD →</a>
+      </div>
+      <div id="nav_mid" style="white-space:nowrap;font:400 18px/1.1 'Alagard','MonoMEK','Jersey 15',monospace;letter-spacing:.02em;color:#8a8a84">LAUNCH + MARKETS</div>
+      <sc-if value="{{ isConnected }}" hint-placeholder-val="{{ false }}">
+        <div style="font:400 16px/1.1 'Alagard','MonoMEK','Jersey 15',monospace;letter-spacing:.02em;display:flex;align-items:center;gap:8px;padding:7px 12px;color:#121212;border:1px solid #121212;background-color:#f3f2ec;background-image:linear-gradient(#f3f2ec,#f3f2ec),radial-gradient(#121212 1px,transparent 1.2px);background-size:calc(100% - 12px) calc(100% - 12px),4px 4px;background-position:center,0 0;background-repeat:no-repeat,repeat"><span style="width:7px;height:7px;background:#121212"></span>0x7Kq9...bA1d</div>
+      </sc-if>
+      <sc-if value="{{ isDisconnected }}" hint-placeholder-val="{{ true }}">
+        <div onClick="{{ connect }}" style="font:400 16px/1.1 'Alagard','MonoMEK','Jersey 15',monospace;letter-spacing:.02em;white-space:nowrap;flex-shrink:0;letter-spacing:.12em;border:1px solid #1a7f2e;color:#1a7f2e;padding:7px 12px;cursor:pointer" style-hover="background:#1a7f2e;color:#f3f2ec">CONNECT WALLET</div>
+      </sc-if>
+    </div>
+  </div>
+
+  <!-- ============ BOARD (home) + MARKETS side by side ============ -->
+  <div id="desk" style="padding:14px 16px 16px;flex:1;display:flex;gap:14px;align-items:stretch">
+    <div style="border:2px solid #1a7f2e;border-radius:0;background:rgba(243,242,236,.88);overflow:hidden;flex:1.45;min-width:0;display:flex;flex-direction:column">
+      <div class="dwh" style="display:flex;align-items:center;gap:8px;border-bottom:2px solid #1a7f2e;padding:7px 10px;background-color:#f3f2ec;background-image:radial-gradient(#1a7f2e 1px,transparent 1.2px);background-size:4px 4px;font:400 10px/1.6 'MEKmode','Silkscreen',monospace;letter-spacing:.06em;text-transform:uppercase">
+          <span style="display:none"></span>
+          <span data-tty style="margin-left:6px;opacity:.8">Launch a token</span><span style="margin-left:auto;opacity:.6">{{ launchStepLabel }}</span>
+        </div>
+      <sc-if value="{{ showHints }}" hint-placeholder-val="{{ false }}"><div style="display:flex;justify-content:space-between;gap:12px;align-items:center;padding:7px 14px;border-bottom:1px solid #8a8a84;font:400 14px/1.4 'MonoMEK','Jersey 15',monospace;color:#121212"><span>Turn an image into a token in two steps. Connect a wallet to begin.</span><span onClick="{{ hideHints }}" style="cursor:pointer;color:#8a8a84;padding:0 4px">x</span></div></sc-if><div style="padding:20px 22px 22px;flex:1">
+
+          <sc-if value="{{ lMenu }}" hint-placeholder-val="{{ true }}">
+            <div data-tty style="font:400 20px/1.1 'Alagard','MonoMEK','Jersey 15',monospace;letter-spacing:.02em;color:#1a7f2e">Step 1 of 2: pick your image</div>
+            <p style="margin:10px 0 12px;font:400 13px/1.8 'MonoMEK','Jersey 15',monospace;opacity:.6">Your token needs an image that lives on chain. Upload a new one, or pick one you already saved under My inscriptions.</p>
+          <sc-if value="{{ showResume }}" hint-placeholder-val="{{ false }}">
+            <div style="display:flex;justify-content:space-between;align-items:center;gap:12px;border:1px solid #1a7f2e;padding:12px 16px;margin-bottom:12px;font:400 13px/1.6 'MonoMEK','Jersey 15',monospace">
+              <span style="color:#1a7f2e">Unfinished upload: {{ resumeLabel }}. Only the missing parts are redone.</span>
+              <span onClick="{{ resume }}" style="font-weight:400;letter-spacing:.1em;background:#1a7f2e;color:#f3f2ec;border-radius:0;padding:7px 14px;cursor:pointer;white-space:nowrap">RESUME →</span>
+            </div>
+          </sc-if>
+          <div style="display:flex;border:1px solid rgba(26,127,46,.5);border-radius:0;overflow:hidden;font:400 13px 'MonoMEK','Jersey 15',monospace;letter-spacing:.1em">
+            <sc-for list="{{ typeTabs }}" as="tt" hint-placeholder-count="4">
+              <div onClick="{{ tt.click }}" style="{{ tt.style }}" style-hover="background-size:calc(100% - 12px) calc(100% - 12px),2.5px 2.5px">{{ tt.label }}</div>
+            </sc-for>
+          </div>
+
+          <sc-if value="{{ isText }}" hint-placeholder-val="{{ true }}">
+            <textarea value="{{ text }}" onChange="{{ onText }}" style="width:100%;box-sizing:border-box;min-height:110px;resize:vertical;margin-top:12px;background:rgba(18,18,18,.04);color:#1a7f2e;border:1px solid rgba(26,127,46,.5);border-radius:0;font:400 14px/1.8 'MonoMEK','Jersey 15',monospace;padding:12px"></textarea>
+            <div style="margin-top:8px;font:400 13px 'MonoMEK','Jersey 15',monospace;opacity:.55">{{ sizeLabel }} → {{ chunkLabel }}</div>
+          </sc-if>
+
+          <sc-if value="{{ isAscii }}" hint-placeholder-val="{{ false }}">
+            <label style="margin-top:12px;display:flex;flex-direction:column;align-items:center;gap:8px;border:1px dashed rgba(26,127,46,.45);border-radius:0;padding:20px;text-align:center;cursor:pointer" style-hover="border-color:#1a7f2e;background:rgba(26,127,46,.05)">
+              <span style="font:400 14px 'MonoMEK','Jersey 15',monospace;letter-spacing:.14em">SELECT IMAGE</span>
+              <span style="font:400 13px 'MonoMEK','Jersey 15',monospace;letter-spacing:.16em;opacity:.5">PNG / JPG / WEBP</span>
+            </label>
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:12px">
+              <div style="border:1px solid rgba(26,127,46,.35);border-radius:0;padding:12px 14px">
+                <div style="display:flex;justify-content:space-between;align-items:baseline;font:400 13px 'MonoMEK','Jersey 15',monospace"><span style="letter-spacing:.14em;opacity:.7">FONT SIZE</span><span style="opacity:.4">5 to 50</span></div>
+                <div style="display:inline-flex;border:1px solid rgba(26,127,46,.5);border-radius:0;overflow:hidden;margin-top:10px;font:400 18px 'Alagard','MonoMEK','Jersey 15',monospace">
+                  <div onClick="{{ fontDec }}" style="width:32px;text-align:center;padding:5px 0;cursor:pointer" style-hover="background:rgba(26,127,46,.14)">-</div>
+                  <div style="width:46px;text-align:center;padding:5px 0;border-left:1px solid rgba(26,127,46,.4);border-right:1px solid rgba(26,127,46,.4);color:#1a7f2e">{{ asciiFont }}</div>
+                  <div onClick="{{ fontInc }}" style="width:32px;text-align:center;padding:5px 0;cursor:pointer" style-hover="background:rgba(26,127,46,.14)">+</div>
+                </div>
+                <div style="margin-top:8px;font:400 13px 'MonoMEK','Jersey 15',monospace;opacity:.4">Smaller packs in more characters.</div>
+              </div>
+              <div style="border:1px solid rgba(26,127,46,.35);border-radius:0;padding:12px 14px">
+                <div style="display:flex;justify-content:space-between;align-items:baseline;font:400 13px 'MonoMEK','Jersey 15',monospace"><span style="letter-spacing:.14em;opacity:.7">SPACING</span><span style="opacity:.4">-50 to 50</span></div>
+                <div style="display:inline-flex;border:1px solid rgba(26,127,46,.5);border-radius:0;overflow:hidden;margin-top:10px;font:400 18px 'Alagard','MonoMEK','Jersey 15',monospace">
+                  <div onClick="{{ spaceDec }}" style="width:32px;text-align:center;padding:5px 0;cursor:pointer" style-hover="background:rgba(26,127,46,.14)">-</div>
+                  <div style="width:46px;text-align:center;padding:5px 0;border-left:1px solid rgba(26,127,46,.4);border-right:1px solid rgba(26,127,46,.4);color:#1a7f2e">{{ asciiSpacing }}</div>
+                  <div onClick="{{ spaceInc }}" style="width:32px;text-align:center;padding:5px 0;cursor:pointer" style-hover="background:rgba(26,127,46,.14)">+</div>
+                </div>
+                <div style="margin-top:8px;font:400 13px 'MonoMEK','Jersey 15',monospace;opacity:.4">Distance between characters.</div>
+              </div>
+            </div>
+            <div style="display:flex;justify-content:space-between;align-items:center;border:1px solid rgba(26,127,46,.35);border-radius:0;padding:11px 14px;margin-top:10px">
+              <div><div style="font:400 13px 'MonoMEK','Jersey 15',monospace;letter-spacing:.14em;opacity:.7">IQ LOGO</div><div style="margin-top:3px;font:400 13px 'MonoMEK','Jersey 15',monospace;opacity:.4">Stamp the IQ logo onto the output.</div></div>
+              <div onClick="{{ toggleLogo }}" style="{{ logoSwitch }}"><div style="{{ logoKnob }}"></div></div>
+            </div>
+            <pre style="margin:12px 0 0;border:1px solid rgba(26,127,46,.35);border-radius:0;padding:14px;font:400 14px/1.15 'MonoMEK','Jersey 15',monospace;color:#1a7f2e;background:rgba(18,18,18,.12);overflow:auto"> /\_/\
+( o.o )   preview · font {{ asciiFont }} · spacing {{ asciiSpacing }}{{ logoTag }}
+ &gt; ^ &lt;</pre>
+          </sc-if>
+
+          <sc-if value="{{ isImage }}" hint-placeholder-val="{{ false }}">
+            <div style="margin-top:12px;border:1px dashed rgba(26,127,46,.45);border-radius:0;padding:26px;text-align:center;font:400 13px/1.9 'MonoMEK','Jersey 15',monospace;opacity:.7">Drop an image here<br><span style="opacity:.6">You see a preview before anything is paid.</span></div>
+          </sc-if>
+
+          <sc-if value="{{ isFile }}" hint-placeholder-val="{{ false }}">
+            <div style="margin-top:12px;border:1px dashed rgba(26,127,46,.45);border-radius:0;padding:20px;text-align:center;font:400 13px/1.9 'MonoMEK','Jersey 15',monospace;opacity:.7">Drop any file here</div>
+            <div onClick="{{ openOvercap }}" style="margin-top:10px;display:flex;justify-content:space-between;border:1px solid rgba(176,122,26,.55);border-radius:0;padding:10px 14px;font:400 13px 'MonoMEK','Jersey 15',monospace;cursor:pointer" style-hover="background:rgba(176,122,26,.08)"><span>dataset.bin · application/octet-stream · <span style="color:#b07a1a">9.2 MB</span></span><span style="color:#b07a1a;font-weight:400">OVER CAP →</span></div>
+          </sc-if>
+
+          <sc-if value="{{ isPick }}" hint-placeholder-val="{{ false }}">
+            <div style="margin-top:12px"></div>
+            <sc-if value="{{ isConnected }}" hint-placeholder-val="{{ false }}">
+            <sc-if value="{{ lHasImages }}" hint-placeholder-val="{{ true }}">
+              <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px;max-height:236px;overflow-y:auto;padding-right:4px">
+                <sc-for list="{{ lItems }}" as="it" hint-placeholder-count="3">
+                  <div onClick="{{ it.pick }}" style="{{ it.style }}"><div style="{{ it.thStyle }}">{{ it.th }}</div><div style="padding:7px 9px;font:400 13px 'MonoMEK','Jersey 15',monospace"><span style="border:1px solid rgba(26,127,46,.35);border-radius:0;padding:1px 6px;letter-spacing:.08em">{{ it.tag }}</span> <span style="opacity:.6">{{ it.time }}</span><div style="opacity:.45;margin-top:4px">{{ it.src }}</div></div></div>
+                </sc-for>
+              </div>
+            </sc-if>
+            <sc-if value="{{ lNoImages }}" hint-placeholder-val="{{ false }}">
+              <div style="text-align:center;padding:16px 0 6px">
+                <div style="font:400 26px 'Alagard','MonoMEK','Jersey 15',monospace;color:#1a7f2e">Nothing saved yet</div>
+                <p style="margin:12px 0 0;font:400 13px/1.8 'MonoMEK','Jersey 15',monospace;opacity:.6">Upload an image first. It is saved on chain, then you come straight back here to launch it.</p>
+              </div>
+            </sc-if>
+            </sc-if>
+            <sc-if value="{{ isDisconnected }}" hint-placeholder-val="{{ true }}">
+              <div style="border:1px dashed rgba(26,127,46,.45);border-radius:0;padding:22px;text-align:center">
+                <div style="font:400 13px/1.8 'MonoMEK','Jersey 15',monospace;opacity:.6">Connect your wallet to see what you have saved. Anything from inscribe.codes or iqlabs.dev shows up here.</div>
+              </div>
+            </sc-if>
+          </sc-if>
+
+          <sc-if value="{{ notPick }}" hint-placeholder-val="{{ true }}">
+          <details style="margin-top:12px"><summary style="cursor:pointer;list-style:none;font:400 13px 'MonoMEK','Jersey 15',monospace;letter-spacing:.1em;color:#8a8a84;padding:6px 0;text-transform:uppercase">details ▸</summary><div style="margin-top:4px;border:1px solid rgba(26,127,46,.4);border-radius:0;font:400 14px 'MonoMEK','Jersey 15',monospace">
+            <div style="display:flex;justify-content:space-between;padding:8px 14px;border-bottom:1px dotted rgba(26,127,46,.25)"><span style="opacity:.6">size</span><span>{{ sizeLabel }}</span></div>
+            <div style="display:flex;justify-content:space-between;padding:8px 14px;border-bottom:1px dotted rgba(26,127,46,.25)"><span style="opacity:.6">parts</span><span>{{ chunkLabel }}</span></div>
+            <div style="display:flex;justify-content:space-between;padding:8px 14px;border-bottom:1px dotted rgba(26,127,46,.25)"><span style="opacity:.6">network fee</span><span>{{ netFee }}</span></div>
+            <div style="display:flex;justify-content:space-between;padding:8px 14px;border-bottom:1px dotted rgba(26,127,46,.25)"><span style="opacity:.6">service fee</span><span>0.00050</span></div>
+            <div style="display:flex;justify-content:space-between;padding:8px 14px;border-bottom:1px dotted rgba(26,127,46,.25)"><span style="opacity:.6">temporary deposit</span><span>0.00150</span></div>
+            <div style="display:flex;justify-content:space-between;padding:9px 14px;border-top:1px solid rgba(26,127,46,.4);font-weight:400"><span>you pay</span><span style="color:#1a7f2e">{{ totalLabel }} ETH</span></div>
+          </div><div style="margin-top:12px;font:400 13px/1.9 'MonoMEK','Jersey 15',monospace;opacity:.55">
+            <div>Connection: default · <span onClick="{{ openRpc }}" style="text-decoration:underline;cursor:pointer">use your own for speed</span> (alchemy)</div>
+            <div>File too big? <span onClick="{{ openOvercap }}" style="text-decoration:underline;cursor:pointer">upload large files from the terminal →</span></div>
+          </div></details>
+          </sc-if>
+            <div onClick="{{ goContinue }}" style="{{ goStyle }}" style-hover="background-size:calc(100% - 12px) calc(100% - 12px),2.5px 2.5px;filter:brightness(1.15)">{{ goLabel }}</div>
+            <sc-if value="{{ hasPick }}" hint-placeholder-val="{{ false }}">
+              <div style="margin-top:8px;text-align:center;font:400 13px 'MonoMEK','Jersey 15',monospace;opacity:.5">Using {{ lPickedTh }} · <span onClick="{{ clearPick }}" style="text-decoration:underline;cursor:pointer">upload a new one instead</span></div>
+            </sc-if>
+          </sc-if>
+
+
+          <sc-if value="{{ lForm }}" hint-placeholder-val="{{ false }}">
+            <div data-tty style="font:400 20px/1.1 'Alagard','MonoMEK','Jersey 15',monospace;letter-spacing:.02em;color:#1a7f2e">Step 2 of 2: name it and launch</div>
+            <div style="display:flex;gap:10px;margin-top:14px">
+              <div style="flex:1"><div style="font:400 13px 'MonoMEK','Jersey 15',monospace;opacity:.55;letter-spacing:.1em;margin-bottom:4px">NAME</div><input value="{{ lName }}" onChange="{{ onLName }}" style="width:100%;box-sizing:border-box;background:rgba(18,18,18,.04);color:#1a7f2e;border:1px solid rgba(26,127,46,.5);border-radius:0;font:400 16px 'MonoMEK','Jersey 15',monospace;padding:9px 10px"></div>
+              <div style="flex:0 0 120px"><div style="font:400 13px 'MonoMEK','Jersey 15',monospace;opacity:.55;letter-spacing:.1em;margin-bottom:4px">SYMBOL</div><input value="{{ lSym }}" onChange="{{ onLSym }}" style="width:100%;box-sizing:border-box;background:rgba(18,18,18,.04);color:#1a7f2e;border:1px solid rgba(26,127,46,.5);border-radius:0;font:400 16px 'MonoMEK','Jersey 15',monospace;padding:9px 10px"></div>
+            </div>
+            <div style="font:400 13px 'MonoMEK','Jersey 15',monospace;opacity:.55;letter-spacing:.1em;margin:10px 0 4px">DESCRIPTION</div>
+            <textarea value="{{ lDesc }}" onChange="{{ onLDesc }}" style="width:100%;box-sizing:border-box;min-height:54px;resize:vertical;background:rgba(18,18,18,.04);color:#1a7f2e;border:1px solid rgba(26,127,46,.5);border-radius:0;font:400 14px/1.6 'MonoMEK','Jersey 15',monospace;padding:9px 10px"></textarea>
+            <div style="display:flex;gap:12px;align-items:center;margin:12px 0">
+              <div style="width:64px;height:64px;border:1px solid rgba(26,127,46,.5);border-radius:0;background:rgba(18,18,18,.04);display:grid;place-items:center;font:400 13px 'MonoMEK','Jersey 15',monospace;color:#1a7f2e;text-align:center;white-space:pre">{{ lPickedTh }}</div>
+              <span style="font:400 13px/1.7 'MonoMEK','Jersey 15',monospace;opacity:.55">{{ lPickedTag }} inscription {{ lPickedSig }}<br>The coin page links back to your original image.</span>
+            </div>
+            <div style="display:flex;gap:10px">
+              <div style="flex:0 0 160px"><div style="font:400 13px 'MonoMEK','Jersey 15',monospace;opacity:.55;letter-spacing:.1em;margin-bottom:4px">INITIAL DEV BUY (ETH)</div><input value="{{ lBuy }}" onChange="{{ onLBuy }}" style="width:100%;box-sizing:border-box;background:rgba(18,18,18,.04);color:#1a7f2e;border:1px solid rgba(26,127,46,.5);border-radius:0;font:400 16px 'MonoMEK','Jersey 15',monospace;padding:9px 10px"></div>
+              <div style="flex:1"><div style="font:400 13px 'MonoMEK','Jersey 15',monospace;opacity:.55;letter-spacing:.1em;margin-bottom:4px">X LINK (OPTIONAL)</div><input placeholder="https://x.com/..." style="width:100%;box-sizing:border-box;background:rgba(18,18,18,.04);color:#1a7f2e;border:1px solid rgba(26,127,46,.5);border-radius:0;font:400 16px 'MonoMEK','Jersey 15',monospace;padding:9px 10px"></div>
+            </div>
+            <div style="margin-top:12px;border:1px solid rgba(26,127,46,.4);border-radius:0;font:400 14px 'MonoMEK','Jersey 15',monospace">
+              <div style="display:flex;justify-content:space-between;padding:8px 14px;border-bottom:1px dotted rgba(26,127,46,.25)"><span style="opacity:.6">platform fee</span><span>0.069 ETH</span></div>
+              <div style="display:flex;justify-content:space-between;padding:8px 14px;border-bottom:1px dotted rgba(26,127,46,.25)"><span style="opacity:.6">dev buy</span><span>{{ lBuy }} ETH</span></div>
+              <div style="display:flex;justify-content:space-between;padding:9px 14px;font-weight:400"><span>total</span><span style="color:#1a7f2e">{{ lTotal }} ETH</span></div>
+            </div>
+            <div style="margin:8px 2px 0;font:400 13px 'MonoMEK','Jersey 15',monospace;opacity:.45">If the launch does not go through, nothing is charged.</div>
+            <sc-if value="{{ lIdle }}" hint-placeholder-val="{{ true }}">
+              <div onClick="{{ lLaunch }}" style="margin-top:12px;background:#1a7f2e;color:#f3f2ec;border-radius:0;text-align:center;padding:13px 0;font:400 14px 'MonoMEK','Jersey 15',monospace;letter-spacing:.12em;cursor:pointer;transition:all .35s cubic-bezier(.2,.7,.2,1)" style-hover="background:#2a9a3e;transform:translateY(-2px);box-shadow:0 6px 20px rgba(18,18,18,.12)">LAUNCH ON ROBINHOOD DEX</div>
+            </sc-if>
+            <sc-if value="{{ lWaiting }}" hint-placeholder-val="{{ false }}">
+              <div class="ttyspin" style="margin-top:12px;border:1px solid rgba(26,127,46,.55);border-radius:0;text-align:center;padding:13px 0;font:400 14px 'MonoMEK','Jersey 15',monospace;letter-spacing:.12em;color:#1a7f2e;">Approve in your wallet…</div>
+            </sc-if>
+            <div onClick="{{ lBack }}" style="margin-top:10px;text-align:center;font:400 13px 'MonoMEK','Jersey 15',monospace;opacity:.5;cursor:pointer;text-decoration:underline">← back</div>
+          </sc-if>
+
+          <sc-if value="{{ lDone }}" hint-placeholder-val="{{ false }}">
+            <div style="text-align:center;padding:16px 0 4px">
+              <div data-tty style="font:400 39px 'Alagard','MonoMEK','Jersey 15',monospace;color:#1a7f2e">LAUNCHED.</div>
+              <div style="margin-top:12px;font:400 14px 'MonoMEK','Jersey 15',monospace">{{ lSym }} · {{ lName }}</div>
+              <div style="margin-top:8px;font:400 13px 'MonoMEK','Jersey 15',monospace;opacity:.6">mint: {{ lMint }} · a kind=token row was inscribed, so it shows in Markets and on the iqlabs.dev board</div>
+            </div>
+            <div style="display:flex;gap:10px;justify-content:center;flex-wrap:wrap;margin-top:18px;font:400 13px 'MonoMEK','Jersey 15',monospace;letter-spacing:.1em">
+              <a href="#" style="background:#1a7f2e;color:#f3f2ec;border-radius:0;padding:11px 18px;transition:all .3s" style-hover="background:#2a9a3e">VIEW ON DEX</a>
+              <div onClick="{{ lViewMarkets }}" style="border:1px solid rgba(26,127,46,.5);border-radius:0;padding:10px 18px;cursor:pointer;transition:all .3s" style-hover="background:rgba(26,127,46,.1)">OPEN IN MARKETS</div>
+              <div onClick="{{ lAgain }}" style="border:1px solid rgba(26,127,46,.5);border-radius:0;padding:10px 18px;cursor:pointer;transition:all .3s" style-hover="background:rgba(26,127,46,.1)">LAUNCH ANOTHER</div>
+            </div>
+          </sc-if>
+
+        </div>
+    </div>
+    <div id="markets" style="border:2px solid #1a7f2e;border-radius:0;background:rgba(243,242,236,.88);overflow:hidden;flex:1;min-width:0;display:flex;flex-direction:column">
+      <div class="dwh" style="display:flex;align-items:center;gap:8px;border-bottom:2px solid #1a7f2e;padding:7px 10px;background-color:#f3f2ec;background-image:radial-gradient(#1a7f2e 1px,transparent 1.2px);background-size:4px 4px;font:400 10px/1.6 'MEKmode','Silkscreen',monospace;letter-spacing:.06em;text-transform:uppercase">
+        <span style="display:none"></span>
+        <span data-tty style="margin-left:6px;opacity:.8">Markets · Robinhood</span>
+        <span onClick="{{ openLaunch }}" style="margin-left:auto;font:400 13px 'MonoMEK','Jersey 15',monospace;letter-spacing:.1em;background:#1a7f2e;color:#f3f2ec;border-radius:0;padding:7px 12px;cursor:pointer;white-space:nowrap;transition:all .3s" style-hover="background:#2a9a3e">LAUNCH A TOKEN</span>
+      </div>
+      <sc-if value="{{ showHints }}" hint-placeholder-val="{{ false }}"><div style="display:flex;justify-content:space-between;gap:12px;align-items:center;padding:7px 14px;border-bottom:1px solid #8a8a84;font:400 14px/1.4 'MonoMEK','Jersey 15',monospace;color:#121212"><span>Click any token to see its chart.</span><span onClick="{{ hideHints }}" style="cursor:pointer;color:#8a8a84;padding:0 4px">x</span></div></sc-if><div class="ttyrows" style="background:rgba(18,18,18,.03);flex:1;display:flex;flex-direction:column;font-family:'MonoMEK','Jersey 15',monospace">
+        <div style="display:grid;grid-template-columns:minmax(0,1fr) auto auto auto;gap:10px;padding:10px 14px;font-size:13px;letter-spacing:.06em;opacity:.55;border-bottom:1px solid rgba(26,127,46,.16)"><span>NAME</span><span>PRICE</span><span>24H</span><span style="text-align:right">ACTION</span></div>
+        <sc-for list="{{ coins }}" as="c" hint-placeholder-count="4">
+          <div onClick="{{ c.open }}" style="{{ c.rowStyle }}" style-hover="background:rgba(26,127,46,.06)">
+            <div style="display:flex;align-items:center;gap:8px;min-width:0;overflow:hidden"><span style="width:26px;height:26px;border-radius:0;border:1px solid rgba(26,127,46,.35);display:grid;place-items:center;font:400 13px 'MonoMEK','Jersey 15',monospace;color:#1a7f2e;background:rgba(18,18,18,.04);flex:0 0 auto">{{ c.ini }}</span><div style="min-width:0"><div style="font:400 16px/1 'Alagard','MonoMEK','Jersey 15',monospace;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">{{ c.sym }}</div><div style="font-size:13px;opacity:.4;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">{{ c.name }} · {{ c.cap }}</div></div></div>
+            <span style="{{ c.priceStyle }}">{{ c.price }}</span><span style="{{ c.chgStyle }}">{{ c.chg }}</span>
+            <span style="text-align:right;font-size:13px;opacity:.6">{{ c.act }}</span>
+          </div>
+        </sc-for>
+        <p style="margin:auto 0 0;padding:10px 14px;border-top:1px solid rgba(26,127,46,.16);font:400 13px/1.7 'MonoMEK','Jersey 15',monospace;opacity:.45">Tokens launched here on Robinhood chain, biggest first. Prices refresh every 30 seconds. New launches show "indexing" for a few minutes.</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- ============ INSCRIBE (modal flow) ============ -->
+  <sc-if value="{{ inscribeOpen }}" hint-placeholder-val="{{ false }}">
+  <div onClick="{{ backdropClose }}" style="position:fixed;inset:0;z-index:30;background:rgba(243,242,236,.88);display:flex;align-items:flex-start;justify-content:center;padding:26px 16px;overflow:auto">
+  <div onClick="{{ stopClick }}" style="width:680px;max-width:100%;display:flex;flex-direction:column">
+    <div id="stepper" style="display:flex;gap:8px;margin-bottom:12px;font:400 13px 'MonoMEK','Jersey 15',monospace;letter-spacing:.14em">
+      <sc-for list="{{ steps }}" as="st" hint-placeholder-count="4">
+        <div style="{{ st.style }}" style-hover="background-size:calc(100% - 12px) calc(100% - 12px),2.5px 2.5px">{{ st.label }}</div>
+      </sc-for>
+    </div>
+
+    <div style="border:2px solid #1a7f2e;border-radius:0;background:rgba(243,242,236,.97);overflow:hidden;display:flex;flex-direction:column">
+      <div class="dwh" style="display:flex;align-items:center;gap:8px;border-bottom:2px solid #1a7f2e;padding:7px 10px;background-color:#f3f2ec;background-image:radial-gradient(#1a7f2e 1px,transparent 1.2px);background-size:4px 4px;font:400 10px/1.6 'MEKmode','Silkscreen',monospace;letter-spacing:.06em;text-transform:uppercase">
+        <span style="display:none"></span>
+        <span data-tty style="display:inline-block;background:#f3f2ec;padding:2px 8px">{{ winTitle }}</span><span style="margin-left:auto;background:#f3f2ec;padding:2px 8px">{{ winRight }}</span>
+        <span onClick="{{ minimize }}" title="minimize: upload keeps running" style="margin-left:12px;cursor:pointer;opacity:.7;border:1px solid rgba(26,127,46,.4);border-radius:0;padding:0 8px" style-hover="opacity:1;background:rgba(26,127,46,.1)">–</span>
+        <span onClick="{{ closeInscribe }}" style="background:#f3f2ec;padding:0 8px;margin-left:6px;cursor:pointer;opacity:.7;border:1px solid rgba(26,127,46,.4);border-radius:0;padding:0 8px" style-hover="opacity:1;background:rgba(26,127,46,.1)">x</span>
+      </div>
+      <div style="padding:22px 24px 24px;flex:1">
+
+                <!-- STEP 2: FUND -->
+        <sc-if value="{{ isStep2 }}" hint-placeholder-val="{{ false }}">
+          <div data-tty style="font:400 20px/1.1 'Alagard','MonoMEK','Jersey 15',monospace;letter-spacing:.02em;">Pay once. One signature.</div>
+          <div style="margin:18px 0 0;text-align:center;padding:26px 0 8px">
+            <div style="font:400 60px 'Alagard','MonoMEK','Jersey 15',monospace;color:#1a7f2e">{{ totalLabel }} <span style="font-size:29px">ETH</span></div>
+            <div style="margin-top:10px;font:400 13px 'MonoMEK','Jersey 15',monospace;opacity:.55">Exact amount for your file. Nothing hidden.</div>
+          </div>
+          <div style="margin-top:18px;border:1px solid rgba(26,127,46,.4);border-radius:0;font:400 14px 'MonoMEK','Jersey 15',monospace">
+            <div style="display:flex;justify-content:space-between;padding:9px 14px;border-bottom:1px dotted rgba(26,127,46,.25)"><span style="opacity:.6">from</span><span>0x7Kq9...bA1d (you)</span></div>
+            <div style="display:flex;justify-content:space-between;padding:9px 14px;border-bottom:1px dotted rgba(26,127,46,.25)"><span style="opacity:.6">to</span><span>0xbrnr...9e42 <span style="opacity:.5">(temporary account)</span></span></div>
+            <div style="display:flex;justify-content:space-between;padding:9px 14px"><span style="opacity:.6">after finish</span><span style="color:#1a7f2e">anything left comes back to you ✓</span></div>
+          </div>
+          <sc-if value="{{ fundIdle }}" hint-placeholder-val="{{ true }}">
+            <div onClick="{{ approve }}" style="margin-top:16px;background:#1a7f2e;color:#f3f2ec;border-radius:0;text-align:center;padding:14px 0;font:400 14px 'MonoMEK','Jersey 15',monospace;letter-spacing:.12em;cursor:pointer;transition:all .35s cubic-bezier(.2,.7,.2,1)" style-hover="background:#2a9a3e;transform:translateY(-2px);box-shadow:0 6px 20px rgba(18,18,18,.12)">SIGN AND PAY</div>
+          </sc-if>
+          <sc-if value="{{ fundWaiting }}" hint-placeholder-val="{{ false }}">
+            <div class="ttyspin" style="margin-top:16px;border:1px solid rgba(26,127,46,.55);border-radius:0;text-align:center;padding:14px 0;font:400 14px 'MonoMEK','Jersey 15',monospace;letter-spacing:.12em;color:#1a7f2e;">Approve in your wallet…</div>
+          </sc-if>
+          <div onClick="{{ backToCompose }}" style="margin-top:12px;text-align:center;font:400 13px 'MonoMEK','Jersey 15',monospace;opacity:.5;cursor:pointer;text-decoration:underline">← back</div>
+        </sc-if>
+
+        <!-- STEP 3: PROGRESS -->
+        <sc-if value="{{ isStep3 }}" hint-placeholder-val="{{ false }}">
+          <div data-tty style="font:400 20px/1.1 'Alagard','MonoMEK','Jersey 15',monospace;letter-spacing:.02em;">Writing to Robinhood chain. Keep this tab open.</div>
+          <div style="margin-top:18px;border:1px solid #1a7f2e;outline:1px dotted #1a7f2e;outline-offset:4px;background:#f3f2ec">
+            <div style="display:flex;align-items:center;gap:8px;border-bottom:1px solid #1a7f2e;padding:6px 10px;background-color:#f3f2ec;background-image:radial-gradient(#1a7f2e 1px,transparent 1.2px);background-size:4px 4px"><span style="background:#f3f2ec;padding:2px 8px;font:400 10px/1.6 'MEKmode','Silkscreen',monospace;letter-spacing:.06em;text-transform:uppercase">Progress</span><span style="margin-left:auto;background:#f3f2ec;padding:2px 8px;font:400 13px 'MonoMEK','Jersey 15',monospace;letter-spacing:.12em">{{ writingLabel }}</span></div>
+            <div class="ttybar" style="padding:12px 14px 4px">{{ pctBar }}</div>
+            <div class="ttyrows" style="padding:4px 14px 12px;font:400 13px/2 'MonoMEK','Jersey 15',monospace">
+              <sc-for list="{{ progressLog }}" as="ln" hint-placeholder-count="3">
+                <div style="{{ ln.style }}">{{ ln.text }}</div>
+              </sc-for>
+            </div>
+          </div>
+          <div style="margin-top:14px;display:flex;justify-content:space-between;align-items:center;font:400 13px 'MonoMEK','Jersey 15',monospace;opacity:.6">
+            <span>&gt; keep this tab open until every part lands</span>
+            </div>
+        </sc-if>
+
+        <!-- STEP 4: DONE / ERROR -->
+        <sc-if value="{{ doneOk }}" hint-placeholder-val="{{ false }}">
+          <div style="text-align:center;padding:18px 0 6px">
+            <div style="font:400 44px 'Alagard','MonoMEK','Jersey 15',monospace;color:#1a7f2e">INSCRIBED.</div>
+            <div style="margin-top:14px;font:400 13px 'MonoMEK','Jersey 15',monospace;opacity:.65">id: 0x5bvw...dv93 · saved to your wallet</div>
+            <div style="margin-top:10px;font:400 13px 'MonoMEK','Jersey 15',monospace;color:#1a7f2e">✓ leftover returned to 0x7Kq9...bA1d</div>
+          </div>
+          <sc-if value="{{ doneFromLaunch }}" hint-placeholder-val="{{ false }}">
+            <div style="margin-top:14px;display:flex;justify-content:space-between;align-items:center;gap:12px;border:1px solid #1a7f2e;outline:1px dotted #1a7f2e;outline-offset:3px;padding:10px 12px;font:400 14px/1.5 'MonoMEK','Jersey 15',monospace;background-color:#f3f2ec;background-image:linear-gradient(#f3f2ec,#f3f2ec),radial-gradient(#1a7f2e 1px,transparent 1.2px);background-size:calc(100% - 10px) calc(100% - 10px),4px 4px;background-position:center,0 0;background-repeat:no-repeat,repeat">
+              <span style="color:#1a7f2e"><span style="color:#121212">&gt;</span> Your image is on chain. Launch it as a token?</span>
+            </div>
+          </sc-if>
+          <div style="display:flex;gap:10px;justify-content:center;flex-wrap:wrap;margin-top:18px;font:400 13px 'MonoMEK','Jersey 15',monospace;letter-spacing:.1em">
+            <sc-if value="{{ doneIsImage }}" hint-placeholder-val="{{ false }}">
+              <div onClick="{{ launchFromDone }}" style="background:#1a7f2e;color:#f3f2ec;border-radius:0;padding:11px 18px;cursor:pointer;transition:all .3s" style-hover="background:#2a9a3e">LAUNCH IT AS TOKEN →</div>
+            </sc-if>
+            <a href="https://iqlabs.dev" style="{{ viewOnBoardStyle }}" style-hover="background:#2a9a3e">SEE IT ON IQLABS.DEV ↗</a>
+            <a href="#" style="border:1px solid rgba(26,127,46,.5);border-radius:0;padding:10px 18px;transition:all .3s" style-hover="border-color:#1a7f2e;background:rgba(26,127,46,.1)">EXPLORER</a>
+            <a href="#" style="border:1px solid rgba(26,127,46,.5);border-radius:0;padding:10px 18px;transition:all .3s" style-hover="border-color:#1a7f2e;background:rgba(26,127,46,.1)">SHARE</a>
+            <div onClick="{{ again }}" style="border:1px solid rgba(26,127,46,.5);border-radius:0;padding:10px 18px;cursor:pointer;transition:all .3s" style-hover="border-color:#1a7f2e;background:rgba(26,127,46,.1)">UPLOAD ANOTHER</div>
+          </div>
+        </sc-if>
+
+        <sc-if value="{{ doneErr }}" hint-placeholder-val="{{ false }}">
+          <div style="text-align:center;padding:18px 0 6px">
+            <div style="font:400 39px 'Alagard','MonoMEK','Jersey 15',monospace;color:#c0392b">INCOMPLETE.</div>
+            <div style="margin-top:14px;font:400 13px/1.9 'MonoMEK','Jersey 15',monospace;opacity:.65">{{ failLabel }}. Your money is safe and waiting.<br>Resume only redoes the missing parts.</div>
+          </div>
+          <div style="display:flex;gap:10px;justify-content:center;margin-top:18px;font:400 13px 'MonoMEK','Jersey 15',monospace;letter-spacing:.1em">
+            <div onClick="{{ resume }}" style="background:#1a7f2e;color:#f3f2ec;border-radius:0;padding:11px 20px;cursor:pointer;transition:all .3s" style-hover="background:#2a9a3e">RESUME → {{ resumeLabel }}</div>
+            <div onClick="{{ again }}" style="border:1px solid rgba(26,127,46,.5);border-radius:0;padding:10px 18px;cursor:pointer;transition:all .3s" style-hover="background:rgba(26,127,46,.1)">START OVER</div>
+          </div>
+        </sc-if>
+
+      </div>
+    </div>
+  </div>
+  </div>
+  </sc-if>
+
+  <sc-if value="{{ pillVisible }}" hint-placeholder-val="{{ false }}">
+    <div onClick="{{ reopen }}" style="position:fixed;right:18px;bottom:18px;z-index:35;display:flex;align-items:center;gap:10px;border:1px solid rgba(26,127,46,.6);border-radius:0;background:rgba(243,242,236,.96);padding:12px 16px;font:400 13px 'MonoMEK','Jersey 15',monospace;letter-spacing:.12em;color:#1a7f2e;cursor:pointer;box-shadow:0 8px 28px rgba(18,18,18,.12);transition:all .3s" style-hover="background:rgba(10,22,12,.98);transform:translateY(-2px)"><span style="width:8px;height:8px;border-radius:0;background:#1a7f2e;animation:pulse 1.2s ease-in-out infinite"></span>{{ pillLabel }}</div>
+  </sc-if>
+
+  <sc-if value="{{ chartOpen }}" hint-placeholder-val="{{ false }}">
+    <div onClick="{{ closeChart }}" style="position:fixed;inset:0;z-index:40;background:rgba(243,242,236,.88);display:flex;align-items:center;justify-content:center;padding:24px">
+      <div onClick="{{ stopClick }}" style="outline:1px dotted #1a7f2e;outline-offset:4px;border:2px solid #1a7f2e;border-radius:0;background:rgba(243,242,236,.97);width:860px;max-width:100%;overflow:hidden;font-family:'MonoMEK','Jersey 15',monospace">
+        <div class="dwh" style="display:flex;align-items:center;gap:8px;border-bottom:2px solid #1a7f2e;padding:7px 10px;background-color:#f3f2ec;background-image:radial-gradient(#1a7f2e 1px,transparent 1.2px);background-size:4px 4px;font:400 10px/1.6 'MEKmode','Silkscreen',monospace;letter-spacing:.06em;text-transform:uppercase">
+          <span style="display:none"></span>
+          <span data-tty style="margin-left:6px;opacity:.8">Chart</span><span style="margin-left:12px;color:#1a7f2e">{{ chSym }} {{ chName }}</span>
+          <span style="margin-left:auto;opacity:.5;font-size:13px">contract: 0x7xKX...9agh [copy]</span>
+          <span onClick="{{ closeChart }}" style="margin-left:12px;cursor:pointer;opacity:.7;border:1px solid rgba(26,127,46,.4);border-radius:0;padding:0 8px">x</span>
+        </div>
+        <div style="background:rgba(18,18,18,.03)">
+          <div style="display:flex;align-items:baseline;gap:14px;padding:14px 16px;border-bottom:1px solid rgba(26,127,46,.16)">
+            <span style="font-size:26px;font-weight:400">{{ chPrice }}</span><span style="{{ chChgStyle }}">{{ chChg }} (24h)</span>
+            <span style="margin-left:auto;font-size:13px;opacity:.45">market cap {{ chCap }}</span>
+          </div>
+          <sc-if value="{{ chIndexing }}" hint-placeholder-val="{{ false }}">
+            <div style="height:200px;margin:10px 16px 4px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:10px;border:1px dashed rgba(26,127,46,.3);border-radius:0;font:400 14px 'MonoMEK','Jersey 15',monospace;opacity:.6">
+              <div class="ttyspin">indexing</div><div style="font-size:13px;opacity:.7">Brand new. The chart appears within minutes. You can trade on the DEX meanwhile.</div>
+            </div>
+          </sc-if>
+          <sc-if value="{{ chHasChart }}" hint-placeholder-val="{{ true }}">
+            <div style="padding:10px 16px 4px">
+              <svg width="100%" height="200" viewBox="0 0 820 200" preserveAspectRatio="none"><g stroke="rgba(26,127,46,.1)"><line x1="0" y1="50" x2="820" y2="50"></line><line x1="0" y1="100" x2="820" y2="100"></line><line x1="0" y1="150" x2="820" y2="150"></line></g><g>
+<rect x="20" y="158" width="9" height="22" fill="#1a7f2e"/><line x1="24.5" y1="151" x2="24.5" y2="185" stroke="#1a7f2e"/><rect x="48" y="148" width="9" height="17" fill="#1a7f2e"/><line x1="52.5" y1="141" x2="52.5" y2="170" stroke="#1a7f2e"/><rect x="76" y="153" width="9" height="12" fill="#c0392b"/><line x1="80.5" y1="146" x2="80.5" y2="171" stroke="#c0392b"/><rect x="104" y="133" width="9" height="25" fill="#1a7f2e"/><line x1="108.5" y1="125" x2="108.5" y2="163" stroke="#1a7f2e"/><rect x="132" y="123" width="9" height="15" fill="#1a7f2e"/><line x1="136.5" y1="116" x2="136.5" y2="143" stroke="#1a7f2e"/><rect x="160" y="130" width="9" height="10" fill="#c0392b"/><line x1="164.5" y1="123" x2="164.5" y2="146" stroke="#c0392b"/><rect x="188" y="108" width="9" height="25" fill="#1a7f2e"/><line x1="192.5" y1="101" x2="192.5" y2="138" stroke="#1a7f2e"/><rect x="216" y="98" width="9" height="15" fill="#1a7f2e"/><line x1="220.5" y1="91" x2="220.5" y2="118" stroke="#1a7f2e"/><rect x="244" y="105" width="9" height="12" fill="#c0392b"/><line x1="248.5" y1="98" x2="248.5" y2="122" stroke="#c0392b"/><rect x="272" y="83" width="9" height="25" fill="#1a7f2e"/><line x1="276.5" y1="76" x2="276.5" y2="113" stroke="#1a7f2e"/><rect x="300" y="73" width="9" height="15" fill="#1a7f2e"/><line x1="304.5" y1="66" x2="304.5" y2="93" stroke="#1a7f2e"/><rect x="328" y="80" width="9" height="10" fill="#c0392b"/><line x1="332.5" y1="73" x2="332.5" y2="95" stroke="#c0392b"/><rect x="356" y="58" width="9" height="25" fill="#1a7f2e"/><line x1="360.5" y1="51" x2="360.5" y2="88" stroke="#1a7f2e"/><rect x="384" y="48" width="9" height="15" fill="#1a7f2e"/><line x1="388.5" y1="41" x2="388.5" y2="68" stroke="#1a7f2e"/><rect x="412" y="55" width="9" height="12" fill="#c0392b"/><line x1="416.5" y1="48" x2="416.5" y2="72" stroke="#c0392b"/><rect x="440" y="40" width="9" height="20" fill="#1a7f2e"/><line x1="444.5" y1="33" x2="444.5" y2="65" stroke="#1a7f2e"/><rect x="468" y="33" width="9" height="12" fill="#1a7f2e"/><line x1="472.5" y1="26" x2="472.5" y2="50" stroke="#1a7f2e"/><rect x="496" y="43" width="9" height="13" fill="#c0392b"/><line x1="500.5" y1="36" x2="500.5" y2="61" stroke="#c0392b"/><rect x="524" y="36" width="9" height="12" fill="#1a7f2e"/><line x1="528.5" y1="29" x2="528.5" y2="53" stroke="#1a7f2e"/><rect x="552" y="29" width="9" height="10" fill="#1a7f2e"/><line x1="556.5" y1="22" x2="556.5" y2="44" stroke="#1a7f2e"/><rect x="580" y="35" width="9" height="10" fill="#c0392b"/><line x1="584.5" y1="28" x2="584.5" y2="50" stroke="#c0392b"/><rect x="608" y="25" width="9" height="13" fill="#1a7f2e"/><line x1="612.5" y1="18" x2="612.5" y2="43" stroke="#1a7f2e"/><rect x="636" y="19" width="9" height="9" fill="#1a7f2e"/><line x1="640.5" y1="12" x2="640.5" y2="33" stroke="#1a7f2e"/><rect x="664" y="24" width="9" height="8" fill="#c0392b"/><line x1="668.5" y1="17" x2="668.5" y2="37" stroke="#c0392b"/><rect x="692" y="16" width="9" height="11" fill="#1a7f2e"/><line x1="696.5" y1="9" x2="696.5" y2="32" stroke="#1a7f2e"/><rect x="720" y="11" width="9" height="8" fill="#1a7f2e"/><line x1="724.5" y1="4" x2="724.5" y2="24" stroke="#1a7f2e"/><rect x="748" y="15" width="9" height="7" fill="#c0392b"/><line x1="752.5" y1="8" x2="752.5" y2="27" stroke="#c0392b"/>
+</g></svg>
+              <div style="font:400 13px/1.6 'MonoMEK','Jersey 15',monospace;opacity:.45">Live price chart, from launch through the DEX pool.</div>
+            </div>
+          </sc-if>
+          <div style="display:flex;gap:8px;flex-wrap:wrap;padding:12px 16px;border-top:1px solid rgba(26,127,46,.16);font:400 13px 'MonoMEK','Jersey 15',monospace;letter-spacing:.1em">
+            <a href="#" style="background:#1a7f2e;color:#f3f2ec;border-radius:0;padding:10px 14px;transition:all .3s" style-hover="background:#2a9a3e">VIEW ON DEX</a>
+            <a href="#" style="border:1px solid rgba(26,127,46,.5);border-radius:0;padding:9px 14px;transition:all .3s" style-hover="background:rgba(26,127,46,.1)">OPEN ON DEXSCREENER</a>
+            <a href="#" style="border:1px solid rgba(26,127,46,.5);border-radius:0;padding:9px 14px;transition:all .3s" style-hover="background:rgba(26,127,46,.1)">COPY CONTRACT</a>
+            <div onClick="{{ chViewPost }}" style="border:1px solid rgba(26,127,46,.5);border-radius:0;padding:9px 14px;cursor:pointer;transition:all .3s" style-hover="background:rgba(26,127,46,.1)">VIEW LAUNCH POST</div>
+            <div onClick="{{ closeChart }}" style="margin-left:auto;border:1px solid rgba(26,127,46,.5);border-radius:0;padding:9px 14px;cursor:pointer;transition:all .3s" style-hover="background:rgba(26,127,46,.1)">BACK TO LIST</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </sc-if>
+
+  <!-- ============ MODALS ============ -->
+  <sc-if value="{{ viewerOpen }}" hint-placeholder-val="{{ false }}">
+    <div onClick="{{ closeViewer }}" style="position:fixed;inset:0;z-index:40;background:rgba(4,6,4,.7);display:flex;align-items:center;justify-content:center;padding:24px">
+      <div style="outline:1px dotted #1a7f2e;outline-offset:4px;border:2px solid #1a7f2e;border-radius:0;background:rgba(243,242,236,.97);width:640px;max-width:100%;overflow:hidden">
+        <div class="dwh" style="display:flex;align-items:center;gap:8px;border-bottom:2px solid #1a7f2e;padding:7px 10px;background-color:#f3f2ec;background-image:radial-gradient(#1a7f2e 1px,transparent 1.2px);background-size:4px 4px;font:400 10px/1.6 'MEKmode','Silkscreen',monospace;letter-spacing:.06em;text-transform:uppercase">
+          <span style="display:none"></span>
+          <span data-tty style="margin-left:6px;opacity:.8">Record</span><span onClick="{{ closeViewer }}" style="margin-left:auto;cursor:pointer;opacity:.7">[ x ]</span>
+        </div>
+        <div style="padding:20px 22px 22px">
+          <pre style="margin:0;border:1px solid rgba(26,127,46,.35);border-radius:0;padding:16px;min-height:90px;font:400 16px/1.5 'MonoMEK','Jersey 15',monospace;color:#1a7f2e;white-space:pre;overflow:auto;background:rgba(18,18,18,.12)">{{ vBody }}</pre>
+          <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px;margin-top:14px;font:400 13px 'MonoMEK','Jersey 15',monospace">
+            <span style="opacity:.55">tx: {{ vSig }} · owner: {{ vWho }}</span>
+            <div style="display:flex;gap:10px;font-weight:400;letter-spacing:.08em"><a href="#" style="border:1px solid rgba(26,127,46,.5);border-radius:0;padding:6px 12px" style-hover="background:rgba(26,127,46,.1)">EXPLORER</a><a href="#" style="border:1px solid rgba(26,127,46,.5);border-radius:0;padding:6px 12px" style-hover="background:rgba(26,127,46,.1)">SHARE</a><a href="#" style="border:1px solid rgba(26,127,46,.5);border-radius:0;padding:6px 12px" style-hover="background:rgba(26,127,46,.1)">RAW TX</a></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </sc-if>
+
+  <sc-if value="{{ safetyOpen }}" hint-placeholder-val="{{ false }}">
+    <div style="position:fixed;inset:0;z-index:40;background:rgba(4,6,4,.7);display:flex;align-items:center;justify-content:center;padding:24px">
+      <div style="border:1px solid #b07a1a;outline:1px dotted #b07a1a;outline-offset:5px;border-radius:0;background:rgba(243,242,236,.97);width:480px;max-width:100%;overflow:hidden">
+        <div style="border-bottom:1px solid #b07a1a;padding:8px 10px;background-color:#f3f2ec;background-image:radial-gradient(#b07a1a 1px,transparent 1.2px);background-size:4px 4px"><span style="display:inline-block;background:#f3f2ec;padding:3px 8px 1px;font:400 20px/1.1 'Alagard','MonoMEK','Jersey 15',monospace;letter-spacing:.02em;color:#b07a1a">Before you upload a file</span></div>
+        <div style="padding:18px 22px 16px;font:400 15px/2 'MonoMEK','Jersey 15',monospace">
+          <div style="display:flex;gap:10px"><span style="color:#b07a1a">01</span><span>Files are shown <b>read-only</b>. Nothing you upload ever runs as code.</span></div>
+          <div style="display:flex;gap:10px;border-top:1px dotted rgba(176,122,26,.5)"><span style="color:#b07a1a">02</span><span>Only images and audio are displayed, in a locked frame.</span></div>
+          <div style="display:flex;gap:10px;border-top:1px dotted rgba(176,122,26,.5)"><span style="color:#b07a1a">03</span><span>What you upload is permanent. No delete, no edit.</span></div>
+        </div>
+        <div style="display:flex;gap:10px;padding:0 22px 20px;font:400 13px 'MonoMEK','Jersey 15',monospace;letter-spacing:.1em">
+          <div onClick="{{ ackSafety }}" style="font:400 16px/1.1 'Alagard','MonoMEK','Jersey 15',monospace;letter-spacing:.02em;flex:1;background:#1a7f2e;color:#f3f2ec;border-radius:0;text-align:center;padding:11px 0;cursor:pointer" style-hover="background:#2a9a3e">UNDERSTOOD, CONTINUE</div>
+          <div onClick="{{ cancelSafety }}" style="font:400 16px/1.1 'Alagard','MonoMEK','Jersey 15',monospace;letter-spacing:.02em;border:1px solid rgba(26,127,46,.5);border-radius:0;padding:11px 16px;cursor:pointer;opacity:.7" style-hover="background:rgba(26,127,46,.1)">CANCEL</div>
+        </div>
+      </div>
+    </div>
+  </sc-if>
+
+  <sc-if value="{{ overcapOpen }}" hint-placeholder-val="{{ false }}">
+    <div style="position:fixed;inset:0;z-index:40;background:rgba(4,6,4,.7);display:flex;align-items:center;justify-content:center;padding:24px">
+      <div style="outline:1px dotted #1a7f2e;outline-offset:4px;border:2px solid #1a7f2e;border-radius:0;background:rgba(243,242,236,.97);width:560px;max-width:100%;overflow:hidden">
+        <div class="dwh" style="display:flex;align-items:center;border-bottom:1px solid #1a7f2e;padding:7px 10px;background-color:#f3f2ec;background-image:radial-gradient(#1a7f2e 1px,transparent 1.2px);background-size:4px 4px;font:400 13px 'MonoMEK','Jersey 15',monospace;letter-spacing:.16em"><span style="color:#b07a1a">This file is too big for the browser</span><span onClick="{{ closeOvercap }}" style="margin-left:auto;cursor:pointer;opacity:.7">[ x ]</span></div>
+        <div style="padding:20px 22px 22px">
+          <div style="font:400 14px/1.9 'MonoMEK','Jersey 15',monospace;opacity:.7">dataset.bin is 9.2 MB. Two ways forward:</div>
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:16px">
+            <div onClick="{{ openRpc }}" style="border:1px solid rgba(26,127,46,.5);border-radius:0;padding:16px;cursor:pointer;transition:all .3s" style-hover="border-color:#1a7f2e;background:rgba(26,127,46,.05)">
+              <div style="font:400 14px 'MonoMEK','Jersey 15',monospace">1 · Use your own connection</div>
+              <div style="margin-top:8px;font:400 13px/1.8 'MonoMEK','Jersey 15',monospace;opacity:.6">Paste an Alchemy key: faster, higher limit, still in the browser.</div>
+            </div>
+            <a href="https://iqlabs.mintlify.app/docs-typescript" target="_blank" rel="noopener" style="border:1px solid rgba(26,127,46,.5);border-radius:0;padding:16px;cursor:pointer;display:block;transition:all .3s" style-hover="border-color:#1a7f2e;background:rgba(26,127,46,.05)">
+              <div style="font:400 14px 'MonoMEK','Jersey 15',monospace">2 · Use the terminal ↗</div>
+              <div style="margin-top:8px;font:400 13px/1.8 'MonoMEK','Jersey 15',monospace;opacity:.6">No size limit. One command, same payment flow. Opens the developer docs.</div>
+            </a>
+          </div>
+          <sc-if value="{{ sdkOpen }}" hint-placeholder-val="{{ false }}">
+            <div style="display:flex;align-items:center;gap:10px;margin-top:12px;border:1px solid rgba(26,127,46,.5);border-radius:0;background:rgba(18,18,18,.12);padding:12px 14px;font:400 13px 'MonoMEK','Jersey 15',monospace">
+              <span style="color:#1a7f2e;flex:1;overflow:auto;white-space:nowrap">$ npx iq-sdk inscribe ./dataset.bin --net robinhood --rpc $ALCHEMY</span>
+              <span onClick="{{ copyCli }}" style="font-weight:400;letter-spacing:.1em;border:1px solid rgba(26,127,46,.5);border-radius:0;padding:5px 10px;cursor:pointer" style-hover="background:rgba(26,127,46,.1)">{{ copyLabel }}</span>
+            </div>
+          </sc-if>
+        </div>
+      </div>
+    </div>
+  </sc-if>
+
+  <sc-if value="{{ rpcOpen }}" hint-placeholder-val="{{ false }}">
+    <div style="position:fixed;inset:0;z-index:41;background:rgba(4,6,4,.5);display:flex;justify-content:flex-end">
+      <div style="width:340px;max-width:88%;background:rgba(243,242,236,.98);border-left:1px solid #1a7f2e;padding:22px;display:flex;flex-direction:column;gap:14px">
+        <div style="display:flex;font:400 13px 'MonoMEK','Jersey 15',monospace;letter-spacing:.16em"><span data-tty style="font:400 20px/1.1 'Alagard','MonoMEK','Jersey 15',monospace;letter-spacing:.02em">Connection settings</span><span onClick="{{ closeRpc }}" style="margin-left:auto;cursor:pointer;opacity:.7">[ x ]</span></div>
+        <div style="font:400 13px/1.9 'MonoMEK','Jersey 15',monospace;opacity:.6">Uploads go through your connection. The key stays on this device.</div>
+        <input placeholder="alchemy api key…" style="background:rgba(18,18,18,.04);color:#1a7f2e;border:1px solid rgba(26,127,46,.5);border-radius:0;font:400 14px 'MonoMEK','Jersey 15',monospace;padding:11px 12px">
+        <div onClick="{{ closeRpc }}" style="background:#1a7f2e;color:#f3f2ec;border-radius:0;text-align:center;padding:11px 0;font:400 13px 'MonoMEK','Jersey 15',monospace;letter-spacing:.12em;cursor:pointer" style-hover="background:#2a9a3e">SAVE AND USE</div>
+        <div style="font:400 13px 'MonoMEK','Jersey 15',monospace;opacity:.45">current: default</div>
+      </div>
+    </div>
+  </sc-if>
+
+</div>
+</sc-if>
+</x-dc>
+<script type="text/x-dc" data-dc-script>
+class Component extends DCLogic {
+  state = { hintsOff: (() => { try { return localStorage.getItem('ic_hints_off') === '1'; } catch (e) { return false; } })(),
+    wallet: false, inscribeOpen: false, minimized: false, tab: 'feed', boardMode: 'normal',
+    viewer: null, step: 1, ctype: 'TEXT', text: 'gm. on-chain forever.',
+    asciiWidth: 60, asciiFont: 8, asciiSpacing: -2, asciiLogo: true, safetyFor: null, safetyAcked: false,
+    overcap: false, rpc: false, sdk: false, copied: false,
+    funding: 'idle', written: 0, total: 6, retried: false, sweeping: false,
+    doneState: null, paused: false, inscribedNew: false,
+    launchOpen: false, lStep: 'menu', lPicked: null, lName: 'doom coin', lSym: 'DOOM', lDesc: 'doom, but it never dies.', lBuy: '0.01', lStatus: 'idle', launched: false, fromLaunch: false, freshImage: false, chart: null, lSrc: 'all', chain: 'sol'
+  };
+  componentDidMount() { try { const c = localStorage.getItem('inscribe_chain'); if (c === 'hood' || c === 'sol') this.setState({ chain: c }); } catch(e) {} this.syncBody(); }
+  componentDidUpdate() { this.syncBody(); }
+  syncBody() { document.body.style.background = this.state.chain === 'hood' ? '#f3f2ec' : '#f3f2ec'; }
+  setChain(c) { try { localStorage.setItem('inscribe_chain', c); } catch(e) {} this.setState({ chain: c, chart: null, viewer: null, lPicked: null }); }
+  componentWillUnmount() { clearInterval(this._t); clearTimeout(this._t2); clearTimeout(this._t3); }
+  bytes() { try { return new TextEncoder().encode(this.state.text).length + 12280; } catch(e) { return 12700; } }
+  chunks() { return Math.max(1, Math.ceil(this.bytes() / 4096)); }
+  startProgress(from) {
+    clearInterval(this._t);
+    this.setState({ step: 3, written: from, sweeping: false, doneState: null, paused: false, inscribeOpen: true, minimized: false });
+    this._t = setInterval(() => {
+      const s = this.state;
+      if (s.written === 3 && !s.retried) { this.setState({ retried: true }); return; }
+      const w = s.written + 1;
+      if (w >= s.total) {
+        clearInterval(this._t);
+        this.setState({ written: s.total, sweeping: true });
+        this._t2 = setTimeout(() => this.setState({ step: 4, doneState: 'ok', inscribedNew: true, paused: false }), 1600);
+      } else this.setState({ written: w });
+    }, 650);
+  }
+  closeFlow() {
+    if (this.state.step === 4) { clearInterval(this._t); this.setState({ inscribeOpen: false, minimized: false, step: 1, written: 0, retried: false, sweeping: false, doneState: null, funding: 'idle' }); }
+    else this.setState({ inscribeOpen: false, minimized: false });
+  }
+  renderVals() {
+    const s = this.state;
+    const ttyBar = (p, w) => { w = w || 24; const n = Math.max(0, Math.min(w, Math.round(w * p / 100))); return '[' + '█'.repeat(n) + '░'.repeat(w - n) + '] ' + Math.round(p) + '%'; };
+    const H = s.chain === 'hood';
+    const T = H
+      ? { fg: '43,213,45', fgHex: '#1a7f2e', btn: 'background:#1a7f2e;color:#f3f2ec', panel: 'rgba(6,13,7', me: '0x7Kq9...bA1d', who: ['0x7Kq9...bA1d', '0x9KLL...1a2b', '0x3uXA...c0de', '0xEWNS...4e21'], sig: '0x5bvw...dv93', act: 'Swap', c0: { ini: 'HD', sym: '$HOOD', name: 'hood coin' }, title: 'hood_in.exe', retry: '> nonce gap: re-signing chunk 4 only (auto)', launchedOn: '\n[ launched on dex ]', cli: 'npx iq-sdk inscribe ./dataset.bin --net robinhood --rpc $ALCHEMY' }
+      : { fg: '232,228,214', fgHex: '#121212', btn: 'background:#121212;color:#f3f2ec', panel: 'rgba(20,19,16', me: '7xKq...Labs', who: ['7xKq...Labs', '9KLL...iQLabs', '3uXA...LABS', 'EWNS...4wZ1'], sig: '5BVWQ7FE...uHwDV93', act: 'Pump', c0: { ini: 'DM', sym: '$DOOM', name: 'doom coin' }, title: 'code_in.exe', retry: '> chunk 4/6 … blockhash expired, re-signing', launchedOn: '\n[ launched on pump.fun ]', cli: 'npx iq-sdk inscribe ./dataset.bin --net mainnet-beta --rpc $HELIUS' };
+    const seg = (on) => 'padding:8px 18px;cursor:pointer;transition:all .3s;' + (on ? '' + T.btn + '' : 'opacity:.6');
+    const tabS = (on) => on ? '' + T.btn + ';border-radius:0;padding:8px 16px;font-weight:400;cursor:pointer' : 'border:1px solid rgba(' + T.fg + ',.5);border-radius:0;padding:7px 16px;opacity:.6;cursor:pointer';
+    const kb = (this.bytes() / 1024).toFixed(1), ch = this.chunks();
+    const net = (ch * 0.00002).toFixed(5);
+    const total = (ch * 0.00002 + 0.0005 + 0.0015).toFixed(4);
+    const coinsRaw = [
+      { ini: T.c0.ini, sym: T.c0.sym, name: T.c0.name, price: '$0.004120', chg: '+312.4%', up: true, cap: '$4.31M', act: 'Chart | ' + T.act, sel: true },
+      { ini: 'CT', sym: '$ONCAT', name: 'onchain cat', price: '$0.000871', chg: '+41.0%', up: true, cap: '$912K', act: 'Chart | ' + T.act },
+      { ini: 'MV', sym: '$MVID', name: 'music video coin', price: '$0.000214', chg: '-12.7%', up: false, cap: '$204K', act: 'Chart | ' + T.act },
+      { ini: 'GB', sym: '$GBOY', name: 'gameboy forever', price: '$0.000096', chg: '+3.2%', up: true, cap: '$98K', act: 'Chart | ' + T.act },
+      { ini: 'NW', sym: '$FRESH', name: 'just launched', price: 'new', chg: 'indexing', mute: true, cap: '-', act: T.act }
+    ];
+    const whoList = T.who;
+    const baseRecs = coinsRaw.filter(c => !c.mute).map((c, i) => ({ th: c.sym + '\n' + c.name + '\n[ ' + c.name.split(' ')[0] + '.png ]', tag: 'token', time: ['2m', '14m', '1h', '3h'][i] || '1d', who: whoList[i] || whoList[0], mine: i === 0, green: i === 0, coin: c }));
+    let list = baseRecs;
+    if (s.launched) list = [{ th: '$' + (s.lSym || 'NEW') + '\n' + (s.lName || 'just launched') + '\n[ indexing ]', tag: 'token', time: 'now', who: T.me, mine: true, isNew: true, coin: { sym: '$' + (s.lSym || 'NEW'), name: s.lName || 'just launched', price: 'new', chg: 'indexing', mute: true, cap: '-' } }].concat(baseRecs);
+    if (s.tab === 'inv') list = list.filter(r => r.mine);
+    const records = list.map(r => ({
+      th: r.th, tag: r.tag, time: r.time, who: r.who,
+      cardStyle: 'border:1px solid ' + (r.isNew ? 'rgba(26,127,46,.7)' : 'rgba(' + T.fg + ',.5)') + ';border-radius:0;overflow:hidden;cursor:pointer;transition:border-color .35s,background .35s' + (r.isNew ? ';background:rgba(26,127,46,.05)' : ''),
+      thStyle: 'height:88px;border-bottom:1px solid rgba(' + T.fg + ',.25);display:flex;align-items:center;justify-content:center;white-space:pre;text-align:center;font:400 14px/1.35 \'MonoMEK\',\'Jersey 15\',monospace;' + (r.green || r.isNew ? 'color:#1a7f2e' : 'opacity:.85'),
+      open: () => this.setState({ chart: r.coin })
+    }));
+    const inv = s.tab === 'inv';
+    const loading = s.boardMode === 'loading';
+    const needWallet = inv && !s.wallet;
+    const emptyInv = inv && s.wallet && (s.boardMode === 'empty' || records.length === 0);
+    const emptyFeed = !inv && s.boardMode === 'empty';
+    const stepNames = ['1 · COMPOSE', '2 · FUND', '3 · PROGRESS', '4 · DONE'];
+    const steps = stepNames.map((label, i) => ({
+      label, style: 'font:400 16px/1.1 \'Alagard\',\'MonoMEK\',\'Jersey 15\',monospace;letter-spacing:.02em;flex:1;text-align:center;padding:8px 0;' + (s.step === i + 1 ? 'border:1px solid ' + T.fgHex + ';background-color:#f3f2ec;background-image:linear-gradient(#f3f2ec,#f3f2ec),radial-gradient(' + T.fgHex + ' 1px,transparent 1.2px);background-size:calc(100% - 10px) calc(100% - 10px),4px 4px;background-position:center,0 0;background-repeat:no-repeat,repeat;color:' + T.fgHex : 'border:1px solid rgba(' + T.fg + ',.25);opacity:.45')
+    }));
+    const types = ['TEXT', 'ASCII', 'IMAGE', 'FILE', 'PICK'].map((t, i) => ({
+      label: t === 'PICK' ? 'MY INSCRIPTIONS' : t,
+      style: 'font:400 18px/1 \'Alagard\',\'MonoMEK\',\'Jersey 15\',monospace;letter-spacing:.02em;white-space:nowrap;flex:' + (t === 'PICK' ? '1.8' : '1') + ';text-align:center;padding:9px 6px;cursor:pointer;' + (i ? 'border-left:1px solid rgba(' + T.fg + ',.3);' : '') + (s.ctype === t ? 'background-color:#f3f2ec;background-image:linear-gradient(#f3f2ec,#f3f2ec),radial-gradient(' + T.fgHex + ' 1px,transparent 1.2px);background-size:calc(100% - 10px) calc(100% - 10px),4px 4px;background-position:center,0 0;background-repeat:no-repeat,repeat;color:' + T.fgHex : 'opacity:.55'),
+      click: () => {
+        if (t === 'FILE' && !s.safetyAcked) this.setState({ safetyFor: t });
+        else this.setState({ ctype: t });
+      }
+    }));
+    const titles = { 1: T.title, 2: 'Pay', 3: 'Writing to chain…', 4: s.doneState === 'ok' ? 'Done' : 'Stopped' };
+    const log = [];
+    for (let i = 1; i <= s.written; i++) log.push({ text: '> chunk ' + i + '/' + s.total + ' … confirmed ✓', style: 'opacity:.75' });
+    if (s.retried && s.written <= 3) log.push({ text: T.retry, style: 'color:#b07a1a' });
+    if (s.sweeping) log.push({ text: '> returning leftover to ' + T.me + ' …', style: 'color:#1a7f2e' });
+    const rowBase = 'display:grid;grid-template-columns:minmax(0,1fr) auto auto auto;gap:10px;align-items:center;padding:12px 12px;border-bottom:1px solid rgba(' + T.fg + ',.16);font-size:14px;white-space:nowrap;cursor:pointer;transition:background .3s';
+    const coins = coinsRaw.map(c => ({
+      ini: c.ini, sym: c.sym, name: c.name, price: c.price, chg: c.chg, cap: c.cap, act: c.act,
+      open: () => this.setState({ chart: c }),
+      rowStyle: rowBase + (c.sel ? ';background:rgba(' + T.fg + ',.06)' : ''),
+      priceStyle: "font:400 14px/1 'MonoMEK','Jersey 15',monospace;" + (c.mute ? 'opacity:.4' : ''),
+      chgStyle: "font:400 14px/1 'MonoMEK','Jersey 15',monospace;" + (c.mute ? 'opacity:.4' : 'color:' + (c.up ? '#1a7f2e' : '#c0392b')),
+      capStyle: 'text-align:right' + (c.mute ? ';opacity:.4' : '')
+    }));
+
+    // ---- token launch ----
+    const myRecs = list.filter(r => r.mine);
+    const invAll = (s.freshImage ? [{ th: '[ img: fresh.png ]', tag: 'image', time: 'now', sig: T.sig, img: true, src: 'inscribe.codes' }] : []).concat([{ th: '[ img: doom.png ]', tag: 'image', time: '1d', sig: '5Kd2rQ8f...mW9c', img: true, src: 'inscribe.codes' }, { th: '[ img: cat.png ]', tag: 'image', time: '4d', sig: '9aB1xT...pL0e', img: true, src: 'iqlabs.dev' }, { th: 'gm. on-chain\nforever.', tag: 'text', time: '6d', sig: '0x5bvw...dv93', img: false, src: 'iqlabs.dev' }]);
+    const invImages = invAll.concat([{ th: '[ img: frog.png ]', tag: 'image', time: '9d', sig: '3mQw...k8Ta', img: true, src: 'iqlabs.dev' }, { th: '[ img: gameboy.png ]', tag: 'image', time: '12d', sig: '8Hzr...c2Pq', img: true, src: 'inscribe.codes' }, { th: '|> 0:31 mp3', tag: 'audio', time: '15d', sig: '6Vna...y1Lo', img: false, src: 'iqlabs.dev' }]);
+    const lSrcTabs = [['all', 'ALL'], ['inscribe.codes', 'INSCRIBE.CODES'], ['iqlabs.dev', 'IQLABS.DEV']].map(([k, label], i) => ({ label, style: 'flex:1;text-align:center;padding:7px 0;cursor:pointer;' + (i ? 'border-left:1px solid rgba(' + T.fg + ',.3);' : '') + (s.lSrc === k ? '' + T.btn + ';font-weight:400' : 'opacity:.55'), click: () => this.setState({ lSrc: k, lPicked: null }) }));
+    const lItems = invImages.map((it, i) => ({
+      th: it.th, tag: it.tag, time: it.time, src: it.src,
+      style: 'border:' + (s.lPicked === i ? '2px solid #1a7f2e;box-shadow:0 0 14px rgba(26,127,46,.25)' : '1px solid rgba(' + T.fg + ',.9)') + ';border-radius:0;overflow:hidden;cursor:pointer',
+      thStyle: 'height:74px;display:flex;align-items:center;justify-content:center;text-align:center;font:400 13px/1.35 \'MonoMEK\',\'Jersey 15\',monospace;border-bottom:1px solid rgba(' + T.fg + ',.35);color:#1a7f2e;padding:0 10px;white-space:pre-wrap;overflow:hidden;background:rgba(18,18,18,.12)',
+      pick: () => this.setState({ lPicked: i })
+    }));
+    const picked = s.lPicked != null ? invImages[s.lPicked] : null;
+    const lTotal = (0.069 + (parseFloat(s.lBuy) || 0)).toFixed(3);
+    const launchVals = {
+      openLaunch: () => this.setState({ lStep: 'menu', lPicked: null }),
+      closeLaunch: () => this.setState({ lStep: 'menu', lStatus: 'idle', fromLaunch: false }),
+      launchStepLabel: s.lStep === 'menu' ? (s.wallet ? 'STEP 1 / 2' : 'CONNECT WALLET') : s.lStep === 'pick' ? 'STEP 1 / 2' : s.lStep === 'form' ? 'STEP 2 / 2' : 'DONE',
+      lMenu: s.lStep === 'menu' || s.lStep === 'pick' || (!s.wallet && s.lStep !== 'done'), lPick: s.wallet && s.lStep === 'pick', mMake: () => this.setState({ inscribeOpen: true, minimized: false, ctype: 'IMAGE', safetyAcked: true, step: 1, fromLaunch: true }), mPick: () => this.setState({ lStep: 'pick', lPicked: null }), lMenuBack: () => this.setState({ lStep: 'menu', lPicked: null }), mCardStyle: 'border:1px solid rgba(' + T.fg + ',.5);border-radius:0;padding:16px;transition:all .3s;' + (s.wallet ? 'cursor:pointer' : 'opacity:.4;pointer-events:none'), walletShort: T.me, lForm: s.wallet && s.lStep === 'form', lDone: s.wallet && s.lStep === 'done',
+      lHasImages: invImages.length > 0, lNoImages: invImages.length === 0, lItems, lSrcTabs,
+      lContinueLabel: picked ? 'CONTINUE WITH ' + picked.th.replace('[ img: ', '').replace(' ]', '') : 'SELECT AN INSCRIPTION TO CONTINUE',
+      lContinueStyle: 'margin-top:12px;border-radius:0;text-align:center;padding:12px 0;font:400 13px \'MonoMEK\',\'Jersey 15\',monospace;letter-spacing:.12em;cursor:pointer;transition:all .3s;' + T.btn + '' + (picked ? '' : ';opacity:.35;pointer-events:none'),
+      lContinue: () => { if (picked) this.setState({ lStep: 'form' }); },
+      hasPick: s.wallet && s.ctype === 'PICK' && !!picked, clearPick: () => this.setState({ lPicked: null }),
+      goStyle: "font:400 20px/1.1 'Alagard','MonoMEK','Jersey 15',monospace;letter-spacing:.02em;margin-top:16px;border-radius:0;text-align:center;padding:13px 0;cursor:pointer;" + (!s.wallet ? "background-color:#f3f2ec;background-image:linear-gradient(#f3f2ec,#f3f2ec),radial-gradient(" + T.fgHex + " 1px,transparent 1.2px);background-size:calc(100% - 12px) calc(100% - 12px),4px 4px;background-position:center,0 0;background-repeat:no-repeat,repeat;color:" + T.fgHex + ";border:1px solid " + T.fgHex : T.btn),
+      goLabel: !s.wallet ? 'CONNECT WALLET' : s.ctype === 'PICK' ? (picked ? 'CONTINUE WITH ' + picked.th.replace('[ img: ', '').replace(' ]', '') + ' →' : 'PICK AN IMAGE TO CONTINUE') : 'CONTINUE → FUND',
+      goContinue: () => { if (!s.wallet) this.setState({ wallet: true }); else if (s.ctype === 'PICK') { if (picked) this.setState({ lStep: 'form' }); } else this.setState({ step: 2, funding: 'idle', inscribeOpen: true, minimized: false, fromLaunch: true }); },
+      lInscribeInstead: () => this.setState({ inscribeOpen: true, minimized: false, ctype: 'IMAGE', safetyAcked: true, step: 1, fromLaunch: true }),
+      lName: s.lName, onLName: (e) => this.setState({ lName: e.target.value }),
+      lSym: s.lSym, onLSym: (e) => this.setState({ lSym: e.target.value.toUpperCase() }),
+      lDesc: s.lDesc, onLDesc: (e) => this.setState({ lDesc: e.target.value }),
+      lBuy: s.lBuy, onLBuy: (e) => this.setState({ lBuy: e.target.value }),
+      lPickedTh: picked ? picked.th.replace('[ img: ', '').replace(' ]', '') : '', lPickedSig: picked ? picked.sig : '', lPickedTag: picked ? picked.tag : '',
+      lTotal, lIdle: s.lStatus === 'idle', lWaiting: s.lStatus === 'waiting',
+      lLaunch: () => { this.setState({ lStatus: 'waiting' }); this._t3 = setTimeout(() => this.setState({ lStatus: 'idle', lStep: 'done', launched: true }), 1600); },
+      lBack: () => this.setState({ lStep: 'menu' }),
+      lMint: '7xKX...9agh',
+      chartOpen: !!s.chart, closeChart: () => this.setState({ chart: null }),
+      chSym: s.chart ? s.chart.sym : '', chName: s.chart ? s.chart.name : '', chPrice: s.chart ? s.chart.price : '', chChg: s.chart ? s.chart.chg : '', chCap: s.chart ? s.chart.cap : '',
+      chChgStyle: 'font-size:16px;color:' + (s.chart && s.chart.mute ? 'rgba(' + T.fg + ',.4)' : s.chart && s.chart.up === false ? '#c0392b' : '#1a7f2e'),
+      chIndexing: !!(s.chart && s.chart.mute), chHasChart: !!(s.chart && !s.chart.mute),
+      chViewPost: () => this.setState({ chart: null, viewer: { th: (s.chart ? s.chart.sym : '') + '  ' + (s.chart ? s.chart.name : '') + T.launchedOn, who: T.me } }),
+      doneFromLaunch: s.fromLaunch, doneIsImage: s.ctype === 'IMAGE' || s.fromLaunch,
+      viewOnBoardStyle: (s.ctype === 'IMAGE' || s.fromLaunch) ? 'border:1px solid rgba(' + T.fg + ',.5);border-radius:0;padding:10px 18px;cursor:pointer;transition:all .3s' : '' + T.btn + ';border-radius:0;padding:11px 18px;cursor:pointer;transition:all .3s',
+      launchFromDone: () => { clearInterval(this._t); this.setState({ inscribeOpen: false, minimized: false, step: 1, written: 0, retried: false, sweeping: false, doneState: null, funding: 'idle', fromLaunch: false, freshImage: true, lStep: 'form', lPicked: 0, lSrc: 'all' }); },
+      lViewMarkets: () => this.setState({ lStep: 'menu', chart: { sym: '$' + (s.lSym || 'NEW'), name: s.lName || 'just launched', price: 'new', chg: 'indexing', mute: true, cap: '-' } }),
+      lAgain: () => this.setState({ lStep: 'menu', lPicked: null, lName: '', lSym: '' })
+    };
+    if (s.launched) coins.unshift({ ini: (s.lSym || 'NW').slice(0, 2), sym: '$' + (s.lSym || 'NEW'), name: s.lName || 'just launched', price: 'new', chg: 'indexing', cap: '-', act: coinsRaw[4].act, open: () => this.setState({ chart: { sym: '$' + (s.lSym || 'NEW'), name: s.lName || 'just launched', price: 'new', chg: 'indexing', mute: true, cap: '-' } }), rowStyle: rowBase + ';background:rgba(26,127,46,.06)', priceStyle: 'opacity:.4', chgStyle: 'opacity:.4', capStyle: 'text-align:right;opacity:.4' });
+    return Object.assign(launchVals, {
+      showHints: !s.hintsOff, hideHints: () => { try { localStorage.setItem('ic_hints_off', '1'); } catch (e) {} this.setState({ hintsOff: true }); },
+      isSol: !H, isHood: H, toHood: (e) => { e.preventDefault(); this.setChain('hood'); }, toSol: (e) => { e.preventDefault(); this.setChain('sol'); },
+      coins,
+      isConnected: s.wallet, isDisconnected: !s.wallet,
+      connect: () => this.setState({ wallet: true }),
+      inscribeOpen: s.inscribeOpen && !s.minimized,
+      gotoInscribe: () => this.setState({ inscribeOpen: true, minimized: false }),
+      stopClick: (e) => e.stopPropagation(),
+      backdropClose: () => { if (s.step === 2 || s.step === 3) this.setState({ minimized: true }); else this.closeFlow(); },
+      minimize: () => this.setState({ minimized: true }),
+      closeInscribe: () => { if (s.step === 2 || s.step === 3) this.setState({ minimized: true }); else this.closeFlow(); },
+      pillVisible: s.inscribeOpen && s.minimized,
+      pillLabel: s.step === 3 ? (s.sweeping ? 'SWEEPING LEFTOVER…' : 'WRITING ' + s.written + ' / ' + s.total) : s.step === 2 ? 'AWAITING SIGNATURE…' : s.step === 4 ? (s.doneState === 'ok' ? 'INSCRIBED ✓ VIEW' : 'INCOMPLETE: RESUME') : 'DRAFT SAVED: CONTINUE',
+      reopen: () => this.setState({ minimized: false }),
+      tabFeed: () => { this.setState({ tab: 'feed', boardMode: 'loading' }); this._t2 = setTimeout(() => this.setState({ boardMode: 'normal' }), 800); },
+      tabInv: () => { this.setState({ tab: 'inv', boardMode: 'loading' }); this._t2 = setTimeout(() => this.setState({ boardMode: 'normal' }), 800); },
+      feedTabStyle: tabS(!inv), invTabStyle: tabS(inv),
+      boardCaption: inv ? 'Tokens you launched, here or on iqlabs.dev.' : 'Every token launched here, newest first.',
+      demoNormal: () => this.setState({ boardMode: 'normal' }),
+      demoLoading: () => this.setState({ boardMode: 'loading' }),
+      demoEmpty: () => this.setState({ boardMode: 'empty' }),
+      boardLoading: loading, boardNeedWallet: !loading && needWallet,
+      boardEmptyInv: !loading && emptyInv, boardEmptyFeed: !loading && emptyFeed,
+      boardShowGrid: !loading && !needWallet && !emptyInv && !emptyFeed,
+      records,
+      viewerOpen: !!s.viewer, vBody: s.viewer ? s.viewer.th : '', vSig: T.sig, vWho: s.viewer ? s.viewer.who : '',
+      closeViewer: () => this.setState({ viewer: null }),
+      steps, isStep1: s.step === 1, isStep2: s.step === 2, isStep3: s.step === 3,
+      doneOk: s.step === 4 && s.doneState === 'ok', doneErr: s.step === 4 && s.doneState === 'err',
+      winTitle: titles[s.step], winRight: s.step === 3 ? 'BLASTING v1 4KB' : 'v1 · 4KB CHUNKS',
+      typeTabs: types, isText: s.ctype === 'TEXT', isAscii: s.ctype === 'ASCII', isImage: s.ctype === 'IMAGE', isFile: s.ctype === 'FILE', isPick: s.ctype === 'PICK', notPick: s.ctype !== 'PICK',
+      text: s.text, onText: (e) => this.setState({ text: e.target.value }),
+      asciiWidth: s.asciiWidth, onWidth: (e) => this.setState({ asciiWidth: e.target.value }),
+      asciiFont: s.asciiFont, asciiSpacing: s.asciiSpacing,
+      fontDec: () => this.setState({ asciiFont: Math.max(5, s.asciiFont - 1) }),
+      fontInc: () => this.setState({ asciiFont: Math.min(50, s.asciiFont + 1) }),
+      spaceDec: () => this.setState({ asciiSpacing: Math.max(-50, s.asciiSpacing - 1) }),
+      spaceInc: () => this.setState({ asciiSpacing: Math.min(50, s.asciiSpacing + 1) }),
+      toggleLogo: () => this.setState({ asciiLogo: !s.asciiLogo }),
+      logoSwitch: 'width:46px;height:22px;border-radius:0;position:relative;cursor:pointer;transition:all .2s;border:1px solid ' + (s.asciiLogo ? '#1a7f2e;background:rgba(26,127,46,.18)' : 'rgba(' + T.fg + ',.55);background:transparent'),
+      logoKnob: 'position:absolute;top:2px;width:16px;height:16px;border-radius:0;transition:all .2s;background:' + (s.asciiLogo ? '#1a7f2e;left:2px;transform:translateX(23px)' : '' + T.fgHex + ';left:2px'),
+      logoTag: s.asciiLogo ? ' · IQ' : '',
+      sizeLabel: kb + ' KB', chunkLabel: 'x ' + ch, netFee: net, totalLabel: total,
+      toFund: () => this.setState({ step: 2, funding: 'idle', inscribeOpen: true, minimized: false, fromLaunch: true }),
+      backToCompose: () => this.setState({ step: 1, inscribeOpen: false, minimized: false }),
+      fundIdle: s.funding === 'idle', fundWaiting: s.funding === 'waiting',
+      approve: () => { this.setState({ funding: 'waiting' }); this._t2 = setTimeout(() => this.startProgress(0), 1500); },
+      pct: Math.round(s.written / s.total * 100) + '%',
+      pctBar: ttyBar(s.total ? s.written / s.total * 100 : 0, 28),
+      writingLabel: s.sweeping ? 'SWEEPING LEFTOVER…' : 'WRITING ' + s.written + ' / ' + s.total,
+      progressLog: log,
+      simFail: () => { clearInterval(this._t); this.setState({ step: 4, doneState: 'err' }); },
+      failLabel: (s.total - s.written) + ' of ' + s.total + ' chunks failed',
+      resumeLabel: 'chunks ' + (s.written + 1) + '–' + s.total,
+      showResume: s.paused && s.step === 1,
+      resume: () => this.startProgress(s.written),
+      again: () => { clearInterval(this._t); this.setState({ step: 1, inscribeOpen: false, minimized: false, lStep: 'menu', written: 0, retried: false, sweeping: false, doneState: null, funding: 'idle', paused: false }); },
+      viewOnBoard: () => this.setState({ inscribeOpen: false, minimized: false, tab: 'feed', boardMode: 'normal', step: 1, written: 0, retried: false, sweeping: false, doneState: null, funding: 'idle' }),
+      safetyOpen: !!s.safetyFor,
+      ackSafety: () => this.setState({ ctype: s.safetyFor, safetyFor: null, safetyAcked: true }),
+      cancelSafety: () => this.setState({ safetyFor: null }),
+      overcapOpen: s.overcap, openOvercap: () => this.setState({ overcap: true, sdk: false, copied: false }),
+      closeOvercap: () => this.setState({ overcap: false }),
+      rpcOpen: s.rpc, openRpc: () => this.setState({ rpc: true, overcap: false }),
+      closeRpc: () => this.setState({ rpc: false }),
+      sdkOpen: s.sdk, toggleSdk: () => this.setState({ sdk: !s.sdk }),
+      copyLabel: s.copied ? 'COPIED ✓' : 'COPY',
+      copyCli: () => { try { navigator.clipboard.writeText(T.cli); } catch(e) {} this.setState({ copied: true }); }
+    });
+  }
+}
+</script>
+</body>
+</html>

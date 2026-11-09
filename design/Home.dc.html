@@ -1,0 +1,188 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet data-dc-atomics>
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Kode+Mono:wght@400;500;600;700&family=Zen+Dots&display=swap" rel="stylesheet">
+<style>body{margin:0;background:#141310;font-family:'Kode Mono',monospace}a{color:#e8e4d6;text-decoration:none}a:hover{color:#fff}
+@keyframes blink{0%,49%{opacity:1}50%,100%{opacity:0}}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.35}}
+@media (max-width: 900px){#doors{grid-template-columns:1fr !important}#tops{grid-template-columns:1fr !important}#hero_title{font-size:34px !important}}
+@media (max-width: 1100px){#nav_mid{display:none !important}}</style>
+</helmet>
+
+<div style="position:fixed;inset:0;background:rgba(20,19,16,.32);z-index:0"></div>
+
+<div style="position:relative;z-index:1;color:#e8e4d6;min-height:100vh;display:flex;flex-direction:column">
+
+  <div style="position:sticky;top:0;z-index:10;padding:12px 16px 0">
+    <div style="display:flex;justify-content:space-between;align-items:center;gap:14px;border:1px solid #e8e4d6;border-radius:8px;background:rgba(20,19,16,.9);backdrop-filter:blur(6px);padding:11px 16px">
+      <div style="display:flex;align-items:center;gap:14px">
+        <a href="https://iqlabs.dev" target="_blank" rel="noopener"><img src="img/text_logo.webp" alt="IQLabs" style="height:18px;display:block;filter:brightness(0) invert(0.93) sepia(0.18) saturate(1.2) brightness(0.98)"></a>
+        <span style="white-space:nowrap;font:600 10px 'Kode Mono',monospace;letter-spacing:.18em;opacity:.5">// INSCRIBE.CODES</span>
+        <a href="NFT Launchpad Flow.dc.html" style="white-space:nowrap;font:600 9px 'Kode Mono',monospace;letter-spacing:.14em;border:1px solid rgba(232,228,214,.45);border-radius:4px;padding:5px 10px;opacity:.85;transition:all .3s" style-hover="opacity:1;background:rgba(232,228,214,.1)">NFT.EXE</a>
+        <a href="Board.dc.html" style="white-space:nowrap;font:600 9px 'Kode Mono',monospace;letter-spacing:.14em;color:#2BD52D;border:1px solid rgba(43,213,45,.45);border-radius:4px;padding:5px 10px;opacity:.85;transition:all .3s" style-hover="opacity:1;background:rgba(43,213,45,.1)">TOKEN.EXE</a>
+      </div>
+      <div id="nav_mid" style="white-space:nowrap;font:600 10px 'Kode Mono',monospace;letter-spacing:.22em;opacity:.45">// INSCRIBE FIRST. LAUNCH AFTER.</div>
+      <sc-if value="{{ isConnected }}" hint-placeholder-val="{{ false }}">
+        <div style="display:flex;align-items:center;gap:8px;font:600 10px 'Kode Mono',monospace;letter-spacing:.1em;border:1px solid rgba(43,213,45,.5);border-radius:4px;padding:7px 12px;color:#2BD52D"><span style="width:7px;height:7px;border-radius:50%;background:#2BD52D"></span>7xKq...Labs</div>
+      </sc-if>
+      <sc-if value="{{ isDisconnected }}" hint-placeholder-val="{{ true }}">
+        <div onClick="{{ connect }}" style="white-space:nowrap;flex-shrink:0;font:700 10px 'Kode Mono',monospace;letter-spacing:.12em;background:#e8e4d6;color:#1b1a17;border-radius:4px;padding:8px 14px;cursor:pointer;transition:all .3s" style-hover="background:#fff">CONNECT WALLET</div>
+      </sc-if>
+    </div>
+  </div>
+
+  <div style="padding:14px 16px 24px;flex:1;display:flex;flex-direction:column;gap:14px;max-width:1280px;width:100%;box-sizing:border-box;margin:0 auto">
+
+    <!-- hero -->
+    <div style="display:flex;flex-direction:column;align-items:center;text-align:center;gap:14px;padding:46px 16px 26px">
+      <div style="font:600 10px 'Kode Mono',monospace;letter-spacing:.3em;opacity:.55">// SOLANA · ROBINHOOD CHAIN</div>
+      <h1 id="hero_title" style="margin:0;font:400 52px/1.1 'Zen Dots',monospace;text-wrap:balance;text-shadow:0 2px 24px rgba(0,0,0,.6)">PUT IT ONCHAIN.<br>THEN MAKE IT <span style="color:#2BD52D">SOMETHING.</span></h1>
+      <div style="font:500 11px/1.9 'Kode Mono',monospace;opacity:.7;max-width:560px;text-wrap:pretty">every nft and every token here starts as an inscription: the file itself written to the chain. no ipfs, no server, no takedown.</div>
+      <div style="display:flex;align-items:center;gap:0;font:500 11px 'Kode Mono',monospace;color:#2BD52D;border:1px solid rgba(43,213,45,.4);border-radius:5px;background:rgba(0,0,0,.45);padding:9px 14px;margin-top:4px"><span style="opacity:.6">$&nbsp;</span>{{ typed }}<span style="display:inline-block;width:7px;height:13px;background:#2BD52D;margin-left:3px;animation:blink 1s step-end infinite"></span></div>
+    </div>
+
+    <!-- two doors -->
+    <div id="doors" style="display:grid;grid-template-columns:1fr 1fr;gap:14px">
+
+      <a href="NFT Launchpad Flow.dc.html" style="display:flex;flex-direction:column;border:1px solid #e8e4d6;border-radius:8px;background:rgba(20,19,16,.88);backdrop-filter:blur(4px);overflow:hidden;min-width:0;transition:all .35s cubic-bezier(.2,.7,.2,1);color:#e8e4d6" style-hover="transform:translateY(-4px);box-shadow:0 18px 50px rgba(0,0,0,.55);color:#e8e4d6">
+        <div style="display:flex;align-items:center;gap:8px;border-bottom:1px solid rgba(232,228,214,.35);padding:11px 16px;font:500 10px 'Kode Mono',monospace;letter-spacing:.14em">
+          <span style="width:9px;height:9px;border-radius:50%;background:#e0554e"></span><span style="width:9px;height:9px;border-radius:50%;background:#e0a84e"></span><span style="width:9px;height:9px;border-radius:50%;background:#2BD52D"></span>
+          <span style="margin-left:6px;opacity:.8">nft.exe</span><span style="margin-left:auto;opacity:.5;font-size:9px">core candy machine · inscription uri</span>
+        </div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:2px;background:rgba(0,0,0,.35);aspect-ratio:2/1">
+          <img src="img/top1.png" alt="" style="width:100%;height:100%;object-fit:cover;display:block;filter:saturate(.85)">
+          <img src="img/top2.png" alt="" style="width:100%;height:100%;object-fit:cover;display:block;filter:saturate(.85)">
+        </div>
+        <div style="padding:18px 20px 20px;display:flex;flex-direction:column;gap:10px;flex:1">
+          <div style="font:400 22px 'Zen Dots',monospace">INSCRIPTION NFT</div>
+          <div style="font:500 10px/1.8 'Kode Mono',monospace;opacity:.6;text-wrap:pretty">launch a collection or mint from one. every item's image and metadata are inscriptions, the nft just points at them.</div>
+          <div style="display:flex;gap:8px;flex-wrap:wrap;font:600 9px 'Kode Mono',monospace;letter-spacing:.1em;opacity:.7"><span style="border:1px solid rgba(232,228,214,.4);border-radius:3px;padding:2px 7px">collections</span><span style="border:1px solid rgba(232,228,214,.4);border-radius:3px;padding:2px 7px">market</span><span style="border:1px solid rgba(232,228,214,.4);border-radius:3px;padding:2px 7px">generate art</span></div>
+          <div style="margin-top:auto;padding-top:6px;display:flex;justify-content:space-between;align-items:center;gap:10px">
+            <span style="font:700 11px 'Kode Mono',monospace;letter-spacing:.12em;background:#e8e4d6;color:#1b1a17;border-radius:4px;padding:11px 18px">GO NFT →</span>
+            <span style="font:500 9.5px 'Kode Mono',monospace;opacity:.5">{{ nftLiveLabel }}</span>
+          </div>
+        </div>
+      </a>
+
+      <a href="Board.dc.html" style="display:flex;flex-direction:column;border:1px solid #2BD52D;border-radius:8px;background:rgba(6,13,7,.9);backdrop-filter:blur(4px);overflow:hidden;min-width:0;transition:all .35s cubic-bezier(.2,.7,.2,1);color:#2BD52D" style-hover="transform:translateY(-4px);box-shadow:0 18px 50px rgba(0,0,0,.55);color:#2BD52D">
+        <div style="display:flex;align-items:center;gap:8px;border-bottom:1px solid rgba(43,213,45,.35);padding:11px 16px;font:500 10px 'Kode Mono',monospace;letter-spacing:.14em">
+          <span style="width:9px;height:9px;border-radius:50%;background:#e0554e"></span><span style="width:9px;height:9px;border-radius:50%;background:#e0a84e"></span><span style="width:9px;height:9px;border-radius:50%;background:#2BD52D"></span>
+          <span style="margin-left:6px;opacity:.8">token_launch.exe</span><span style="margin-left:auto;opacity:.5;font-size:9px">pump.fun · dex · 1 signature</span>
+        </div>
+        <div style="aspect-ratio:2/1;background:rgba(0,0,0,.45);padding:18px 20px;box-sizing:border-box;display:flex;flex-direction:column;justify-content:center;gap:6px;font:500 11px/1.7 'Kode Mono',monospace;overflow:hidden">
+          <sc-for list="{{ termLines }}" as="ln" hint-placeholder-count="5">
+            <div style="{{ ln.style }}">{{ ln.text }}</div>
+          </sc-for>
+        </div>
+        <div style="padding:18px 20px 20px;display:flex;flex-direction:column;gap:10px;flex:1">
+          <div style="font:400 22px 'Zen Dots',monospace">INSCRIPTION TOKEN</div>
+          <div style="font:500 10px/1.8 'Kode Mono',monospace;opacity:.6;text-wrap:pretty">inscribe an image, text, anything. name it, launch it. the coin page links back to the onchain original forever.</div>
+          <div style="display:flex;gap:8px;flex-wrap:wrap;font:600 9px 'Kode Mono',monospace;letter-spacing:.1em;opacity:.7"><span style="border:1px solid rgba(43,213,45,.4);border-radius:3px;padding:2px 7px">inscribe</span><span style="border:1px solid rgba(43,213,45,.4);border-radius:3px;padding:2px 7px">launch</span><span style="border:1px solid rgba(43,213,45,.4);border-radius:3px;padding:2px 7px">markets</span></div>
+          <div style="margin-top:auto;padding-top:6px;display:flex;justify-content:space-between;align-items:center;gap:10px">
+            <span style="font:700 11px 'Kode Mono',monospace;letter-spacing:.12em;background:#2BD52D;color:#04140a;border-radius:4px;padding:11px 18px">GO TOKEN →</span>
+            <span style="font:500 9.5px 'Kode Mono',monospace;opacity:.5">{{ tokenLiveLabel }}</span>
+          </div>
+        </div>
+      </a>
+    </div>
+
+    <!-- top 3 + top 3 -->
+    <div id="tops" style="display:grid;grid-template-columns:1fr 1fr;gap:14px">
+
+      <div style="border:1px solid #e8e4d6;border-radius:8px;background:rgba(20,19,16,.88);backdrop-filter:blur(4px);overflow:hidden;min-width:0;display:flex;flex-direction:column">
+        <div style="display:flex;align-items:center;gap:8px;border-bottom:1px solid rgba(232,228,214,.35);padding:11px 16px;font:500 10px 'Kode Mono',monospace;letter-spacing:.14em">
+          <span style="width:9px;height:9px;border-radius:50%;background:#e0554e"></span><span style="width:9px;height:9px;border-radius:50%;background:#e0a84e"></span><span style="width:9px;height:9px;border-radius:50%;background:#2BD52D"></span>
+          <span style="margin-left:6px;opacity:.8">top3_nft.exe</span><span style="margin-left:auto;opacity:.5;font-size:9px">by 7d volume</span>
+        </div>
+        <div style="display:flex;flex-direction:column;background:rgba(0,0,0,.28);flex:1">
+          <sc-for list="{{ topNft }}" as="c" hint-placeholder-count="3">
+            <a href="NFT Launchpad Flow.dc.html" style="display:grid;grid-template-columns:22px 54px minmax(0,1fr) auto;gap:12px;align-items:center;padding:12px 16px;border-bottom:1px solid rgba(232,228,214,.16);transition:background .3s;color:#e8e4d6" style-hover="background:rgba(232,228,214,.06);color:#e8e4d6">
+              <span style="font:400 16px 'Zen Dots',monospace;opacity:.5">{{ c.rank }}</span>
+              <img src="{{ c.img }}" alt="" style="width:54px;height:54px;object-fit:cover;border-radius:4px;border:1px solid rgba(232,228,214,.35);display:block">
+              <div style="min-width:0"><div style="font:700 12px 'Kode Mono',monospace;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">{{ c.name }}</div><div style="font:500 9.5px 'Kode Mono',monospace;opacity:.5;margin-top:3px">{{ c.meta }}</div></div>
+              <div style="text-align:right"><div style="font:700 11px 'Kode Mono',monospace">{{ c.vol }}</div><div style="font:500 9.5px 'Kode Mono',monospace;margin-top:3px;{{ c.statusStyle }}">{{ c.status }}</div></div>
+            </a>
+          </sc-for>
+          <a href="NFT Launchpad Flow.dc.html" style="margin-top:auto;padding:11px 16px;font:600 9.5px 'Kode Mono',monospace;letter-spacing:.12em;opacity:.6;transition:opacity .3s" style-hover="opacity:1">ALL COLLECTIONS →</a>
+        </div>
+      </div>
+
+      <div style="border:1px solid #e8e4d6;border-radius:8px;background:rgba(20,19,16,.88);backdrop-filter:blur(4px);overflow:hidden;min-width:0;display:flex;flex-direction:column">
+        <div style="display:flex;align-items:center;gap:8px;border-bottom:1px solid rgba(232,228,214,.35);padding:11px 16px;font:500 10px 'Kode Mono',monospace;letter-spacing:.14em">
+          <span style="width:9px;height:9px;border-radius:50%;background:#e0554e"></span><span style="width:9px;height:9px;border-radius:50%;background:#e0a84e"></span><span style="width:9px;height:9px;border-radius:50%;background:#2BD52D"></span>
+          <span style="margin-left:6px;opacity:.8">top3_tokens.exe</span><span style="margin-left:auto;opacity:.5;font-size:9px">by mcap · dexscreener</span>
+        </div>
+        <div style="display:flex;flex-direction:column;background:rgba(0,0,0,.28);flex:1">
+          <sc-for list="{{ topTokens }}" as="t" hint-placeholder-count="3">
+            <a href="Board.dc.html" style="display:grid;grid-template-columns:22px 54px minmax(0,1fr) auto;gap:12px;align-items:center;padding:12px 16px;border-bottom:1px solid rgba(232,228,214,.16);transition:background .3s;color:#e8e4d6" style-hover="background:rgba(232,228,214,.06);color:#e8e4d6">
+              <span style="font:400 16px 'Zen Dots',monospace;opacity:.5">{{ t.rank }}</span>
+              <span style="width:54px;height:54px;border-radius:50%;border:1px solid rgba(232,228,214,.35);display:grid;place-items:center;font:700 14px 'Kode Mono',monospace;color:#2BD52D;background:rgba(0,0,0,.35)">{{ t.ini }}</span>
+              <div style="min-width:0"><div style="font:700 12px 'Kode Mono',monospace;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">{{ t.sym }} <span style="font-weight:500;opacity:.5">{{ t.name }}</span></div><div style="font:500 9.5px 'Kode Mono',monospace;opacity:.5;margin-top:3px">{{ t.meta }}</div></div>
+              <div style="text-align:right"><div style="font:700 11px 'Kode Mono',monospace">{{ t.cap }}</div><div style="font:500 9.5px 'Kode Mono',monospace;margin-top:3px;{{ t.chgStyle }}">{{ t.chg }}</div></div>
+            </a>
+          </sc-for>
+          <a href="Board.dc.html" style="margin-top:auto;padding:11px 16px;font:600 9.5px 'Kode Mono',monospace;letter-spacing:.12em;opacity:.6;transition:opacity .3s" style-hover="opacity:1">OPEN MARKETS.EXE →</a>
+        </div>
+      </div>
+    </div>
+
+    <div style="display:flex;justify-content:space-between;gap:12px;flex-wrap:wrap;padding:6px 4px 0;font:500 9.5px/1.8 'Kode Mono',monospace;opacity:.45">
+      <span>// the full inscription board (images, text, audio) lives on <a href="https://iqlabs.dev" target="_blank" rel="noopener" style="text-decoration:underline">iqlabs.dev</a>. this site is where inscriptions become nfts and tokens.</span>
+      <a href="https://iqlabs.mintlify.app/docs-typescript" target="_blank" rel="noopener" style="text-decoration:underline">sdk / cli docs ↗</a>
+    </div>
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script>
+class Component extends DCLogic {
+  state = { wallet: false, tick: 0 };
+  componentDidMount() { this._t = setInterval(() => this.setState(s => ({ tick: s.tick + 1 })), 90); }
+  componentWillUnmount() { clearInterval(this._t); }
+  renderVals() {
+    const s = this.state;
+    const phrases = ['inscribe ./doom.png --net solana', 'launch $DOOM --from 5Kd2...mW9c', 'mint pixel-monks #1285', 'inscribe ./gm.txt --net robinhood'];
+    const cycle = 46, total = phrases.length * cycle, p = s.tick % total, idx = Math.floor(p / cycle), k = p % cycle;
+    const ph = phrases[idx];
+    const typed = k < ph.length ? ph.slice(0, k) : k < cycle - 6 ? ph : ph.slice(0, Math.max(0, ph.length - (k - (cycle - 6)) * Math.ceil(ph.length / 6)));
+    const lines = [
+      ['> inscribe doom.png', 'opacity:.55'],
+      ['  4 chunks · 0.0021 SOL · confirmed ✓', 'opacity:.55'],
+      ['> launch $DOOM "doom coin"', 'opacity:.8'],
+      ['  mint 7xKX...9agh · pump.fun ✓', 'opacity:.8'],
+      ['> $DOOM  $0.004120  +312.4%  mcap $4.31M', 'color:#7dff7f;font-weight:700']
+    ];
+    const vis = Math.min(lines.length, Math.floor(s.tick / 9) % (lines.length + 8) + 1);
+    const termLines = lines.slice(0, vis).map(([text, style]) => ({ text, style: style + ';white-space:pre;overflow:hidden;text-overflow:ellipsis' }));
+    const IMGS = [
+      'img/top1.png',
+      'img/top2.png',
+      'img/top3.png'
+    ];
+    const topNft = [
+      { rank: '01', img: IMGS[0], name: 'PIXEL MONKS', meta: '1,284 / 2,000 minted · ◎ solana', vol: '64.2 SOL', status: 'LIVE', statusStyle: 'color:#2BD52D' },
+      { rank: '02', img: IMGS[2], name: 'HOOD RATS', meta: '500 / 500 · ▲ robinhood chain', vol: '50.0 SOL', status: 'SOLD OUT', statusStyle: 'opacity:.6' },
+      { rank: '03', img: IMGS[1], name: 'GM FOREVER', meta: '120 / 333 minted · ◎ solana', vol: '2.4 SOL', status: 'ALLOWLIST', statusStyle: 'color:#e0a84e' }
+    ];
+    const topTokens = [
+      { rank: '01', ini: 'DM', sym: '$DOOM', name: 'doom coin', meta: 'from image inscription 5Kd2...mW9c', cap: '$4.31M', chg: '+312.4%', chgStyle: 'color:#2BD52D' },
+      { rank: '02', ini: 'CT', sym: '$ONCAT', name: 'onchain cat', meta: 'from image inscription 9aB1...pL0e', cap: '$912K', chg: '+41.0%', chgStyle: 'color:#2BD52D' },
+      { rank: '03', ini: 'MV', sym: '$MVID', name: 'music video coin', meta: 'from audio inscription 6Vna...y1Lo', cap: '$204K', chg: '-12.7%', chgStyle: 'color:#e0554e' }
+    ];
+    return {
+      isConnected: s.wallet, isDisconnected: !s.wallet, connect: () => this.setState({ wallet: true }),
+      typed, termLines, topNft, topTokens,
+      nftLiveLabel: '2 collections minting now', tokenLiveLabel: '5 tokens launched today'
+    };
+  }
+}
+</script>
+</body>
+</html>
