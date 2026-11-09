@@ -36,6 +36,24 @@ export async function readMine(pubkey, limit = 24) {
   return { rows: normalize(data && data.rows).filter((r) => r && r.kind) };
 }
 
+// Launched coins: kind=token rows are the launch registry, but they sit at
+// whatever depth the board's chatter pushed them to, so walk the cursor until
+// enough are found. Returns parsed bodies ({mint,name,symbol,src,meta}).
+export async function readTokens(want = 30, maxPages = 8) {
+  const tokens = [];
+  let before = null;
+  for (let page = 0; page < maxPages && tokens.length < want; page++) {
+    const { rows, nextCursor } = await readBoard(60, before);
+    for (const r of rows) {
+      if (!r || r.kind !== "token") continue;
+      try { const t = JSON.parse(r.body); if (t.mint && !tokens.some((x) => x.mint === t.mint)) tokens.push(t); } catch (e) {}
+    }
+    if (!nextCursor) break;
+    before = nextCursor;
+  }
+  return tokens;
+}
+
 export async function readRow(sig) {
   const data = await gwFetch("/table/" + feedTable + "/slice?sigs=" + sig);
   const rows = normalize(data && data.rows);

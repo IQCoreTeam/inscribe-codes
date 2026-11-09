@@ -4,7 +4,7 @@
 import { type, typeLabels } from "../ui/tty.js";
 import { esc, fmtSol, fmtUsd, fmtPct, fmtWhen, shortAddr } from "../ui/fmt.js";
 import * as nft from "../services/nft-backend.js";
-import { readBoard } from "../services/gateway.js";
+import { readBoard, readTokens } from "../services/gateway.js";
 import { marketRows } from "../services/markets.js";
 
 const HERO = "*inscribe.codes is an inscription-first launchpad. Every NFT and every token here starts as an inscription: the file itself written to the chain. No IPFS, no server, no takedown.";
@@ -87,10 +87,9 @@ export async function mount(root) {
   wireWallet(root.querySelector("#h_wallet"));
 
   // Three independent loads; each section fills as its data lands.
-  const feedRows = readBoard(60).then((r) => r.rows).catch(() => []);
   loadCollections(root).catch(() => fail(root, "#h_topnft"));
-  loadTokens(root, feedRows).catch(() => fail(root, "#h_toptok"));
-  loadRecent(root, feedRows).catch(() => { root.querySelector("#h_recent").innerHTML = '<span class="sm">feed unavailable</span>'; });
+  loadTokens(root).catch(() => fail(root, "#h_toptok"));
+  loadRecent(root).catch(() => { root.querySelector("#h_recent").innerHTML = '<span class="sm">feed unavailable</span>'; });
 }
 
 const fail = (root, sel) => { root.querySelector(sel).innerHTML = '<span class="sm">unavailable right now</span>'; };
@@ -130,13 +129,8 @@ async function loadCollections(root) {
   paintStat(root);
 }
 
-async function loadTokens(root, feedRows) {
-  const rows = await feedRows;
-  const tokens = [];
-  for (const r of rows) {
-    if (!r || r.kind !== "token") continue;
-    try { const t = JSON.parse(r.body); if (t.mint && !tokens.some((x) => x.mint === t.mint)) tokens.push(t); } catch (e) {}
-  }
+async function loadTokens(root) {
+  const tokens = await readTokens(30);
   root.querySelector("#h_toklive").textContent = tokens.length + " LAUNCHED";
   statLine.tokens = tokens.length;
   paintStat(root);
@@ -156,8 +150,8 @@ async function loadTokens(root, feedRows) {
   }).join("") || '<span class="sm" style="padding:12px 0">no priced tokens yet</span>';
 }
 
-async function loadRecent(root, feedRows) {
-  const rows = await feedRows;
+async function loadRecent(root) {
+  const rows = (await readBoard(20)).rows;
   const items = [];
   for (const r of rows.slice(0, 20)) {
     if (!r || !r.kind) continue;
