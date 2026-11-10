@@ -5,6 +5,7 @@
 import { esc, fmtSol, shortAddr } from "../../ui/fmt.js";
 import * as nft from "../../services/nft-backend.js";
 import { imgUrl } from "../../services/gateway.js";
+import { skeleton } from "../../ui/skeleton.js";
 import { connect as rpcConnect, explorerTx } from "../../chain/rpc.js";
 import { frame, statusOf, chainOf, coverOf, priceOf, segsHtml } from "./launchpad.js";
 import { session, addr, connectWallet, ensureBurner, paintWalletPill } from "./session.js";
@@ -47,7 +48,7 @@ export async function render(root, slug) {
         <div class="nf-tabs lab"><div class="tab on" data-f="all">All</div><div class="tab" data-f="avail">Available</div><div class="tab" data-f="minted">Minted</div></div>
       </div>
       <div class="nf-legend" id="nc_legend"><span style="opacity:.4;margin-left:auto">? = not minted yet</span></div>
-      <div class="nf-itemscroll"><div class="nf-itemgrid" id="nc_grid"></div><div class="nf-note" id="nc_gridnote">loading items...</div></div>
+      <div class="nf-itemscroll"><div class="nf-itemgrid" id="nc_grid">${skeleton(18, "cell")}</div><div class="nf-note" id="nc_gridnote"></div></div>
       <p class="cm" style="margin:14px 0 0">Bright = minted, with its owner. ? = still available.</p>
     </div>
     <div class="nf-colright">

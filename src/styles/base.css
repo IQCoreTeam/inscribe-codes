@@ -194,6 +194,13 @@ img { display: block; }
 .skel.col .a { height: 120px; }
 .skel.col .b { padding: 12px 12px 14px; }
 .skel.col .b i:nth-child(3) { height: 12px; width: 70%; margin-top: 12px; }
+/* cell: small 72px tile with one foot line, matches the collection item cells. */
+.skel.cell { background: var(--panel); }
+.skel.cell .a { height: 72px; background-color: rgba(63, 210, 79, 0.04); background-image: radial-gradient(var(--acc) 1px, transparent 1.2px); background-size: 5px 5px; }
+.skel.cell .b { padding: 6px 7px 8px; }
+.skel.cell .b i { height: 7px; margin-top: 0; }
+.skel.cell .b i:first-child { width: 60%; }
+.skel.cell .b i:nth-child(n+2) { display: none; }
 
 /* collection card */
 .colcard { display: flex; flex-direction: column; padding: 14px; border: 1px solid var(--line); background: transparent; cursor: pointer; overflow: hidden; transition: background 0.35s, border-color 0.35s, transform 0.35s; color: var(--ink2); }
