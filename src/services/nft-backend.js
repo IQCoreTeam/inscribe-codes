@@ -35,5 +35,6 @@ export const collection = (slug) => read("/c/" + slug);
 export const items = (slug, offset = 0, limit = 500) => read("/c/" + slug + "/items?offset=" + offset + "&limit=" + limit);
 export const item = (slug, index) => read("/c/" + slug + "/item/" + index);
 export const recent = async (slug, limit = 8) => (await read("/c/" + slug + "/recent?limit=" + limit)).recent || [];
+export const listings = (slug, limit = 200) => read("/c/" + slug + "/listings?limit=" + limit);
 export const held = async (wallet) => (await read("/owner/" + wallet)).items || [];
 export const assetInfo = (address) => read("/asset/" + address);

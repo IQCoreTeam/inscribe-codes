@@ -53,7 +53,7 @@ export const segsHtml = (minted, supply) => {
 
 // ── desk ───────────────────────────────────────────────────────────────────
 const PER = 6;
-const st = { tab: "cols", chain: "all", page: 1, cols: null };
+const st = { tab: "cols", chain: "all", page: 1, cols: null, listings: null };
 
 async function desk(root) {
   frame(root, `
@@ -157,18 +157,54 @@ function cardHtml(c) {
 </a>`;
 }
 
-// Secondary trading is not built here yet: say so instead of faking listings.
-function paintMarket(el) {
+// Listings are read-only here: we aggregate what sellers posted on Tensor and
+// Magic Eden, and Buy deep-links to the marketplace that holds the ask.
+const tensorUrl = (mint) => "https://www.tensor.trade/item/" + mint;
+const meUrl = (mint) => "https://magiceden.io/item-details/" + mint;
+const MARKET_SRC = {
+  TCOMP: { label: "Tensor", url: tensorUrl }, TENSORSWAP: { label: "Tensor", url: tensorUrl },
+  MAGICEDEN_V2: { label: "Magic Eden", url: meUrl }, MEV2: { label: "Magic Eden", url: meUrl },
+};
+const srcOf = (s) => MARKET_SRC[s] || { label: (s || "market").toLowerCase(), url: tensorUrl };
+
+// Active listings across every Solana collection, cheapest first, cached per
+// desk mount. Robinhood has no Tensor feed, so it is skipped.
+async function allListings() {
+  if (st.listings) return st.listings;
+  if (!st.cols) st.cols = await nft.collections();
+  const sol = st.cols.filter((c) => (c.chain || "solana") === "solana" && c.maxSupply > 0);
+  const packs = await Promise.all(sol.map(async (c) => {
+    try { return ((await nft.listings(c.slug)).listings || []).map((l) => ({ ...l, col: c })); } catch (e) { return []; }
+  }));
+  st.listings = packs.flat().sort((a, b) => a.price - b.price);
+  return st.listings;
+}
+
+function listCardHtml(l) {
+  const src = srcOf(l.source);
+  const mine = addr() && l.seller === addr();
+  return `<div class="rc listed">
+    <a class="rc-img" href="?view=nft&asset=${esc(l.asset)}">${l.inscriptionSig ? `<img src="${esc(imgUrl(l.inscriptionSig))}" alt="" loading="lazy">` : ""}<span class="rc-tag">${esc(src.label)}</span></a>
+    <div class="rc-name">${esc(l.col.name)} #${l.index ?? "?"}</div>
+    <div class="rc-sub">${fmtSol(l.price)}</div>
+    <a class="rc-foot amber" href="${esc(src.url(l.asset))}" target="_blank" rel="noopener"><span>${mine ? "Manage on" : "Buy on"} ${esc(src.label)}</span><span style="margin-left:auto">↗</span></a>
+  </div>`;
+}
+
+async function paintMarket(el) {
+  el.innerHTML = `<div class="nf-scroll"><div class="nf-minegrid">${skeleton()}</div></div>`;
+  const all = await allListings();
+  if (!el.isConnected || st.tab !== "market") return;
+  const floor = all.length ? all[0].price : 0;
   el.innerHTML = `
   <div class="nf-stats3">
-    <div><div class="k">Listed</div><div class="v">-</div></div>
-    <div><div class="k">24H Volume</div><div class="v">-</div></div>
-    <div><div class="k">Owners</div><div class="v">-</div></div>
+    <div><div class="k">Listed</div><div class="v">${all.length || "-"}</div></div>
+    <div><div class="k">Floor</div><div class="v">${floor ? fmtSol(floor) : "-"}</div></div>
+    <div><div class="k">Collections</div><div class="v">${new Set(all.map((l) => l.col.slug)).size || "-"}</div></div>
   </div>
-  <div class="nf-empty">
-    <div class="t">No marketplace here yet.</div>
-    <div class="cm">Minted items are Metaplex Core assets, so they already trade on Magic Eden and Tensor. Listings will show up here once the market ships.</div>
-  </div>`;
+  ${all.length
+    ? `<div class="nf-scroll"><div class="nf-minegrid ttyrows">${all.map(listCardHtml).join("")}</div></div>`
+    : `<div class="nf-empty"><div class="t">No active listings right now.</div><div class="cm">Minted items trade on Magic Eden and Tensor. Anything listed there shows up here within a couple of minutes, from any marketplace.</div></div>`}`;
 }
 
 const TIER = { legendary: "Legendary", epic: "EPIC", rare: "RARE" };
@@ -184,13 +220,16 @@ async function paintMine(el) {
     return;
   }
   el.innerHTML = `<div class="nf-scroll"><div class="nf-minegrid">${skeleton()}</div></div>`;
-  const items = await nft.held(addr());
+  const [items, all] = await Promise.all([nft.held(addr()), allListings()]);
   if (!el.isConnected || st.tab !== "mine") return;
+  const listed = all.filter((l) => l.seller === addr());
   const strong = items.filter((it) => it.rarity && it.rarity.tier).length;
+  const sub = (t) => `<div class="sm" style="padding:12px 2px 4px;letter-spacing:.1em">${t}</div>`;
   el.innerHTML = `
   <div class="nf-minehead"><span><b>${items.length}</b>held by ${esc(shortAddr(addr()))}</span><span>${strong ? strong + " rare or better" : ""}</span></div>
+  ${listed.length ? sub("Listed by you · " + listed.length) + `<div class="nf-scroll"><div class="nf-minegrid ttyrows">${listed.map(listCardHtml).join("")}</div></div>` + sub("Held · " + items.length) : ""}
   <div class="nf-scroll"><div class="nf-minegrid ttyrows">${items.length ? items.map(mineCardHtml).join("") : ""}</div>
-  ${items.length ? "" : '<div class="nf-empty"><div class="t">Nothing here yet.</div><div class="cm">Mint from a collection and it lands here.</div></div>'}</div>`;
+  ${items.length || listed.length ? "" : '<div class="nf-empty"><div class="t">Nothing here yet.</div><div class="cm">Mint from a collection and it lands here.</div></div>'}</div>`;
 }
 
 export function mineCardHtml(it) {
@@ -213,11 +252,13 @@ async function loadActivity(root) {
   }))).flat().sort((a, b) => (b.registeredAt || 0) - (a.registeredAt || 0)).slice(0, 12);
   if (!el || !root.isConnected) return;
   if (!recents.length) { el.insertAdjacentHTML("beforeend", '<div class="nf-note">no mints yet</div>'); return; }
+  const evOf = (k) => (k === "sale" ? "SOLD" : k === "list" ? "LISTED" : "MINT");
+  const actPrice = (r) => (r.kind === "mint" ? priceOf(r.col) : r.price ? fmtSol(r.price) : priceOf(r.col));
   el.insertAdjacentHTML("beforeend", recents.map((r) => `
     <a class="actrow flickrow" href="?view=nft&asset=${esc(r.asset)}">
       <div class="act-l"><img src="${esc(imgUrl(r.inscriptionSig))}" alt="" loading="lazy">
         <div style="min-width:0"><div class="act-name">${esc(r.col.name)} #${r.index}</div>
-        <div class="act-sub"><span class="act-ev">${r.kind === "sale" ? "SALE" : "MINT"}</span>${esc(priceOf(r.col))}</div></div></div>
+        <div class="act-sub"><span class="act-ev ${r.kind}">${evOf(r.kind)}</span>${esc(actPrice(r))}</div></div></div>
       <span class="act-time">${fmtWhen(r.registeredAt)}</span>
     </a>`).join(""));
 }
