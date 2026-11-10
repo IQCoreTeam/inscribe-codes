@@ -118,8 +118,19 @@ const paintWalletPill = (root) => paintNavWallet(root.querySelector("#nav_wallet
 async function loadCoins(root) {
   const chain = st.chain;
   let coins;
-  if (chain === "solana") coins = await readTokens(30);
-  else { const { readEvmTokens } = await import("../../chain/evm.js"); coins = await readEvmTokens(30); }
+  // Each coin's real artwork is its own inscription (c.src), served from our
+  // gateway right after launch. Market providers (DexScreener / Gecko) fetch
+  // that lazily and new or cold coins show no provider icon for a while, so the
+  // card must render the on-chain image itself. img = raw image, imgAlt = the
+  // render-card fallback for text / ascii inscriptions that have no raw image.
+  if (chain === "solana") {
+    coins = await readTokens(30);
+    for (const c of coins) if (c.src) { c.img = imgUrl(c.src); c.imgAlt = renderUrl(c.src); }
+  } else {
+    const { readEvmTokens, evmImgUrl, evmRenderUrl } = await import("../../chain/evm.js");
+    coins = await readEvmTokens(30);
+    for (const c of coins) if (c.src) { c.img = evmImgUrl(c.src); c.imgAlt = evmRenderUrl(c.src); }
+  }
   if (st.chain !== chain) return; // switched away mid-load
   st.coins = coins;
   if (coins.length) {
@@ -141,7 +152,7 @@ function paintCards(root) {
     const live = (p.mcap || 0) > 0;
     return `<div class="flick tkcard" data-mint="${esc(c.mint)}" style="border:1px solid ${live ? "var(--acc)" : "var(--line)"};background:var(--panel);cursor:pointer">
       <div style="aspect-ratio:1;overflow:hidden;background:var(--panel);position:relative">
-        ${p.icon ? `<img src="${esc(p.icon)}" alt="" loading="lazy" style="width:100%;height:100%;object-fit:cover;image-rendering:pixelated">` : `<div class="hero" style="display:grid;place-items:center;height:100%;font-size:28px;color:var(--mut)">$${esc((c.symbol || "?").slice(0, 6))}</div>`}
+        ${(p.icon || c.img) ? `<img src="${esc(p.icon || c.img)}" alt="" loading="lazy" ${c.imgAlt ? `onerror="this.onerror=null;this.src='${esc(c.imgAlt)}'"` : ""} style="width:100%;height:100%;object-fit:cover;image-rendering:pixelated">` : `<div class="hero" style="display:grid;place-items:center;height:100%;font-size:28px;color:var(--mut)">$${esc((c.symbol || "?").slice(0, 6))}</div>`}
         ${p.chg24 != null ? `<span class="chip live" style="position:absolute;left:6px;top:6px;background:rgba(0,0,0,.85);color:${p.chg24 >= 0 ? "var(--acc)" : "var(--bad)"}">${fmtPct(p.chg24)}</span>` : ""}
       </div>
       <div style="padding:9px 10px 10px">
@@ -163,7 +174,7 @@ function openChart(root, mint) {
   modal.innerHTML = `
 <div class="tk_backdrop" style="position:fixed;inset:0;z-index:30;background:rgba(0,0,0,.88);display:flex;align-items:flex-start;justify-content:center;padding:26px 16px;overflow:auto">
   <div class="win" style="width:900px;max-width:100%;background:var(--bg)">
-    <div class="wh"><span>chart.exe · $${esc(c.symbol || "?")}</span><span class="lnk tk_close" style="padding:0 8px">x</span></div>
+    <div class="wh"><span>chart.exe · $${esc(c.symbol || "?")}</span><span class="wh-right wh-x tk_close">x</span></div>
     <div style="padding:14px">
       ${p.embed ? `<iframe src="${esc(p.embed)}" style="width:100%;height:480px;border:1px solid var(--line);background:var(--panel)"></iframe>` : `<div class="sm" style="padding:30px;text-align:center">No chart yet: the pool is still indexing. Check back in a few minutes.</div>`}
       <div style="display:flex;gap:10px;flex-wrap:wrap;margin-top:12px" class="sm">
@@ -204,7 +215,7 @@ function paintModal(root) {
   modal.innerHTML = `
 <div class="tk_backdrop" style="position:fixed;inset:0;z-index:25;background:rgba(0,0,0,.88);display:flex;align-items:flex-start;justify-content:center;padding:26px 16px;overflow:auto">
   <div class="win" style="width:780px;max-width:100%;background:var(--bg)">
-    <div class="wh"><span>Launch a token · ${ch().label}</span><span class="sm">${st.phase === "menu" ? "step 1 of 2" : st.phase === "form" ? "step 2 of 2" : ""}</span><span class="lnk tk_close" style="margin-left:auto;padding:0 8px">x</span></div>
+    <div class="wh"><span>Launch a token · ${ch().label}</span><span class="sm wh-right">${st.phase === "menu" ? "step 1 of 2" : st.phase === "form" ? "step 2 of 2" : ""}</span><span class="wh-x tk_close">x</span></div>
     <div style="padding:20px 22px 22px">${body}</div>
   </div>
 </div>`;
