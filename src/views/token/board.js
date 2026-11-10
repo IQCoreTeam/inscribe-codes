@@ -315,7 +315,7 @@ function menuHtml() {
     ${st.tab === "file" ? `<a href="${SDK_DOCS}" target="_blank" rel="noopener" style="margin-top:10px;display:flex;justify-content:space-between;border:1px solid #b07a1a;padding:10px 14px;font:400 11px/1.6 'Silkscreen',monospace;color:var(--mut);text-decoration:none"><span>bigger than ${CAP_KB} KB?</span><span style="color:#b07a1a">upload from the terminal -></span></a>` : ""}`;
   } else {
     content = walletAddr()
-      ? `<div id="tk_minelist" class="sm">loading your inscriptions...</div>`
+      ? `<div id="tk_minelist"><div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px">${skeleton(6, "tk")}</div></div>`
       : `<div class="sm" style="border:1px dashed var(--acc);padding:22px;text-align:center">Connect your wallet to see what you have saved. Anything from inscribe.codes or iqlabs.dev shows up here.<br><br><span class="lnk" id="tk_connect2">Connect wallet</span></div>`;
   }
   const ready = hasContent();
