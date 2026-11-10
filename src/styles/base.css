@@ -46,8 +46,11 @@ img { display: block; }
 .navbar { display: flex; justify-content: space-between; align-items: center; gap: 14px; border: 1px solid var(--acc); background: var(--bg); padding: 7px 16px; }
 .navgrp { display: flex; align-items: center; gap: 12px; }
 /* Nav holds both <a> and native <button>; strip UA button chrome so they box
-   identically regardless of font state. */
+   identically regardless of font state. The chain and wallet slots are filled
+   by the views, so flex them to center any child (a button would otherwise sit
+   on the span baseline, 4px low, with descender space). */
 .navbar button { appearance: none; -webkit-appearance: none; box-sizing: content-box; }
+#nav_chain, #nav_wallet { display: flex; align-items: center; }
 .navbtn, .navbtn2 { font: 400 16px/1.2 "Jersey 15", monospace; white-space: nowrap; text-decoration: none; cursor: pointer; }
 .navbtn { border: 1px solid var(--acc); color: var(--ink); padding: 7px 12px; }
 .navbtn:hover { background: var(--acc); color: var(--bg); }
