@@ -188,7 +188,7 @@ const STEP = {
     blurb: "Your token needs an image that lives on chain. Upload a new one, or pick one you already saved under My inscriptions." },
   file: { title: "Step 1 of 2: pick your file", img: "step_file",
     blurb: "Any file can back a token. Up to " + CAP_KB + " KB in the browser; bigger files go through the SDK." },
-  pick: { title: "Step 1 of 2: choose a saved inscription", img: null,
+  pick: { title: "Step 1 of 2: choose a saved inscription", img: "step_pick",
     blurb: "Everything you already inscribed on inscribe.codes or iqlabs.dev shows up here. Pick one and launch it as a token." },
 };
 
