@@ -182,10 +182,18 @@ img { display: block; }
 .skel .b i:first-child { height: 11px; width: 60%; margin: 0; }
 /* Token-card variant: square image with the terminal dot grid, a taller third
    line to echo the market-cap figure. Matches the .tkcard shape. */
+/* Terminal dot-grid image, shared by the sized variants. */
+.skel.tk .a, .skel.col .a { background-color: rgba(63, 210, 79, 0.04); background-image: radial-gradient(var(--acc) 1px, transparent 1.2px); background-size: 6px 6px; }
+/* tk: square cover, matches the token and nft item cards. */
 .skel.tk { background: var(--panel); }
-.skel.tk .a { height: auto; aspect-ratio: 1; background-color: rgba(63, 210, 79, 0.04); background-image: radial-gradient(var(--acc) 1px, transparent 1.2px); background-size: 6px 6px; }
+.skel.tk .a { height: auto; aspect-ratio: 1; }
 .skel.tk .b { padding: 9px 10px 12px; }
 .skel.tk .b i:nth-child(3) { height: 15px; width: 50%; margin-top: 12px; }
+/* col: 120px cover, matches the collection cards. */
+.skel.col { background: var(--panel); }
+.skel.col .a { height: 120px; }
+.skel.col .b { padding: 12px 12px 14px; }
+.skel.col .b i:nth-child(3) { height: 12px; width: 70%; margin-top: 12px; }
 
 /* collection card */
 .colcard { display: flex; flex-direction: column; padding: 14px; border: 1px solid var(--line); background: transparent; cursor: pointer; overflow: hidden; transition: background 0.35s, border-color 0.35s, transform 0.35s; color: var(--ink2); }

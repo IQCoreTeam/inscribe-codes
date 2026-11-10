@@ -119,7 +119,7 @@ async function paintTab(root) {
 
 async function paintCollections(el) {
   if (!st.cols) {
-    el.innerHTML = `<div class="nf-scroll"><div class="nf-colgrid">${skeleton()}</div></div>`;
+    el.innerHTML = `<div class="nf-scroll"><div class="nf-colgrid">${skeleton(6, "col")}</div></div>`;
     st.cols = await nft.collections();
     if (!el.isConnected || st.tab !== "cols") return;
   }
@@ -203,7 +203,7 @@ function listCardHtml(l) {
 }
 
 async function paintMarket(el) {
-  el.innerHTML = `<div class="nf-scroll"><div class="nf-minegrid">${skeleton()}</div></div>`;
+  el.innerHTML = `<div class="nf-scroll"><div class="nf-minegrid">${skeleton(6, "tk")}</div></div>`;
   const all = await allListings();
   if (!el.isConnected || st.tab !== "market") return;
   const floor = all.length ? all[0].price : 0;
@@ -230,7 +230,7 @@ async function paintMine(el) {
     el.querySelector("#nf_mineconn").onclick = () => document.querySelector("#nav_wallet .navconnect")?.click();
     return;
   }
-  el.innerHTML = `<div class="nf-scroll"><div class="nf-minegrid">${skeleton()}</div></div>`;
+  el.innerHTML = `<div class="nf-scroll"><div class="nf-minegrid">${skeleton(6, "tk")}</div></div>`;
   const [items, all] = await Promise.all([nft.held(addr()), allListings()]);
   if (!el.isConnected || st.tab !== "mine") return;
   const listed = all.filter((l) => l.seller === addr());
