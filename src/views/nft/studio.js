@@ -72,14 +72,14 @@ function choiceHtml() {
       <div class="cm">The collection and the mint registry end up owned by your wallet, so we need it from the start.</div>
       <button class="nf-connectbig dotbox" id="ns_connect">Connect wallet</button>
     </div>`;
-  const card = (p, glyph, img, t, s) => `<div class="nf-card ns_pick" data-p="${p}"><div class="nf-cardimg">${img ? `<img src="${img}" alt="">` : glyph}</div><div class="nf-cardtxt"><span class="t">${t}</span><span class="s">${s}</span></div></div>`;
+  const card = (p, img, t, s) => `<div class="nf-card ns_pick" data-p="${p}"><div class="nf-cardimg"><img src="${img}" alt=""></div><div class="nf-cardtxt"><span class="t">${t}</span><span class="s">${s}</span></div></div>`;
   return `
     <div data-tty class="nf-h">What are you launching?</div>
     <div class="cm" style="margin-top:6px">Pick how the art comes in. Name and mint settings come next. Everything ends up fully on chain either way.</div>
     <div class="nf-choice">
-      ${card("generate", "▦", "", "Generate art", "Stack layers, set the count, roll a full set.")}
-      ${card("handcraft", "✎", "", "Hand-craft 1 / 1", "A few unique pieces, one image each.")}
-      ${card("folder", "", "public/img/choice_upload.png", "Manual upload", "Already have the files? Drop the folder.")}
+      ${card("generate", "public/img/choice_gen.webp", "Generate art", "Stack layers, set the count, roll a full set.")}
+      ${card("handcraft", "public/img/choice_hand.webp", "Hand-craft 1 / 1", "A few unique pieces, one image each.")}
+      ${card("folder", "public/img/choice_upload.png", "Manual upload", "Already have the files? Drop the folder.")}
     </div>`;
 }
 
