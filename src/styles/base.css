@@ -183,17 +183,27 @@ img { display: block; }
 /* Token-card variant: square image with the terminal dot grid, a taller third
    line to echo the market-cap figure. Matches the .tkcard shape. */
 /* Terminal dot-grid image, shared by the sized variants. */
-.skel.tk .a, .skel.col .a { background-color: rgba(63, 210, 79, 0.04); background-image: radial-gradient(var(--acc) 1px, transparent 1.2px); background-size: 6px 6px; }
-/* tk: square cover, matches the token and nft item cards. */
+.skel.tk .a, .skel.col .a, .skel.nftitem .a { background-color: rgba(63, 210, 79, 0.04); background-image: radial-gradient(var(--acc) 1px, transparent 1.2px); background-size: 6px 6px; }
+/* tk: edge-to-edge square cover, matches the token market cards. */
 .skel.tk { background: var(--panel); }
 .skel.tk .a { height: auto; aspect-ratio: 1; }
 .skel.tk .b { padding: 9px 10px 12px; }
 .skel.tk .b i:nth-child(3) { height: 15px; width: 50%; margin-top: 12px; }
-/* col: 120px cover, matches the collection cards. */
-.skel.col { background: var(--panel); }
-.skel.col .a { height: 120px; }
-.skel.col .b { padding: 12px 12px 14px; }
+/* nftitem: padded card, inset square cover, a button block at the bottom; sized
+   to the nft market / my-nfts cards. */
+.skel.nftitem { position: relative; background: var(--panel); box-sizing: border-box; padding: 12px; min-height: 249px; }
+.skel.nftitem .a { height: auto; aspect-ratio: 1; border: 1px solid var(--line); }
+.skel.nftitem .b { padding: 10px 0 0; }
+.skel.nftitem .b i:nth-child(3) { height: 15px; width: 50%; margin-top: 12px; }
+.skel.nftitem::after { content: ""; position: absolute; left: 12px; right: 12px; bottom: 12px; height: 34px; border: 1px solid var(--line); }
+/* col: padded card, 120px inset cover, sized to the collection cards; the extra
+   line and the bottom band stand in for the stats row and the price band. */
+.skel.col { position: relative; background: var(--panel); box-sizing: border-box; padding: 14px; min-height: 392px; }
+.skel.col .a { height: 120px; border: 1px solid var(--line); }
+.skel.col .b { padding: 12px 0 0; }
 .skel.col .b i:nth-child(3) { height: 12px; width: 70%; margin-top: 12px; }
+.skel.col .b::after { content: ""; display: block; height: 8px; width: 85%; margin-top: 18px; background: rgba(63, 210, 79, 0.1); }
+.skel.col::after { content: ""; position: absolute; left: 14px; right: 14px; bottom: 14px; height: 46px; background: rgba(63, 210, 79, 0.07); }
 /* cell: small 72px tile with one foot line, matches the collection item cells. */
 .skel.cell { background: var(--panel); }
 .skel.cell .a { height: 72px; background-color: rgba(63, 210, 79, 0.04); background-image: radial-gradient(var(--acc) 1px, transparent 1.2px); background-size: 5px 5px; }

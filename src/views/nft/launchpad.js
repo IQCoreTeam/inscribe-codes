@@ -203,7 +203,7 @@ function listCardHtml(l) {
 }
 
 async function paintMarket(el) {
-  el.innerHTML = `<div class="nf-scroll"><div class="nf-minegrid">${skeleton(6, "tk")}</div></div>`;
+  el.innerHTML = `<div class="nf-scroll"><div class="nf-minegrid">${skeleton(6, "nftitem")}</div></div>`;
   const all = await allListings();
   if (!el.isConnected || st.tab !== "market") return;
   const floor = all.length ? all[0].price : 0;
@@ -230,7 +230,7 @@ async function paintMine(el) {
     el.querySelector("#nf_mineconn").onclick = () => document.querySelector("#nav_wallet .navconnect")?.click();
     return;
   }
-  el.innerHTML = `<div class="nf-scroll"><div class="nf-minegrid">${skeleton(6, "tk")}</div></div>`;
+  el.innerHTML = `<div class="nf-scroll"><div class="nf-minegrid">${skeleton(6, "nftitem")}</div></div>`;
   const [items, all] = await Promise.all([nft.held(addr()), allListings()]);
   if (!el.isConnected || st.tab !== "mine") return;
   const listed = all.filter((l) => l.seller === addr());
