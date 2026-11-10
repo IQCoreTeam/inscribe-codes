@@ -8,7 +8,7 @@ import { typeLabels } from "../../ui/tty.js";
 import { skeleton } from "../../ui/skeleton.js";
 import { esc, fmtUsd, fmtPct, fmtWhen, shortAddr } from "../../ui/fmt.js";
 import { toAscii } from "../../ui/ascii.js";
-import { readTokens, readMine, notify, imgUrl, renderUrl, metaUrl } from "../../services/gateway.js";
+import { readTokens, readMine, notify, imgUrl, renderUrl, metaUrl, readTokenMeta } from "../../services/gateway.js";
 import { marketRows, tradeUrl, tradeLabel } from "../../services/markets.js";
 import { connect as rpcConnect } from "../../chain/rpc.js";
 import { estimateCost } from "../../chain/burner.js";
@@ -37,7 +37,7 @@ const st = {
   srcSig: null, srcKind: null,
   name: "", symbol: "", desc: "", devBuy: 0, xlink: "",
   result: null, error: null, progress: 0, stepLabel: "",
-  coins: [], priced: {},
+  coins: [], priced: {}, info: {},
 };
 const ch = () => CHAINS[st.chain];
 
@@ -176,22 +176,119 @@ function paintCards(root) {
 function openChart(root, mint) {
   const c = st.coins.find((x) => x.mint === mint) || {};
   const p = st.priced[mint] || {};
+  const chain = ch();
   const modal = root.querySelector("#tk_modal");
   modal.innerHTML = `
 <div class="tk_backdrop" style="position:fixed;inset:0;z-index:30;background:rgba(0,0,0,.88);display:flex;align-items:flex-start;justify-content:center;padding:26px 16px;overflow:auto">
-  <div class="win" style="width:900px;max-width:100%;background:var(--bg)">
-    <div class="wh"><span>chart.exe · $${esc(c.symbol || "?")}</span><span class="wh-right wh-x tk_close">x</span></div>
-    <div style="padding:14px">
-      ${p.embed ? `<iframe src="${esc(p.embed)}" style="width:100%;height:480px;border:1px solid var(--line);background:var(--panel)"></iframe>` : `<div class="sm" style="padding:30px;text-align:center">No chart yet: the pool is still indexing. Check back in a few minutes.</div>`}
-      <div style="display:flex;gap:10px;flex-wrap:wrap;margin-top:12px" class="sm">
-        <a class="cta" style="font-size:16px;padding:8px 14px" href="${esc(tradeUrl(ch().market, mint))}" target="_blank" rel="noopener">${tradeLabel(ch().market)}</a>
-        ${p.url ? `<a href="${esc(p.url)}" target="_blank" rel="noopener" style="align-self:center">${esc(p.siteLabel || "chart site")}</a>` : ""}
-        <span style="align-self:center;color:var(--mut)">${esc(mint)}</span>
-      </div>
+  <div class="win" style="width:1120px;max-width:100%;background:var(--bg)">
+    <div class="wh"><span data-tty>Chart</span><span style="color:var(--acc)">$${esc(c.symbol || "?")} ${esc(c.name || "")}</span><span class="wh-right">mint: ${esc(shortAddr(mint))}</span><span class="wh-x tk_close">x</span></div>
+    <div class="tk_split">
+      <aside class="tk_info" data-mint="${esc(mint)}">${infoHtml(c, p, chain, null)}</aside>
+      <section style="padding:14px;min-width:0">
+        ${p.embed ? `<iframe src="${esc(p.embed)}" style="width:100%;height:480px;border:1px solid var(--line);background:var(--panel)"></iframe>`
+          : `<div style="height:480px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:10px;padding:0 20px;text-align:center;border:1px dashed rgba(63,210,79,.3)"><span class="cm" style="color:var(--cta)">indexing</span><span class="cm">Brand new. The chart appears within minutes. You can trade on ${esc(chain.venue)} meanwhile.</span></div>`}
+        <div style="display:flex;gap:10px;flex-wrap:wrap;margin-top:12px;align-items:center">
+          <a class="cta" style="font-size:16px;padding:8px 14px" href="${esc(tradeUrl(chain.market, mint))}" target="_blank" rel="noopener">${tradeLabel(chain.market)}</a>
+          ${p.url ? `<a class="btn2" style="font-size:16px" href="${esc(p.url)}" target="_blank" rel="noopener">${esc(p.siteLabel || "CHART SITE")}</a>` : ""}
+          <span class="btn2 tk_copy" style="font-size:16px" data-copy="${esc(mint)}">COPY MINT</span>
+          <span class="btn2 tk_close" style="font-size:16px;margin-left:auto">BACK TO LIST</span>
+        </div>
+      </section>
     </div>
   </div>
 </div>`;
   wireModalClose(modal);
+  for (const b of modal.querySelectorAll(".tk_copy")) b.onclick = () => copyText(b, b.dataset.copy);
+  typeLabels(modal);
+  loadInfo(modal, c, p, chain);
+}
+
+// Left pane of the chart modal: what the coin registered on chain. info=null
+// paints the head + a skeleton while the description is still loading.
+function infoHtml(c, p, chain, info) {
+  const live = (p.mcap || 0) > 0;
+  const img = p.icon || c.img;
+  const stat = (k, v, color) => `<div class="tk_stat"><span class="lab">${k}</span><span${color ? ` style="color:${color}"` : ""}>${v}</span></div>`;
+  const head = `
+    <div class="tk_infohead">
+      <div class="tk_infoimg">${img ? `<img src="${esc(img)}" alt="" ${c.imgAlt ? `onerror="this.onerror=null;this.src='${esc(c.imgAlt)}'"` : ""}>` : `<div class="hero" style="display:grid;place-items:center;height:100%;font-size:20px;color:var(--mut)">$${esc((c.symbol || "?").slice(0, 6))}</div>`}</div>
+      <div style="min-width:0">
+        <div style="font:400 22px/1.1 'Jersey 15',monospace;color:var(--ink);word-break:break-word">${esc(c.name || "")}</div>
+        <div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:6px"><span class="chip">$${esc(c.symbol || "?")}</span><span class="chip">${esc(chain.label)}</span><span class="chip ${live ? "live" : "soon"}">${live ? "LIVE" : "INDEXING"}</span></div>
+      </div>
+    </div>
+    <div class="tk_stats">
+      ${stat("price", p.priceUsd != null ? "$" + Number(p.priceUsd).toPrecision(4) : "...")}
+      ${stat("24h", p.chg24 != null ? fmtPct(p.chg24) : "...", p.chg24 == null ? "" : p.chg24 >= 0 ? "var(--acc)" : "var(--bad)")}
+      ${stat("market cap", live ? fmtUsd(p.mcap) : "...")}
+      ${stat("24h volume", p.vol24 != null ? fmtUsd(p.vol24) : "...")}
+    </div>`;
+  if (!info) return head + `<div class="skel" style="border:0;margin-top:16px"><div class="b" style="padding:0"><i></i><i style="width:85%"></i><i style="width:60%"></i><i style="width:40%;margin-top:18px"></i><i style="width:70%"></i><i style="width:55%"></i></div></div>`;
+
+  const section = (label, body) => `<div class="tk_sec"><span class="lab">${label}</span>${body}</div>`;
+  const isUrl = (u) => /^https?:\/\//i.test(u || "");
+  const shown = (u) => String(u).replace(/^https?:\/\//i, "");
+  // Registered links: urls open in a new tab, bare handles show as text.
+  const links = [];
+  for (const [label, v] of [["website", info.website], ["x / twitter", info.twitter], ["telegram", info.telegram], ["discord", info.discord], ["farcaster", info.farcaster], ["launch post", info.external]]) {
+    if (!v || links.some((l) => l[1] === v)) continue;
+    links.push([label, v]);
+  }
+  const linkRows = links.map(([label, v]) => isUrl(v)
+    ? `<a class="tk_link" href="${esc(v)}" target="_blank" rel="noopener" title="${esc(v)}"><span class="lab">${label}</span><span>${esc(shown(v))} ↗</span></a>`
+    : `<div class="tk_kv" title="${esc(v)}"><span class="lab">${label}</span><span>${esc(v)}</span></div>`).join("");
+  // On-chain record: the mint, then every attribute the metadata carries.
+  const viewer = (sig) => "https://iqlabs.dev/?menu=" + (chain.market === "solana" ? "codein" : "hoodin") + "&post=" + sig;
+  const kvRows = [["mint", c.mint, null], ...info.attributes.map(([k, v]) => [k, v, k === "inscription tx" ? viewer(v) : k === "metadata inscription" ? metaUrl(v) : null])]
+    .filter(([, v]) => v != null && v !== "")
+    .map(([k, v, href]) => href
+      ? `<a class="tk_link" href="${esc(href)}" target="_blank" rel="noopener" title="${esc(v)}"><span class="lab">${esc(k)}</span><span>${esc(v)} ↗</span></a>`
+      : `<div class="tk_kv" title="${esc(v)}"><span class="lab">${esc(k)}</span><span>${esc(v)}</span></div>`).join("");
+  return head
+    + section("DESCRIPTION", info.description ? `<div class="tk_desc">${esc(info.description)}</div>` : `<span class="cm">no description on record</span>`)
+    + section("LINKS", linkRows || `<span class="cm">none registered</span>`)
+    + section("ON CHAIN", kvRows);
+}
+
+async function loadInfo(modal, c, p, chain) {
+  if (!c.mint) return;
+  let info = st.info[c.mint];
+  if (!info) {
+    try {
+      info = chain.market === "solana" ? await solanaInfo(c) : await hoodInfo(c);
+      st.info[c.mint] = info;
+    } catch (e) {
+      console.warn("[chart] token info failed:", e.message);
+      info = { description: "", attributes: [["inscription tx", c.src]] };
+    }
+  }
+  const aside = modal.querySelector(".tk_info");
+  if (aside && aside.dataset.mint === c.mint) aside.innerHTML = infoHtml(c, p, chain, info);
+}
+
+// Solana: the launch inscribed a Metaplex-style JSON (c.meta) the coin's uri points at.
+async function solanaInfo(c) {
+  const m = c.meta ? await readTokenMeta(c.meta) : null;
+  if (!m) return { description: "", attributes: [["inscription tx", c.src]] };
+  const attributes = (m.attributes || []).map((a) => [a.trait_type, a.value]);
+  if (c.meta) attributes.push(["metadata inscription", c.meta]);
+  return { description: m.description || "", website: m.website, twitter: m.twitter, external: m.external_url, attributes };
+}
+
+// Robinhood: the Pons token holds its description + socials itself.
+async function hoodInfo(c) {
+  const [{ readProvider }, { readPonsToken }] = await Promise.all([import("../../chain/evm.js"), import("../../chain/launch/pons.js")]);
+  const t = await readPonsToken(readProvider(), c.mint);
+  return { ...t, attributes: [["inscription tx", c.src]] };
+}
+
+async function copyText(btn, text) {
+  try {
+    await navigator.clipboard.writeText(text);
+    const was = btn.textContent;
+    btn.textContent = "COPIED";
+    setTimeout(() => { btn.textContent = was; }, 1200);
+  } catch (e) { console.warn("[chart] copy failed:", e.message); }
 }
 
 // ── launch layer ────────────────────────────────────────────────────────────

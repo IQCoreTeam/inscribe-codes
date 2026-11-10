@@ -72,4 +72,6 @@ export function notify(sig, row, extra = {}) {
 
 export const imgUrl = (sig) => GATEWAYS[0] + "/img/" + sig + ".png";
 export const metaUrl = (sig) => GATEWAYS[0] + "/token-meta/" + sig;
+// The coin's inscribed metadata JSON (description, links, attributes); null when unknown.
+export const readTokenMeta = (sig) => gwFetch("/token-meta/" + sig);
 export const renderUrl = (sig) => GATEWAYS[0] + "/render/" + sig;

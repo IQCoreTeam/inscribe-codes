@@ -20,6 +20,19 @@ const ABI = [
   "event TokenLaunched(address indexed token, address indexed curve, address indexed deployer, address pairToken, uint256 launchConfigId, uint256 graduationThreshold)",
 ];
 
+// What a launched Pons token records about itself, verified live on chain.
+const TOKEN_ABI = [
+  "function description() view returns (string)",
+  "function socials() view returns (string twitter, string telegram, string discord, string website, string farcaster)",
+];
+
+// The description + socials the token itself holds; provider = any read RPC.
+export async function readPonsToken(provider, address) {
+  const t = new Contract(address, TOKEN_ABI, provider);
+  const [description, s] = await Promise.all([t.description(), t.socials()]);
+  return { description, twitter: s.twitter, telegram: s.telegram, discord: s.discord, website: s.website, farcaster: s.farcaster };
+}
+
 // Pons renders a coin's description only when it is <=256 chars AND carries no
 // url (measured), so strip urls and cap; recovery pointers ride the fields.
 export const PONS_DESC_MAX = 256;

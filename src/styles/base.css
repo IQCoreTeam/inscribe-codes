@@ -151,6 +151,26 @@ img { display: block; }
 .amber { color: var(--cta); }
 .mint { color: #8dffa0; }
 
+/* ── token board: chart modal, info pane + chart (Board v5) ── */
+.tk_split { display: grid; grid-template-columns: 340px minmax(0, 1fr); }
+/* height 0 + min-height 100%: the pane takes the chart column's height and scrolls inside it */
+.tk_info { padding: 16px; border-right: 1px solid var(--line); min-width: 0; height: 0; min-height: 100%; box-sizing: border-box; overflow: auto; }
+.tk_infohead { display: flex; gap: 12px; align-items: center; }
+.tk_infoimg { width: 84px; height: 84px; flex: none; overflow: hidden; border: 1px solid var(--line); background: var(--panel); }
+.tk_infoimg img { width: 100%; height: 100%; object-fit: cover; image-rendering: pixelated; display: block; }
+.tk_stats { display: grid; grid-template-columns: 1fr 1fr; gap: 8px 12px; margin-top: 14px; padding-top: 12px; border-top: 1px solid var(--line); }
+.tk_stat { display: flex; flex-direction: column; gap: 2px; font: 400 18px/1.1 "Jersey 15", monospace; color: var(--ink); }
+.tk_sec { margin-top: 16px; }
+.tk_sec > .lab { display: block; margin-bottom: 6px; }
+.tk_desc { font: 400 16px/1.45 "Jersey 15", monospace; color: var(--ink2); white-space: pre-wrap; word-break: break-word; max-height: 180px; overflow: auto; }
+.tk_link, .tk_kv { display: flex; justify-content: space-between; gap: 10px; align-items: baseline; padding: 5px 0; border-bottom: 1px dotted var(--line); font: 400 15px/1.3 "Jersey 15", monospace; color: var(--ink2); text-decoration: none; min-width: 0; }
+.tk_link > span:last-child, .tk_kv > span:last-child { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; text-align: right; }
+a.tk_link:hover > span:last-child { color: var(--acc); }
+@media (max-width: 980px) {
+  .tk_split { grid-template-columns: 1fr; }
+  .tk_info { border-right: 0; border-bottom: 1px solid var(--line); height: auto; overflow: visible; }
+}
+
 /* ── NFT side (design/NFT Launchpad Flow v5) ── */
 .nf-page { color: var(--acc); height: 100vh; display: flex; flex-direction: column; overflow: hidden; max-width: 1560px; margin: 0 auto; width: 100%; font: 400 16px/1.6 "Jersey 15", monospace; }
 .nf-page a { text-decoration: none; }

@@ -91,6 +91,9 @@ export function disconnectEvm() {
   try { localStorage.setItem(WALLET_KEY, "disconnected"); } catch (e) {}
 }
 
+// Read-only provider on the active RPC (a custom RPC is respected), for contract getters.
+export const readProvider = () => new JsonRpcProvider(activeRpc);
+
 // ── fees + estimate ─────────────────────────────────────────────────────────
 // Contract fees cached for the sync estimator; refreshed once in background.
 // Fallbacks are the mainnet values measured at feed setup.
