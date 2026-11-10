@@ -4,7 +4,7 @@
 // the #nav_chain slot itself; the wallet slot is painted by paintWalletPill.
 import { esc, shortAddr } from "./fmt.js";
 
-const MID = { token: "Launch + markets", nft: "Every item lives on chain" };
+const MID = { nft: "Every item lives on chain" };
 
 export function nav(active) {
   const cross = active === "token"
@@ -16,7 +16,6 @@ export function nav(active) {
     <div class="navgrp">
       <a class="navbtn" href="?view=home">&larr; Home</a>
       <a href="https://iqlabs.dev" target="_blank" rel="noopener" style="display:flex"><img class="navlogo" src="public/img/text_logo.webp" alt="IQLabs"></a>
-      <span class="navlbl">inscribe.codes</span>
       <span id="nav_chain"></span>
       ${active === "home" ? "" : cross}
     </div>

@@ -45,10 +45,10 @@ img { display: block; }
 .navwrap { position: sticky; top: 0; z-index: 20; padding: 12px 16px 0; background: var(--bg); }
 .navbar { display: flex; justify-content: space-between; align-items: center; gap: 14px; border: 1px solid var(--acc); background: var(--bg); padding: 7px 16px; }
 .navgrp { display: flex; align-items: center; gap: 12px; }
-.navbtn, .navbtn2 { font: 400 16px "Jersey 15", monospace; white-space: nowrap; text-decoration: none; cursor: pointer; }
+.navbtn, .navbtn2 { font: 400 16px/1.2 "Jersey 15", monospace; white-space: nowrap; text-decoration: none; cursor: pointer; }
 .navbtn { border: 1px solid var(--acc); color: var(--ink); padding: 7px 12px; }
 .navbtn:hover { background: var(--acc); color: var(--bg); }
-.navbtn2 { border: 1px solid var(--mut); color: var(--ink2); padding: 6px 10px; }
+.navbtn2 { border: 1px solid var(--mut); color: var(--ink2); padding: 7px 12px; }
 .navbtn2:hover { border-color: var(--acc); color: var(--acc); }
 .navlogo { height: 18px; filter: brightness(0) invert(0.75) sepia(1) hue-rotate(70deg) saturate(3); }
 .navlbl, #nav_mid { font: 400 16px "Jersey 15", monospace; color: var(--mut); white-space: nowrap; }
@@ -132,9 +132,9 @@ img { display: block; }
 .seg > * { font: 400 16px "Jersey 15", monospace; flex: 1; text-align: center; padding: 8px 0; cursor: pointer; color: var(--ink2); transition: background 0.3s; }
 .seg > * + * { border-left: 1px solid var(--line); }
 .seg > .on { background-color: var(--panel2); background-image: linear-gradient(var(--bg), var(--bg)), radial-gradient(var(--acc) 1px, transparent 1.2px); background-size: calc(100% - 12px) calc(100% - 14px), 4px 4px; background-position: center, 0 0; background-repeat: no-repeat, repeat; color: var(--acc); }
-.navpill { font: 400 16px "Jersey 15", monospace; display: flex; align-items: center; gap: 8px; padding: 7px 12px; color: var(--acc); border: 1px solid var(--acc); background-color: var(--panel2); background-image: linear-gradient(var(--bg), var(--bg)), radial-gradient(var(--acc) 1px, transparent 1.2px); background-size: calc(100% - 12px) calc(100% - 12px), 4px 4px; background-position: center, 0 0; background-repeat: no-repeat, repeat; cursor: pointer; }
+.navpill { font: 400 16px/1.2 "Jersey 15", monospace; display: flex; align-items: center; gap: 8px; padding: 7px 12px; color: var(--acc); border: 1px solid var(--acc); background-color: var(--panel2); background-image: linear-gradient(var(--bg), var(--bg)), radial-gradient(var(--acc) 1px, transparent 1.2px); background-size: calc(100% - 12px) calc(100% - 12px), 4px 4px; background-position: center, 0 0; background-repeat: no-repeat, repeat; cursor: pointer; }
 .navpill i { width: 7px; height: 7px; background: var(--acc); }
-.navconnect { font-size: 16px; padding: 7px 14px; }
+.navconnect { font-size: 16px; line-height: 1.2; padding: 7px 12px; }
 .ttybar { font: 400 24px/1.2 "Jersey 15", monospace; letter-spacing: 0; white-space: pre; overflow: hidden; text-overflow: clip; }
 @keyframes ttyspin { 0% { content: "⠋"; } 12.5% { content: "⠙"; } 25% { content: "⠹"; } 37.5% { content: "⠸"; } 50% { content: "⠼"; } 62.5% { content: "⠴"; } 75% { content: "⠦"; } 87.5% { content: "⠧"; } 100% { content: "⠋"; } }
 .ttyspin::before { content: "⠋"; display: inline-block; width: 1.2em; animation: ttyspin 0.8s steps(1, end) infinite; }
