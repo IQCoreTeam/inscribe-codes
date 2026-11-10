@@ -67,10 +67,10 @@ function viewerHtml(a, info, headerRight) {
       </div>
     </div>
   </div>
-  <div class="nf-vjson">
-    <div class="nf-vjsonhead lab">details json</div>
+  <details class="nf-vjson">
+    <summary class="nf-vjsonhead lab">details json<span class="nf-vjsonarrow">▸</span></summary>
     <pre class="nf-json">${esc(JSON.stringify(a.metadata, null, 2))}</pre>
-  </div>
+  </details>
 </div>`;
 }
 
