@@ -106,6 +106,11 @@ async function wireWallet(root) {
     else { const { connectEvm } = await import("../../chain/evm.js"); st.hood.address = await connectEvm(); }
     paintWalletPill(root); paintModal(root);
   };
+  st.disconnectWallet = async () => {
+    if (st.chain === "solana") { await sol.disconnect(); st.sol.wallet = null; st.sol.burner = null; st.sol.mine = null; }
+    else { const { disconnectEvm } = await import("../../chain/evm.js"); disconnectEvm(); st.hood.address = null; st.hood.mine = null; }
+    paintWalletPill(root); paintModal(root);
+  };
   paintWalletPill(root);
   sol.restore().then((w) => { if (w) { st.sol.wallet = w; paintWalletPill(root); paintModal(root); } });
   import("../../chain/evm.js").then(({ connectEvm }) => connectEvm({ silent: true }).then((a) => { if (a) { st.hood.address = a; paintWalletPill(root); } }).catch(() => {}));
@@ -113,7 +118,7 @@ async function wireWallet(root) {
 
 const walletAddr = () => (st.chain === "solana" ? (st.sol.wallet ? st.sol.wallet.publicKey.toBase58() : null) : st.hood.address);
 
-const paintWalletPill = (root) => paintNavWallet(root.querySelector("#nav_wallet"), walletAddr(), st.connectWallet);
+const paintWalletPill = (root) => paintNavWallet(root.querySelector("#nav_wallet"), walletAddr(), st.connectWallet, st.disconnectWallet);
 
 // ── markets ─────────────────────────────────────────────────────────────────
 async function loadCoins(root) {

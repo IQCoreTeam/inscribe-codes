@@ -31,7 +31,7 @@ export function nav(active) {
 export function paintWalletPill(el, address, onConnect, onPill) {
   if (!el) return;
   el.innerHTML = address
-    ? `<span class="navpill" title="${esc(address)}"><i></i>${esc(shortAddr(address))}</span>`
+    ? `<span class="navpill" title="${onPill ? "click to disconnect" : esc(address)}"><i></i>${esc(shortAddr(address))}</span>`
     : '<button class="btn2 navconnect">Connect wallet</button>';
   const b = el.querySelector(".navconnect");
   if (b) b.onclick = () => onConnect().catch((e) => alert(e.message));
