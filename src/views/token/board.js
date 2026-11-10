@@ -179,12 +179,17 @@ function openChart(root, mint) {
 
 // ── launch layer ────────────────────────────────────────────────────────────
 const TABS = [["text", "TEXT"], ["ascii", "ASCII"], ["image", "IMAGE"], ["file", "FILE"], ["pick", "MY INSCRIPTIONS"]];
-const BLURBS = {
-  text: ["Write it straight onto the chain.", "A sentence, a manifesto, a shitpost. The coin links back to it forever."],
-  ascii: ["Turn an image into ASCII art.", "Rendered to plain text in your browser, inscribed as text, readable anywhere."],
-  image: ["Put the image itself on chain.", "No IPFS, no server. The bytes live in transactions and the coin points at them."],
-  file: ["Any file, on chain.", "Up to " + CAP_KB + " KB in the browser; bigger files go through the SDK."],
-  pick: ["Launch from something you already own.", "Anything you inscribed on inscribe.codes or iqlabs.dev shows up here."],
+const STEP = {
+  text: { title: "Step 1 of 2: write your text", img: "step_text",
+    blurb: "Your token starts as text written to the chain. Type it here; the coin page will show it forever." },
+  ascii: { title: "Step 1 of 2: turn an image into ASCII", img: "step_ascii",
+    blurb: "Pick an image and we turn it into ASCII art on chain. Tune the font size and spacing, then launch." },
+  image: { title: "Step 1 of 2: pick your image", img: "step_image",
+    blurb: "Your token needs an image that lives on chain. Upload a new one, or pick one you already saved under My inscriptions." },
+  file: { title: "Step 1 of 2: pick your file", img: "step_file",
+    blurb: "Any file can back a token. Up to " + CAP_KB + " KB in the browser; bigger files go through the SDK." },
+  pick: { title: "Step 1 of 2: choose a saved inscription", img: null,
+    blurb: "Everything you already inscribed on inscribe.codes or iqlabs.dev shows up here. Pick one and launch it as a token." },
 };
 
 function paintModal(root) {
@@ -205,74 +210,124 @@ function paintModal(root) {
 </div>`;
   wireModalClose(modal, st.phase === "inscribing" || st.phase === "launching");
   wireModalEvents(root, modal);
+  typeLabels(modal);
 }
 
-function estRowsHtml() {
-  let bytes = 0;
-  if (st.tab === "text" && st.text.trim()) bytes = new TextEncoder().encode(st.text).length + 80;
-  else if (st.tab === "ascii" && st.ascii.out) bytes = new TextEncoder().encode(st.ascii.out).length + 80;
-  else if (st.staged && st.staged.tab === st.tab) bytes = st.staged.bytes;
-  else return "";
+// Encoded byte size of whatever is staged on the current tab, or 0.
+function stagedBytes() {
+  if (st.tab === "text") return st.text.trim() ? new TextEncoder().encode(st.text).length + 80 : 0;
+  if (st.tab === "ascii") return st.ascii.out ? new TextEncoder().encode(st.ascii.out).length + 80 : 0;
+  return st.staged && st.staged.tab === st.tab ? st.staged.bytes : 0;
+}
+
+function sizeLine() {
+  const bytes = stagedBytes();
+  if (!bytes) return "";
+  const kb = (bytes / 1024).toFixed(1) + " KB";
+  if (st.chain !== "solana") return kb + " -> 3 signatures (the burner uploads the batches)";
+  const e = estimateCost(bytes);
+  return kb + " -> " + e.chunks + " chunk" + (e.chunks > 1 ? "s" : "");
+}
+
+function detailsHtml() {
+  const bytes = stagedBytes();
+  if (!bytes) return "";
+  const kb = (bytes / 1024).toFixed(1) + " KB";
   const rows = st.chain === "solana"
-    ? (() => { const e = estimateCost(bytes); return [["size", (bytes / 1024).toFixed(1) + " KB"], ["parts", e.chunks + " chunk" + (e.chunks > 1 ? "s" : "")], ["you pay up to", (e.total / 1e9).toFixed(4) + " SOL (leftover sweeps back)"]]; })()
-    : [["size", (bytes / 1024).toFixed(1) + " KB"], ["wallet signatures", "3 (the burner uploads the batches)"], ["on-chain fee", (bytes <= 700 ? 0.00024 : 0.00072).toFixed(5) + " ETH + gas"]];
-  return `<div style="margin-top:12px;border:1px solid var(--line)" class="sm">` +
-    rows.map(([k, v]) => `<div class="kv" style="padding:6px 12px"><span>${k}</span><span style="color:var(--acc)">${v}</span></div>`).join("") + "</div>";
+    ? (() => {
+        const e = estimateCost(bytes);
+        return [["size", kb], ["parts", e.chunks + " chunk" + (e.chunks > 1 ? "s" : "")],
+          ["network fee", (e.network / 1e9).toFixed(5) + " SOL"],
+          ["service fee", (e.codeInFee / 1e9).toFixed(5) + " SOL"],
+          ["temporary deposit", (e.rent / 1e9).toFixed(5) + " SOL"],
+          ["__total", (e.total / 1e9).toFixed(4) + " SOL"]];
+      })()
+    : [["size", kb], ["wallet signatures", "3 (the burner uploads the batches)"],
+       ["__total", (bytes <= 700 ? 0.00024 : 0.00072).toFixed(5) + " ETH + gas"]];
+  const body = rows.map(([k, v]) => k === "__total"
+    ? `<div class="kv" style="padding:10px 12px 8px;border-top:1px solid var(--line)"><span style="color:var(--ink)">you pay</span><span style="color:var(--acc)">${v}</span></div>`
+    : `<div class="kv" style="padding:6px 12px"><span>${k}</span><span style="color:var(--ink2)">${v}</span></div>`).join("");
+  return `<details style="margin-top:12px"><summary class="lnk" style="list-style:none;letter-spacing:.1em;padding:6px 0">details &#9656;</summary>
+    <div style="margin-top:4px;border:1px solid var(--mut)" class="sm">${body}</div>
+    <div class="sm" style="margin-top:10px">Leftover sweeps back to your wallet. File too big? <a href="${SDK_DOCS}" target="_blank" rel="noopener">upload large files from the terminal</a>.</div>
+  </details>`;
+}
+
+function asciiBox(label, hint, decId, val, incId, note) {
+  return `<div style="border:1px solid var(--line);padding:12px 14px">
+    <div class="sm" style="display:flex;justify-content:space-between;align-items:baseline"><span>${label}</span><span style="opacity:.6">${hint}</span></div>
+    <div style="display:inline-flex;border:1px solid var(--line);overflow:hidden;margin-top:10px;font:400 16px 'Jersey 15',monospace;color:var(--ink)">
+      <div id="${decId}" style="width:32px;text-align:center;padding:5px 0;cursor:pointer">-</div>
+      <div style="width:46px;text-align:center;padding:5px 0;border-left:1px solid var(--line);border-right:1px solid var(--line);color:var(--acc)">${val}</div>
+      <div id="${incId}" style="width:32px;text-align:center;padding:5px 0;cursor:pointer">+</div>
+    </div>
+    <div class="sm" style="margin-top:8px">${note}</div>
+  </div>`;
 }
 
 function menuHtml() {
   const tabs = TABS.map(([id, label]) =>
     `<button class="tk_tab chip ${st.tab === id ? "live" : ""}" data-tab="${id}" style="padding:8px 12px;font-size:12px">${label}</button>`).join("");
-  const [title, blurb] = BLURBS[st.tab];
+  const step = STEP[st.tab];
+  const dash = "border:1px dashed var(--acc);text-align:center;cursor:pointer;display:block";
   let content = "";
   if (st.tab === "text") {
-    content = `<textarea id="tk_text" placeholder="gm. on-chain forever." style="width:100%;box-sizing:border-box;min-height:120px;resize:vertical;background:var(--bg);color:var(--acc);border:1px solid var(--acc);font:400 20px/1.7 'Jersey 15',monospace;padding:14px;outline:none">${esc(st.text)}</textarea>`;
+    content = `<div style="padding:8px;border:1px solid var(--acc);outline:1px dotted var(--acc);outline-offset:3px;background-color:var(--panel2);background-image:radial-gradient(var(--acc) 1px,transparent 1.2px);background-size:5px 5px">
+      <textarea id="tk_text" placeholder="gm. on-chain forever." style="width:100%;box-sizing:border-box;min-height:120px;resize:vertical;display:block;background:var(--bg);color:var(--acc);border:1px solid var(--acc);font:400 18px/1.7 'Jersey 15',monospace;padding:14px;outline:none">${esc(st.text)}</textarea>
+    </div>`;
   } else if (st.tab === "ascii") {
     content = `
-      <label style="display:flex;flex-direction:column;align-items:center;gap:8px;border:1px dashed var(--acc);padding:16px;text-align:center;cursor:pointer">
-        <span class="sm" style="font-size:13px">${st.ascii.dataUrl ? "Pick a different image" : "Select an image (PNG / JPG / WEBP)"}</span>
+      <label style="${dash};padding:20px">
+        <span class="sm" style="font-size:13px">${st.ascii.dataUrl ? "Pick a different image" : "Select image"}</span><br>
+        <span class="sm">PNG / JPG / WEBP</span>
         <input id="tk_afile" type="file" accept="image/*" style="display:none">
       </label>
-      <div style="display:flex;gap:16px;margin-top:10px;flex-wrap:wrap" class="sm">
-        <span>Font size <button class="lnk" id="tk_fdec">-</button> <span style="color:var(--acc)">${st.ascii.font}</span> <button class="lnk" id="tk_finc">+</button></span>
-        <span>Spacing <button class="lnk" id="tk_sdec">-</button> <span style="color:var(--acc)">${st.ascii.spacing}</span> <button class="lnk" id="tk_sinc">+</button></span>
-        <span style="color:var(--mut)">smaller font packs in more characters</span>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:12px">
+        ${asciiBox("Font size", "5 to 50", "tk_fdec", st.ascii.font, "tk_finc", "Smaller packs in more characters.")}
+        ${asciiBox("Spacing", "-50 to 50", "tk_sdec", st.ascii.spacing, "tk_sinc", "Distance between characters.")}
       </div>
-      ${st.ascii.out ? `<pre style="margin:12px 0 0;border:1px solid var(--line);padding:10px;font:400 7px/1.15 monospace;color:var(--acc);background:var(--panel2);max-height:220px;overflow:auto">${esc(st.ascii.out)}</pre>` : ""}`;
+      ${st.ascii.out ? `<pre style="margin:12px 0 0;border:1px solid var(--line);padding:14px;font:400 7px/1.15 monospace;color:var(--acc);background:var(--panel2);max-height:240px;overflow:auto">${esc(st.ascii.out)}</pre>` : ""}`;
   } else if (st.tab === "image" || st.tab === "file") {
     const staged = st.staged && st.staged.tab === st.tab ? st.staged : null;
-    content = `<label style="display:flex;flex-direction:column;align-items:center;gap:8px;border:1px dashed var(--acc);padding:26px;text-align:center;cursor:pointer">
-      <span class="sm" style="font-size:13px">${staged ? esc(staged.label) : st.tab === "image" ? "Select an image (PNG / JPG / WEBP / GIF)" : "Select any file"}</span>
-      <span class="sm">You see the cost before anything is paid.</span>
+    const prompt = staged ? esc(staged.label) : st.tab === "image" ? "Drop an image here" : "Drop any file here";
+    content = `<label style="${dash};padding:26px;font:400 14px/1.9 'Jersey 15',monospace;color:var(--mut)">
+      ${prompt}${st.tab === "image" ? `<br><span class="sm">You see a preview before anything is paid.</span>` : ""}
       <input id="tk_file" type="file" ${st.tab === "image" ? 'accept="image/*"' : ""} style="display:none">
     </label>
     ${staged && staged.kind === "image" ? `<img src="${staged.body}" alt="" style="margin-top:10px;max-height:160px;border:1px solid var(--line)">` : ""}
-    <div class="sm" style="margin-top:8px">File too big? <a href="${SDK_DOCS}" target="_blank" rel="noopener">upload large files from the terminal</a></div>`;
+    ${st.tab === "file" ? `<a href="${SDK_DOCS}" target="_blank" rel="noopener" style="margin-top:10px;display:flex;justify-content:space-between;border:1px solid #b07a1a;padding:10px 14px;font:400 11px/1.6 'Silkscreen',monospace;color:var(--mut);text-decoration:none"><span>bigger than ${CAP_KB} KB?</span><span style="color:#b07a1a">upload from the terminal -></span></a>` : ""}`;
   } else {
     content = walletAddr()
       ? `<div id="tk_minelist" class="sm">loading your inscriptions...</div>`
       : `<div class="sm" style="border:1px dashed var(--acc);padding:22px;text-align:center">Connect your wallet to see what you have saved. Anything from inscribe.codes or iqlabs.dev shows up here.<br><br><span class="lnk" id="tk_connect2">Connect wallet</span></div>`;
   }
   const ready = hasContent();
+  const goLabel = !walletAddr() ? "Connect wallet" : st.tab === "pick" ? (st.picked ? "Continue with pick ->" : "Pick an inscription to continue") : "Continue -> fund";
+  const strip = "background:var(--bg);box-decoration-break:clone;-webkit-box-decoration-break:clone";
   return `
-    <div style="position:relative;margin-bottom:12px;border:1px solid var(--line);background:var(--panel);padding:18px 16px">
-      <div class="hero" style="font-size:26px">${esc(title)}</div>
-      <p class="sm" style="font-size:13px;line-height:1.6;max-width:58ch">${esc(blurb)}</p>
+    <div style="position:relative;margin-bottom:12px;height:196px;border:1px solid var(--line);background:var(--panel);overflow:hidden">
+      ${step.img ? `<div style="position:absolute;inset:0;image-rendering:pixelated;opacity:.8"><img src="public/img/${step.img}.webp" alt="" style="width:100%;height:100%;object-fit:cover;display:block"></div>` : ""}
+      <div style="position:relative;padding:18px 16px 16px;display:flex;flex-direction:column;align-items:flex-start;gap:8px;justify-content:flex-end;height:196px;box-sizing:border-box">
+        <div class="hero" data-tty style="font-size:30px;min-height:1.1em;padding:6px 12px 4px;${strip}">${esc(step.title)}</div>
+        <p style="margin:0;max-width:58ch;font:400 15px/1.6 'Jersey 15',monospace;color:var(--ink);padding:4px 12px;${strip}">${esc(step.blurb)}</p>
+      </div>
     </div>
     <div style="display:flex;gap:8px;flex-wrap:wrap">${tabs}</div>
     <div style="margin-top:12px">${content}</div>
-    <div id="tk_est">${st.tab === "pick" ? "" : estRowsHtml()}</div>
+    ${st.tab === "text" || st.tab === "ascii" || (st.staged && st.staged.tab === st.tab) ? `<div class="sm" id="tk_size" style="margin-top:8px">${sizeLine()}</div>` : ""}
+    <div id="tk_est">${st.tab === "pick" ? "" : detailsHtml()}</div>
     ${st.error ? `<div class="sm" style="margin-top:10px;color:var(--bad)">${esc(st.error)}</div>` : ""}
-    <button id="tk_go" class="cta" style="width:100%;margin-top:14px;text-align:center" ${ready || !walletAddr() ? "" : "disabled"}>${!walletAddr() ? "CONNECT WALLET" : st.picked ? "CONTINUE WITH PICK" : "CONTINUE"}</button>
-    ${st.picked ? `<div class="sm" style="margin-top:8px;text-align:center">Using ${esc(st.picked.kind)} · ${esc(shortAddr(st.picked.__txSignature))} · <span class="lnk" id="tk_clearpick">start fresh instead</span></div>` : ""}`;
+    <button id="tk_go" class="cta" style="width:100%;margin-top:14px;text-align:center" ${ready || !walletAddr() ? "" : "disabled"}>${goLabel}</button>
+    ${st.picked ? `<div class="sm" style="margin-top:8px;text-align:center">Using ${esc(st.picked.kind)} inscription ${esc(shortAddr(st.picked.__txSignature))} · <span class="lnk" id="tk_clearpick">upload a new one instead</span></div>` : ""}`;
 }
 
 function progressHtml() {
   return `
-    <div class="hero" style="font-size:24px">${st.phase === "inscribing" ? "Writing to chain..." : "Launching..."}</div>
-    <div class="sm" style="margin-top:10px" id="tk_steplabel">${esc(st.stepLabel || "preparing")}</div>
-    <div style="margin-top:14px;border:1px solid var(--acc);padding:3px"><div id="tk_bar" style="height:14px;background:var(--acc);width:${st.progress}%"></div></div>
-    <div class="sm" style="margin-top:10px">Keep this tab open. ${st.chain === "solana" ? "One wallet approval funds a burner key; everything else signs itself, and leftover sweeps back." : "The burner uploads the batches; you sign 3 small clean transactions, and leftover sweeps back."}</div>`;
+    <div class="hero" data-tty style="font-size:22px">${st.phase === "inscribing" ? "Writing to chain. Keep this tab open." : "Launching..."}</div>
+    <div style="margin-top:14px;border:1px solid var(--line);aspect-ratio:7/3;overflow:hidden;background:var(--panel);image-rendering:pixelated"><img src="public/img/step_chain.webp" alt="" style="width:100%;height:100%;object-fit:cover;display:block"></div>
+    <div style="display:flex;justify-content:space-between;align-items:baseline;margin-top:14px" class="sm"><span>Progress</span><span id="tk_steplabel">${esc(st.stepLabel || "preparing")}</span></div>
+    <div style="margin-top:6px;border:1px solid var(--acc);padding:3px"><div id="tk_bar" style="height:14px;background:var(--acc);width:${st.progress}%"></div></div>
+    <div class="sm" style="margin-top:10px">&gt; keep this tab open until every part lands. ${st.chain === "solana" ? "One approval funds a burner key; everything else signs itself, and leftover sweeps back." : "The burner uploads the batches; you sign 3 small clean transactions, and leftover sweeps back."}</div>`;
 }
 
 function formHtml() {
@@ -302,6 +357,7 @@ function formHtml() {
 function doneHtml() {
   const r = st.result;
   return `
+    <div style="border:1px solid var(--line);aspect-ratio:7/3;overflow:hidden;background:var(--panel);image-rendering:pixelated"><img src="public/img/step_launched.webp" alt="" style="width:100%;height:100%;object-fit:cover;display:block"></div>
     <div style="text-align:center;padding:16px 0 4px">
       <div class="hero" style="font-size:48px" data-tty>Launched.</div>
       <div class="big" style="margin-top:12px">$${esc(st.symbol)} · ${esc(st.name)}</div>
@@ -309,7 +365,8 @@ function doneHtml() {
     </div>
     <div style="display:flex;gap:10px;justify-content:center;flex-wrap:wrap;margin-top:18px" class="sm">
       <a class="cta" style="font-size:16px;padding:10px 16px" href="${esc(tradeUrl(ch().market, r.mint))}" target="_blank" rel="noopener">View on ${ch().venue}</a>
-      <span class="lnk tk_close" style="align-self:center">open markets</span>
+      <span class="lnk tk_close" style="align-self:center;border:1px solid var(--line);padding:9px 16px">Open in markets</span>
+      <span class="lnk tk_again" style="align-self:center;border:1px solid var(--line);padding:9px 16px">Launch another</span>
     </div>`;
 }
 
@@ -336,6 +393,12 @@ function wireModalEvents(root, modal) {
   if (c2) c2.onclick = () => st.connectWallet().catch((e) => alert(e.message));
   const clear = modal.querySelector("#tk_clearpick");
   if (clear) clear.onclick = () => { st.picked = null; paintModal(root); };
+  const again = modal.querySelector(".tk_again");
+  if (again) again.onclick = () => {
+    st.phase = "menu"; st.picked = null; st.staged = null; st.text = ""; st.ascii = { dataUrl: null, font: 8, spacing: -2, out: "" };
+    st.srcSig = null; st.srcKind = null; st.result = null; st.error = null; st.progress = 0;
+    paintModal(root);
+  };
   const go = modal.querySelector("#tk_go");
   if (go) go.onclick = () => (walletAddr() ? startInscribe(root) : st.connectWallet().catch((e) => alert(e.message)));
   const launch = modal.querySelector("#tk_launch");
@@ -349,7 +412,9 @@ function refreshEstimate(modal) {
   const go = modal.querySelector("#tk_go");
   if (go && walletAddr()) go.toggleAttribute("disabled", !hasContent());
   const box = modal.querySelector("#tk_est");
-  if (box) box.innerHTML = st.tab === "pick" ? "" : estRowsHtml();
+  if (box) box.innerHTML = st.tab === "pick" ? "" : detailsHtml();
+  const size = modal.querySelector("#tk_size");
+  if (size) size.textContent = sizeLine();
 }
 
 function readForm(root, modal) {
