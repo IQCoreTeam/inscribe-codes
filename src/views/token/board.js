@@ -5,6 +5,7 @@
 // (pump.fun on Solana, Pons on Robinhood). A kind=token feed row lists the
 // coin in Markets here and on the iqlabs.dev board.
 import { typeLabels } from "../../ui/tty.js";
+import { skeleton } from "../../ui/skeleton.js";
 import { esc, fmtUsd, fmtPct, fmtWhen, shortAddr } from "../../ui/fmt.js";
 import { toAscii } from "../../ui/ascii.js";
 import { readTokens, readMine, notify, imgUrl, renderUrl, metaUrl } from "../../services/gateway.js";
@@ -56,7 +57,7 @@ ${nav("token")}
     </div>
     <div id="tk_tip" style="display:flex;justify-content:space-between;gap:12px;align-items:center;padding:7px 14px;border-bottom:1px solid var(--line)"><span class="sm">Click any token to see its chart.</span><span class="sm lnk" id="tk_tipx" style="padding:0 4px">x</span></div>
     <div style="display:flex;justify-content:space-between;align-items:baseline;padding:12px 14px 10px;border-bottom:1px solid var(--line)"><span class="sm">Recent launches</span><span class="sm">click a card for the chart</span></div>
-    <div id="tk_cards" class="ttyrows" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(172px,1fr));gap:12px;padding:14px"><span class="sm">reading launches from the feed...</span></div>
+    <div id="tk_cards" class="ttyrows" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(172px,1fr));gap:12px;padding:14px">${skeleton(6)}</div>
     <p class="sm" style="margin:0;padding:10px 14px;border-top:1px solid var(--line)">Tokens launched from the feed, biggest first. Prices refresh every 30 seconds; new launches show "indexing" for a few minutes.</p>
   </div>
 </div>
@@ -93,7 +94,7 @@ function switchChain(root, chain) {
   paintChainNav(root);
   paintWalletPill(root);
   root.querySelector("#tk_modal").innerHTML = "";
-  root.querySelector("#tk_cards").innerHTML = '<span class="sm">reading launches from the feed...</span>';
+  root.querySelector("#tk_cards").innerHTML = skeleton(6);
   loadCoins(root).catch(() => {});
 }
 

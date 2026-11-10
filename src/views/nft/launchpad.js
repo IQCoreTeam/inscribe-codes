@@ -7,6 +7,7 @@
 //   ?view=nft&asset=<a>  -> asset viewer
 //   ?view=nft&single=<C> -> single 1/1 mint
 import { nav } from "../../ui/nav.js";
+import { skeleton } from "../../ui/skeleton.js";
 import { typeLabels } from "../../ui/tty.js";
 import { esc, fmtSol, fmtWhen, shortAddr } from "../../ui/fmt.js";
 import * as nft from "../../services/nft-backend.js";
@@ -104,8 +105,6 @@ async function paintTab(root) {
     else await paintMine(el);
   } catch (e) { el.innerHTML = '<div class="nf-note">could not load: ' + esc(e.message) + "</div>"; }
 }
-
-const skeleton = () => '<div class="skel"><div class="a"></div><div class="b"><i></i><i style="width:40%"></i><i></i></div></div>'.repeat(3);
 
 async function paintCollections(el) {
   if (!st.cols) {
