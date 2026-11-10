@@ -26,6 +26,17 @@ export async function mount(root) {
 // sits in. Returns the body element.
 export function frame(root, bodyHtml) {
   root.innerHTML = `<div class="nf-page">${nav("nft")}<div id="nf_body" class="nf-desk">${bodyHtml}</div></div><div id="nf_modal"></div>`;
+  // Item links open the asset in a popup over the current screen instead of
+  // routing away. Stop here (below document) so the global ?view= router does
+  // not navigate; a direct ?asset= URL still renders the full page.
+  root.querySelector(".nf-page").addEventListener("click", (e) => {
+    const a = e.target.closest('a[href^="?view=nft&asset="]');
+    if (!a || a.target === "_blank" || e.metaKey || e.ctrlKey) return;
+    e.preventDefault();
+    e.stopPropagation();
+    const asset = new URLSearchParams(a.getAttribute("href").slice(1)).get("asset");
+    if (asset) import("./viewer.js").then((m) => m.openModal(asset));
+  });
   typeLabels(root);
   return root.querySelector("#nf_body");
 }
