@@ -409,6 +409,9 @@ a.tk_link:hover > span:last-child { color: var(--acc); }
 .nf-vsteps { font: 400 16px/1.8 "Jersey 15", monospace; margin-top: 6px; color: var(--mut); }
 .nf-vbtns { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; margin-top: auto; padding-top: 6px; }
 .nf-vbtns .btn2 { padding: 7px 10px; font-size: 16px; }
+.nf-vbuy { display: block; margin-top: 8px; padding: 8px 12px; font-size: 18px; text-align: center; }
+.nf-vmk { display: flex; gap: 6px; margin-top: 8px; }
+.nf-vmk .btn2 { flex: 1; padding: 6px 8px; font-size: 16px; }
 .nf-vjson { border-top: 1px solid var(--acc); }
 summary.nf-vjsonhead { list-style: none; cursor: pointer; display: flex; align-items: center; gap: 8px; padding: 10px 14px; font: 400 11px/1.6 "Silkscreen", monospace; letter-spacing: 0.1em; color: var(--mut); background-color: var(--panel2); background-image: radial-gradient(var(--acc) 1px, transparent 1.2px); background-size: 5px 5px; }
 summary.nf-vjsonhead::-webkit-details-marker { display: none; }

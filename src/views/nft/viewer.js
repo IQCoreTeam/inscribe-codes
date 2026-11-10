@@ -3,11 +3,12 @@
 // whatever screen the item was clicked from (openModal); a direct ?asset= URL
 // renders it as a full page (render). Gateway-first for speed; "run it from
 // chain" re-reads everything from the chain alone and swaps in the bytes.
-import { esc, shortAddr } from "../../ui/fmt.js";
+import { esc, shortAddr, fmtSol } from "../../ui/fmt.js";
 import * as nft from "../../services/nft-backend.js";
+import { nftMarkets, nftMarketOf } from "../../services/markets.js";
 import { connect as rpcConnect, explorerTx } from "../../chain/rpc.js";
 import { frame } from "./launchpad.js";
-import { paintWalletPill } from "./session.js";
+import { addr, paintWalletPill } from "./session.js";
 
 const LEVEL = { common: 1, rare: 2, epic: 3, legendary: 4 };
 
@@ -18,12 +19,30 @@ async function load(assetAddress) {
     viewAssetViaGateway(connection, assetAddress).catch(async () => { const r = await readAsset(connection, assetAddress); r.imageUrl = r.imageDataUrl; return r; }).catch((e) => ({ error: e })),
     nft.assetInfo(assetAddress).catch(() => null),
   ]);
-  return { a, info, connection, readAsset };
+  // The active ask, if a seller posted one on any marketplace (listings are per collection).
+  const listing = info && info.slug
+    ? await nft.listings(info.slug).then((r) => (r.listings || []).find((l) => l.asset === assetAddress) || null).catch(() => null)
+    : null;
+  return { a, info, listing, connection, readAsset };
+}
+
+// Listed: one Buy button to the venue that holds the ask (Manage if it is
+// yours). Not listed: plain links to each marketplace.
+function marketHtml(a, listing) {
+  if (listing) {
+    const m = nftMarketOf(listing.source);
+    const mine = addr() && listing.seller === addr();
+    return `<div class="nf-vsec"><div class="lab nf-vlab">Market</div>
+      <div class="nf-vkv"><span>ask</span><b>${fmtSol(listing.price)} on ${esc(m.label)}</b><span>seller</span><b>${esc(shortAddr(listing.seller))}</b></div>
+      <a class="btn nf-vbuy" href="${esc(m.item(a.asset))}" target="_blank" rel="noopener">${mine ? "Manage on" : "Buy on"} ${esc(m.label)} ↗</a></div>`;
+  }
+  return `<div class="nf-vsec"><div class="lab nf-vlab">Market</div><div class="cm">not listed right now</div>
+    <div class="nf-vmk">${nftMarkets.map((m) => `<a class="btn2" href="${esc(m.item(a.asset))}" target="_blank" rel="noopener">${esc(m.label)}</a>`).join("")}</div></div>`;
 }
 
 // One window: header (with headerRight = close X or back link), the 3-column
 // grid, then the details-json section below the same frame.
-function viewerHtml(a, info, headerRight) {
+function viewerHtml(a, info, listing, headerRight) {
   const tier = (info && info.rarity && info.rarity.tier) || "common";
   const idx = a.attributes && a.attributes.index != null ? a.attributes.index : info && info.index;
   const colName = (info && info.collectionName) || (a.metadata && a.metadata.collection && a.metadata.collection.name) || "";
@@ -38,6 +57,7 @@ function viewerHtml(a, info, headerRight) {
       <div><div class="lab nf-vlab">Name</div><div class="nf-vname">${esc(a.name)}</div><div class="cm" style="margin-top:2px">${esc(colName)}</div></div>
       <div class="nf-vsec"><div class="lab nf-vlab">Rarity</div><div class="nf-vrar">${esc(tier)}${info && info.rarity && info.rarity.rank ? ` · rank ${info.rarity.rank} / ${info.rarity.total}` : ""}</div><div class="nf-vpips">${pips}</div></div>
       <div class="nf-vsec"><div class="lab nf-vlab">Owner</div><div class="nf-vowner">${esc(shortAddr(a.owner))}</div></div>
+      ${marketHtml(a, listing)}
       ${extra.length ? `<div class="nf-vsec"><div class="lab nf-vlab">Traits</div><div class="nf-vkv">${extra.map((x) => `<span>${esc(x.trait_type)}</span><b>${esc(String(x.value))}</b>`).join("")}</div></div>` : ""}
       <div class="nf-vsec" style="margin-top:auto"><div class="lab nf-vlab">Status</div>
         <div class="nf-vkv"><span>chain</span><b>solana</b><span>std</span><b>${esc(std)}</b><span>storage</span><b class="mint">inscribed</b><span>mutable</span><b>no</b></div></div>
@@ -62,8 +82,7 @@ function viewerHtml(a, info, headerRight) {
         <a class="btn2" href="https://solscan.io/account/${esc(a.asset)}" target="_blank" rel="noopener">Solscan</a>
         ${a.C ? `<a class="btn2" href="${esc(explorerTx(a.C))}" target="_blank" rel="noopener">Image data</a>` : ""}
         ${a.M ? `<a class="btn2" href="${esc(explorerTx(a.M))}" target="_blank" rel="noopener">Details data</a>` : ""}
-        <a class="btn2" href="https://magiceden.io/item-details/${esc(a.asset)}" target="_blank" rel="noopener">Magic eden</a>
-        <button class="btn2" id="nv_prove" style="grid-column:1 / -1">Run it from chain now</button>
+        <button class="btn2" id="nv_prove">Run it from chain now</button>
       </div>
     </div>
   </div>
@@ -98,11 +117,11 @@ function wire(scope, connection, assetAddress, readAsset) {
 export async function render(root, assetAddress) {
   const body = frame(root, '<div class="nf-note">reading the asset from chain...</div>');
   paintWalletPill(root.querySelector("#nav_wallet"));
-  const { a, info, connection, readAsset } = await load(assetAddress);
+  const { a, info, listing, connection, readAsset } = await load(assetAddress);
   if (!body.isConnected) return;
   if (a.error) { body.innerHTML = '<div class="nf-note">could not read ' + esc(assetAddress) + ": " + esc(a.error.message) + "</div>"; return; }
   const back = `<a class="wh-right wh-x" href="${info && info.slug ? "?view=nft&c=" + esc(info.slug) : "?view=nft"}">${info && info.slug ? "← collection" : "← launchpad"}</a>`;
-  body.innerHTML = `<div class="nf-stack">${viewerHtml(a, info, back)}</div>`;
+  body.innerHTML = `<div class="nf-stack">${viewerHtml(a, info, listing, back)}</div>`;
   wire(body, connection, assetAddress, readAsset);
 }
 
@@ -117,12 +136,12 @@ export async function openModal(assetAddress) {
   document.addEventListener("keydown", onEsc);
   modal.querySelector("#nv_overlay").onclick = (e) => { if (e.target.id === "nv_overlay") close(); };
 
-  const { a, info, connection, readAsset } = await load(assetAddress);
+  const { a, info, listing, connection, readAsset } = await load(assetAddress);
   const overlay = modal.querySelector("#nv_overlay");
   if (!overlay) return; // closed while loading
   if (a.error) { overlay.innerHTML = '<div class="nf-note">could not read ' + esc(assetAddress) + ": " + esc(a.error.message) + "</div>"; return; }
   const x = `<span class="wh-right wh-x nv-close" title="close" style="cursor:pointer">✕</span>`;
-  overlay.innerHTML = viewerHtml(a, info, x);
+  overlay.innerHTML = viewerHtml(a, info, listing, x);
   overlay.querySelector(".nv-close").onclick = close;
   wire(overlay, connection, assetAddress, readAsset);
 }

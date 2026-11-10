@@ -12,6 +12,7 @@ import { typeLabels } from "../../ui/tty.js";
 import { esc, fmtSol, fmtWhen, shortAddr } from "../../ui/fmt.js";
 import * as nft from "../../services/nft-backend.js";
 import { imgUrl } from "../../services/gateway.js";
+import { nftMarketOf } from "../../services/markets.js";
 import { addr, paintWalletPill } from "./session.js";
 
 export async function mount(root) {
@@ -170,14 +171,6 @@ function cardHtml(c) {
 
 // Listings are read-only here: we aggregate what sellers posted on Tensor and
 // Magic Eden, and Buy deep-links to the marketplace that holds the ask.
-const tensorUrl = (mint) => "https://www.tensor.trade/item/" + mint;
-const meUrl = (mint) => "https://magiceden.io/item-details/" + mint;
-const MARKET_SRC = {
-  TCOMP: { label: "Tensor", url: tensorUrl }, TENSORSWAP: { label: "Tensor", url: tensorUrl },
-  MAGICEDEN_V2: { label: "Magic Eden", url: meUrl }, MEV2: { label: "Magic Eden", url: meUrl },
-};
-const srcOf = (s) => MARKET_SRC[s] || { label: (s || "market").toLowerCase(), url: tensorUrl };
-
 // Active listings across every Solana collection, cheapest first, cached per
 // desk mount. Robinhood has no Tensor feed, so it is skipped.
 async function allListings() {
@@ -192,13 +185,13 @@ async function allListings() {
 }
 
 function listCardHtml(l) {
-  const src = srcOf(l.source);
+  const src = nftMarketOf(l.source);
   const mine = addr() && l.seller === addr();
   return `<div class="rc listed">
     <a class="rc-img" href="?view=nft&asset=${esc(l.asset)}">${l.inscriptionSig ? `<img src="${esc(imgUrl(l.inscriptionSig))}" alt="" loading="lazy">` : ""}<span class="rc-tag">${esc(src.label)}</span></a>
     <div class="rc-name">${esc(l.col.name)} #${l.index ?? "?"}</div>
     <div class="rc-sub">${fmtSol(l.price)}</div>
-    <a class="rc-foot amber" href="${esc(src.url(l.asset))}" target="_blank" rel="noopener"><span>${mine ? "Manage on" : "Buy on"} ${esc(src.label)}</span><span style="margin-left:auto">↗</span></a>
+    <a class="rc-foot amber" href="${esc(src.item(l.asset))}" target="_blank" rel="noopener"><span>${mine ? "Manage on" : "Buy on"} ${esc(src.label)}</span><span style="margin-left:auto">↗</span></a>
   </div>`;
 }
 

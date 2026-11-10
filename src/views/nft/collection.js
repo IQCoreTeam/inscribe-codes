@@ -5,6 +5,7 @@
 import { esc, fmtSol, shortAddr } from "../../ui/fmt.js";
 import * as nft from "../../services/nft-backend.js";
 import { imgUrl } from "../../services/gateway.js";
+import { nftMarkets } from "../../services/markets.js";
 import { skeleton } from "../../ui/skeleton.js";
 import { connect as rpcConnect, explorerTx } from "../../chain/rpc.js";
 import { frame, statusOf, chainOf, coverOf, priceOf, segsHtml } from "./launchpad.js";
@@ -160,7 +161,7 @@ async function paintMint(root) {
       </div>
       <div class="nf-btnrow lab">
         <a class="btng" href="?view=nft&asset=${esc(r.asset)}">View NFT →</a>
-        <a class="btn2" href="https://magiceden.io/item-details/${esc(r.asset)}" target="_blank" rel="noopener">Magic eden</a>
+        ${nftMarkets.map((m) => `<a class="btn2" href="${esc(m.item(r.asset))}" target="_blank" rel="noopener">${esc(m.label)}</a>`).join("")}
         <a class="btn2" href="${esc(explorerTx(r.C))}" target="_blank" rel="noopener">Solscan</a>
         <button class="btn2" id="nc_again">Mint another</button>
       </div>`;
