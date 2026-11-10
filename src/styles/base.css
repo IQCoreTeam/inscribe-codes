@@ -364,7 +364,7 @@ img { display: block; }
 .nf-vsteps { font: 400 16px/1.8 "Jersey 15", monospace; margin-top: 6px; color: var(--mut); }
 .nf-vbtns { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; margin-top: auto; padding-top: 6px; }
 .nf-vbtns .btn2 { padding: 7px 10px; font-size: 16px; }
-.nf-json { margin: 0; padding: 12px 14px; font: 400 13px/1.5 monospace; color: var(--mut); overflow: auto; max-height: 260px; white-space: pre-wrap; word-break: break-all; }
+.nf-json { margin: 0; padding: 14px 16px; font: 400 15px/1.65 "Jersey 15", monospace; color: var(--ink2); overflow: auto; max-height: 300px; white-space: pre; tab-size: 2; }
 
 /* viewer + single: stacked windows, centered */
 .nf-stack { display: flex; flex-direction: column; gap: 14px; flex: 1; min-width: 0; align-items: center; }
