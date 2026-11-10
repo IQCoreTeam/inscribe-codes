@@ -204,7 +204,7 @@ function paintModal(root) {
   modal.innerHTML = `
 <div class="tk_backdrop" style="position:fixed;inset:0;z-index:25;background:rgba(0,0,0,.88);display:flex;align-items:flex-start;justify-content:center;padding:26px 16px;overflow:auto">
   <div class="win" style="width:780px;max-width:100%;background:var(--bg)">
-    <div class="wh"><span>Launch a token · ${ch().label}</span><span class="sm">${st.phase === "menu" ? "step 1 of 2" : st.phase === "form" ? "step 2 of 2" : ""}</span><span class="lnk tk_close" style="padding:0 8px">x</span></div>
+    <div class="wh"><span>Launch a token · ${ch().label}</span><span class="sm">${st.phase === "menu" ? "step 1 of 2" : st.phase === "form" ? "step 2 of 2" : ""}</span><span class="lnk tk_close" style="margin-left:auto;padding:0 8px">x</span></div>
     <div style="padding:20px 22px 22px">${body}</div>
   </div>
 </div>`;
