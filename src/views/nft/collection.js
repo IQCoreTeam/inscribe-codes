@@ -37,7 +37,8 @@ export async function render(root, slug) {
         <div class="nf-colinfo">
           <div class="nf-coltitle"><div class="nf-colname">${esc(col.name)}</div><span class="chip ${status === "LIVE" ? "live" : status === "Upcoming" ? "soon" : "out"}">${status}</span><span class="chip">${ch.icon} ${esc(ch.name)}</span></div>
           <div class="cm" style="margin-top:6px">by ${esc(shortAddr(col.creator))} · ${col.maxSupply.toLocaleString("en-US")} items${col.symbol ? " · $" + esc(col.symbol) : ""}</div>
-          <p class="nf-coldesc">${esc(col.description || "")}</p>
+          <p class="nf-coldesc clamp" id="nc_desc">${esc(col.description || "")}</p>
+          <button type="button" class="nf-descmore" id="nc_descmore" hidden>see more</button>
           <div class="nf-collinks lab">
             <a class="btn2" href="https://solscan.io/account/${esc(col.collection)}" target="_blank" rel="noopener">Collection on chain</a>
             <a class="btn2" href="https://magiceden.io/marketplace/${esc(col.collection)}" target="_blank" rel="noopener">Magic eden</a>
@@ -75,6 +76,12 @@ export async function render(root, slug) {
     </div>
   </div>
 </div>`;
+
+  const desc = body.querySelector("#nc_desc"), dmore = body.querySelector("#nc_descmore");
+  if (desc.scrollHeight > desc.clientHeight + 2) {
+    dmore.hidden = false;
+    dmore.onclick = () => { dmore.textContent = desc.classList.toggle("clamp") ? "see more" : "see less"; };
+  }
 
   for (const t of body.querySelectorAll(".nf-tabs .tab")) t.onclick = () => {
     st.filter = t.dataset.f;

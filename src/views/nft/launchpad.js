@@ -199,11 +199,9 @@ async function paintMarket(el) {
   el.innerHTML = `<div class="nf-scroll"><div class="nf-minegrid">${skeleton(6, "nftitem")}</div></div>`;
   const all = await allListings();
   if (!el.isConnected || st.tab !== "market") return;
-  const floor = all.length ? all[0].price : 0;
   el.innerHTML = `
-  <div class="nf-stats3">
+  <div class="nf-stats">
     <div><div class="k">Listed</div><div class="v">${all.length || "-"}</div></div>
-    <div><div class="k">Floor</div><div class="v">${floor ? fmtSol(floor) : "-"}</div></div>
     <div><div class="k">Collections</div><div class="v">${new Set(all.map((l) => l.col.slug)).size || "-"}</div></div>
   </div>
   ${all.length

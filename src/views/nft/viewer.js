@@ -6,7 +6,7 @@
 import { esc, shortAddr, fmtSol } from "../../ui/fmt.js";
 import * as nft from "../../services/nft-backend.js";
 import { nftMarkets, nftMarketOf } from "../../services/markets.js";
-import { connect as rpcConnect, explorerTx } from "../../chain/rpc.js";
+import { connect as rpcConnect, setRpc, hasOwnRpc, explorerTx } from "../../chain/rpc.js";
 import { frame } from "./launchpad.js";
 import { addr, paintWalletPill } from "./session.js";
 
@@ -23,7 +23,7 @@ async function load(assetAddress) {
   const listing = info && info.slug
     ? await nft.listings(info.slug).then((r) => (r.listings || []).find((l) => l.asset === assetAddress) || null).catch(() => null)
     : null;
-  return { a, info, listing, connection, readAsset };
+  return { a, info, listing, readAsset };
 }
 
 // Listed: one Buy button to the venue that holds the ask (Manage if it is
@@ -76,40 +76,82 @@ function viewerHtml(a, info, listing, headerRight) {
           <span>link</span><b style="opacity:.8">gateway.iqlabs.dev/token-meta/${a.M ? esc(shortAddr(a.M)) : ""}</b>
         </div></div>
       <div class="nf-vsec"><div class="lab nf-vlab">Works without us</div>
-        <div class="nf-vsteps"><div>01 the NFT stores the id of its details (M)</div><div>02 M names the image inscription (C); both are public Solana transactions</div><div>03 anyone with an RPC can read the image back</div></div>
-        <div class="cm" id="nv_prove_s" style="margin-top:6px"></div></div>
+        <div class="nf-vsteps"><div>01 the NFT stores the id of its details (M)</div><div>02 M names the image inscription (C); both are public Solana transactions</div><div>03 anyone with an RPC can read the image back</div></div></div>
       <div class="nf-vbtns lab">
         <a class="btn2" href="https://solscan.io/account/${esc(a.asset)}" target="_blank" rel="noopener">Solscan</a>
         ${a.C ? `<a class="btn2" href="${esc(explorerTx(a.C))}" target="_blank" rel="noopener">Image data</a>` : ""}
         ${a.M ? `<a class="btn2" href="${esc(explorerTx(a.M))}" target="_blank" rel="noopener">Details data</a>` : ""}
+        <button type="button" class="btn2" id="nv_json">details json</button>
         <button class="btn2" id="nv_prove">Run it from chain now</button>
       </div>
     </div>
   </div>
-  <details class="nf-vjson">
-    <summary class="nf-vjsonhead lab">details json<span class="nf-vjsonarrow">▸</span></summary>
-    <pre class="nf-json">${esc(JSON.stringify(a.metadata, null, 2))}</pre>
-  </details>
 </div>`;
 }
 
-// The "run it from chain" proof, shared by the page and the popup.
-function wire(scope, connection, assetAddress, readAsset) {
+// The two right/left buttons each open a popup: the chain proof and the json.
+function wire(scope, a, readAsset) {
   const prove = scope.querySelector("#nv_prove");
-  const status = scope.querySelector("#nv_prove_s");
-  if (!prove) return;
-  prove.onclick = async () => {
-    prove.disabled = true;
+  if (prove) prove.onclick = () => openProve(a.asset, readAsset);
+  const json = scope.querySelector("#nv_json");
+  if (json) json.onclick = () => openJson(a.metadata);
+}
+
+// Small popup showing the on-chain metadata json, over the current screen.
+function openJson(metadata) {
+  const ov = document.createElement("div");
+  ov.className = "nf-overlay nf-proveov";
+  ov.innerHTML = `<div class="win nf-win nf-jsonwin">
+    <div class="wh"><span>details json</span><span class="wh-right wh-x nv-jclose" title="close" style="cursor:pointer">✕</span></div>
+    <pre class="nf-json">${esc(JSON.stringify(metadata, null, 2))}</pre>
+  </div>`;
+  document.body.appendChild(ov);
+  const close = () => ov.remove();
+  ov.onclick = (e) => { if (e.target === ov) close(); };
+  ov.querySelector(".nv-jclose").onclick = close;
+}
+
+// Small popup that rebuilds the image from the chain alone, for fun and as
+// proof. A reader with no RPC of their own can paste one here; it is saved only
+// in their browser (localStorage, via setRpc), never sent anywhere.
+function openProve(assetAddress, readAsset) {
+  const own = hasOwnRpc();
+  const ov = document.createElement("div");
+  ov.className = "nf-overlay nf-proveov";
+  ov.innerHTML = `<div class="win nf-win nf-provewin">
+    <div class="wh"><span>run it from chain</span><span class="wh-right wh-x nv-pclose" title="close" style="cursor:pointer">✕</span></div>
+    <div class="nf-provebody">
+      <div class="cm">No gateway, no server: read the image straight off Solana.</div>
+      <label class="nf-prpc"><span class="lab nf-vlab">Your RPC${own ? "" : " (optional)"}</span>
+        <input id="nv_rpc" placeholder="https://your-rpc.example" autocomplete="off" spellcheck="false">
+        <span class="cm">${own ? "leave blank to use your saved RPC. saved in this browser only." : "the public default keeps no old history; paste one that does for the full read. saved in this browser only."}</span>
+      </label>
+      <button class="btn" id="nv_prun">Run</button>
+      <div class="cm nf-pstat" id="nv_pstat"></div>
+      <div class="nf-pimg" id="nv_pimg"></div>
+    </div>
+  </div>`;
+  document.body.appendChild(ov);
+  const close = () => ov.remove();
+  ov.onclick = (e) => { if (e.target === ov) close(); };
+  ov.querySelector(".nv-pclose").onclick = close;
+  const run = ov.querySelector("#nv_prun");
+  const stat = ov.querySelector("#nv_pstat");
+  run.onclick = async () => {
+    run.disabled = true;
+    const url = ov.querySelector("#nv_rpc").value.trim();
+    if (url) setRpc(url);
+    stat.textContent = "reading...";
     try {
-      const r = await readAsset(connection, assetAddress, (s) => { status.textContent = "reading " + s + "..."; });
-      status.textContent = r.imageDataUrl ? "recovered from chain alone ✓ (the image above is the recovered bytes)" : "metadata recovered from chain ✓";
-      if (r.imageDataUrl) scope.querySelector("#nv_frame img").src = r.imageDataUrl;
+      const r = await readAsset(rpcConnect(), assetAddress, (s) => { stat.textContent = "reading " + s + "..."; });
+      stat.textContent = r.imageDataUrl ? "recovered from chain alone ✓" : "metadata recovered from chain ✓";
+      if (r.imageDataUrl) ov.querySelector("#nv_pimg").innerHTML = `<img src="${r.imageDataUrl}" alt="">`;
     } catch (e) {
-      status.textContent = /not found on this RPC/.test(e.message)
-        ? "the default public RPC keeps no old tx history; set your own RPC (localStorage ic_rpc_mainnet-beta) and retry. the data IS on chain: open the tx links."
+      stat.textContent = /not found on this RPC/.test(e.message)
+        ? "this RPC keeps no old history. paste one that does and retry. the data IS on chain: use the tx links."
         : "chain read failed: " + e.message;
     }
-    prove.disabled = false;
+    run.disabled = false;
   };
 }
 
@@ -117,12 +159,12 @@ function wire(scope, connection, assetAddress, readAsset) {
 export async function render(root, assetAddress) {
   const body = frame(root, '<div class="nf-note">reading the asset from chain...</div>');
   paintWalletPill(root.querySelector("#nav_wallet"));
-  const { a, info, listing, connection, readAsset } = await load(assetAddress);
+  const { a, info, listing, readAsset } = await load(assetAddress);
   if (!body.isConnected) return;
   if (a.error) { body.innerHTML = '<div class="nf-note">could not read ' + esc(assetAddress) + ": " + esc(a.error.message) + "</div>"; return; }
   const back = `<a class="wh-right wh-x" href="${info && info.slug ? "?view=nft&c=" + esc(info.slug) : "?view=nft"}">${info && info.slug ? "← collection" : "← launchpad"}</a>`;
   body.innerHTML = `<div class="nf-stack">${viewerHtml(a, info, listing, back)}</div>`;
-  wire(body, connection, assetAddress, readAsset);
+  wire(body, a, readAsset);
 }
 
 // Popup over the current screen. Closing just removes the overlay, so the page
@@ -136,12 +178,12 @@ export async function openModal(assetAddress) {
   document.addEventListener("keydown", onEsc);
   modal.querySelector("#nv_overlay").onclick = (e) => { if (e.target.id === "nv_overlay") close(); };
 
-  const { a, info, listing, connection, readAsset } = await load(assetAddress);
+  const { a, info, listing, readAsset } = await load(assetAddress);
   const overlay = modal.querySelector("#nv_overlay");
   if (!overlay) return; // closed while loading
   if (a.error) { overlay.innerHTML = '<div class="nf-note">could not read ' + esc(assetAddress) + ": " + esc(a.error.message) + "</div>"; return; }
   const x = `<span class="wh-right wh-x nv-close" title="close" style="cursor:pointer">✕</span>`;
   overlay.innerHTML = viewerHtml(a, info, listing, x);
   overlay.querySelector(".nv-close").onclick = close;
-  wire(overlay, connection, assetAddress, readAsset);
+  wire(overlay, a, readAsset);
 }

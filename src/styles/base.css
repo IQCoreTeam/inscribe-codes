@@ -191,10 +191,10 @@ a.tk_link:hover > span:last-child { color: var(--acc); }
 .nf-select { appearance: none; -webkit-appearance: none; background: var(--bg); color: var(--ink2); border: none; padding: 2px 22px 2px 8px; font: 400 16px "Jersey 15", monospace; text-transform: lowercase; cursor: pointer; outline: none; background-image: linear-gradient(45deg, transparent 50%, var(--mut) 50%), linear-gradient(135deg, var(--mut) 50%, transparent 50%); background-position: calc(100% - 12px) 50%, calc(100% - 7px) 50%; background-size: 5px 5px, 5px 5px; background-repeat: no-repeat; }
 .nf-empty { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 14px; padding: 50px 0; text-align: center; }
 .nf-empty .t { font: 400 22px "Jersey 15", monospace; opacity: 0.85; color: var(--ink); }
-.nf-stats3 { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-top: 12px; font: 400 16px "Jersey 15", monospace; color: var(--mut); }
-.nf-stats3 > div { border: 1px solid var(--line); padding: 9px 12px; }
-.nf-stats3 .k { letter-spacing: 0.1em; }
-.nf-stats3 .v { margin-top: 3px; color: var(--ink2); }
+.nf-stats { display: grid; grid-template-columns: repeat(2, 1fr); gap: 8px; margin-top: 12px; font: 400 16px "Jersey 15", monospace; color: var(--mut); }
+.nf-stats > div { border: 1px solid var(--line); padding: 9px 12px; }
+.nf-stats .k { letter-spacing: 0.1em; }
+.nf-stats .v { margin-top: 3px; color: var(--ink2); }
 .skel { border: 1px solid var(--line); overflow: hidden; animation: pulse 1.2s ease-in-out infinite; }
 .skel .a { height: 150px; background: rgba(63, 210, 79, 0.06); }
 .skel .b { padding: 10px 12px 12px; }
@@ -287,7 +287,7 @@ a.tk_link:hover > span:last-child { color: var(--acc); }
 .rc.epic { --rc: #6a3fb5; --rrgb: 176, 124, 255; box-shadow: 0 0 16px rgba(106, 63, 181, 0.2); }
 .rc.legendary { --rc: #b07a1a; --rrgb: 176, 122, 26; box-shadow: 0 0 22px rgba(176, 122, 26, 0.25), inset 0 0 0 1px rgba(176, 122, 26, 0.25); }
 .rc.strong { border: 1.5px solid rgba(var(--rrgb), 0.85); background: linear-gradient(180deg, rgba(var(--rrgb), 0.07), rgba(var(--rrgb), 0.02)); }
-.rc:hover { transform: translateY(-2px); border-color: var(--rc); background: rgba(63, 210, 79, 0.05); }
+.rc:hover { transform: translateY(-2px); border-color: var(--rc); background: rgba(63, 210, 79, 0.05); position: relative; z-index: 3; }
 .rc.strong:hover { box-shadow: 0 0 30px rgba(var(--rrgb), 0.35); }
 .rc-img { position: relative; aspect-ratio: 1; overflow: hidden; background: var(--panel); border: 1px solid var(--line); }
 .rc-img img { width: 100%; height: 100%; object-fit: cover; image-rendering: pixelated; transition: transform 0.7s cubic-bezier(0.2, 0.7, 0.2, 1); }
@@ -325,6 +325,9 @@ a.tk_link:hover > span:last-child { color: var(--acc); }
 .nf-coltitle { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
 .nf-colname { font: 400 48px/1 "Terminal16", "Jersey 15", monospace; color: var(--ink); }
 .nf-coldesc { margin: 10px 0 0; font: 400 16px/1.8 "Jersey 15", monospace; opacity: 0.8; color: var(--ink2); }
+.nf-coldesc.clamp { display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 4; overflow: hidden; }
+.nf-descmore { margin-top: 6px; padding: 0; background: none; border: 0; cursor: pointer; font: 400 16px "Jersey 15", monospace; letter-spacing: 0.04em; color: var(--acc); }
+.nf-descmore:hover { color: var(--mut); }
 .nf-collinks { display: flex; gap: 8px; margin-top: 12px; flex-wrap: wrap; }
 .nf-collinks .btn2 { padding: 6px 12px; }
 .nf-itemsbar { display: flex; justify-content: space-between; align-items: center; margin-top: 22px; flex-wrap: wrap; gap: 10px; }
@@ -412,14 +415,8 @@ a.tk_link:hover > span:last-child { color: var(--acc); }
 .nf-vbuy { display: block; margin-top: 8px; padding: 8px 12px; font-size: 18px; text-align: center; }
 .nf-vmk { display: flex; gap: 6px; margin-top: 8px; }
 .nf-vmk .btn2 { flex: 1; padding: 6px 8px; font-size: 16px; }
-.nf-vjson { border-top: 1px solid var(--acc); }
-summary.nf-vjsonhead { list-style: none; cursor: pointer; display: flex; align-items: center; gap: 8px; padding: 10px 14px; font: 400 11px/1.6 "Silkscreen", monospace; letter-spacing: 0.1em; color: var(--mut); background-color: var(--panel2); background-image: radial-gradient(var(--acc) 1px, transparent 1.2px); background-size: 5px 5px; }
-summary.nf-vjsonhead::-webkit-details-marker { display: none; }
-summary.nf-vjsonhead:hover { color: var(--ink2); }
-.nf-vjson[open] summary.nf-vjsonhead { border-bottom: 1px solid var(--line); }
-.nf-vjsonarrow { transition: transform 0.15s; }
-.nf-vjson[open] .nf-vjsonarrow { transform: rotate(90deg); }
-.nf-json { margin: 0; padding: 14px 16px; font: 400 15px/1.65 "Jersey 15", monospace; color: var(--ink2); overflow: auto; max-height: 300px; white-space: pre; tab-size: 2; }
+.nf-jsonwin { width: 100%; max-width: 560px; }
+.nf-json { margin: 0; padding: 14px 16px; font: 400 15px/1.65 "Jersey 15", monospace; color: var(--ink2); overflow: auto; max-height: 72vh; white-space: pre; tab-size: 2; }
 
 /* viewer + single: stacked windows, centered */
 .nf-stack { display: flex; flex-direction: column; gap: 14px; flex: 1; min-width: 0; align-items: center; }
@@ -430,6 +427,15 @@ summary.nf-vjsonhead:hover { color: var(--ink2); }
 
 /* ── launch wizard ── */
 .nf-overlay { position: fixed; inset: 0; z-index: 30; background: rgba(0, 0, 0, 0.88); display: flex; align-items: flex-start; justify-content: center; padding: 26px 16px; overflow: auto; font: 400 16px/1.6 "Jersey 15", monospace; color: var(--ink2); }
+.nf-proveov { z-index: 40; align-items: center; }
+.nf-provewin { width: 100%; max-width: 420px; }
+.nf-provebody { display: flex; flex-direction: column; gap: 10px; padding: 14px; }
+.nf-prpc { display: flex; flex-direction: column; gap: 5px; }
+.nf-prpc input { width: 100%; box-sizing: border-box; padding: 8px 10px; background: var(--panel); border: 1px solid var(--line); color: var(--ink2); font: 400 16px "Jersey 15", monospace; }
+.nf-prpc input:focus { outline: none; border-color: var(--acc); }
+.nf-pstat { min-height: 1.2em; }
+.nf-pimg:empty { display: none; }
+.nf-pimg img { display: block; width: 100%; max-width: 220px; margin: 2px auto 0; image-rendering: pixelated; border: 1px solid var(--line); }
 .nf-wiz { width: 720px; max-width: 100%; display: flex; flex-direction: column; }
 .nf-wiz.wide { width: 1040px; }
 .nf-stepper { display: flex; gap: 8px; margin-bottom: 12px; font: 400 16px "Jersey 15", monospace; color: var(--mut); }
