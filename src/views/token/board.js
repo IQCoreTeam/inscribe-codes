@@ -64,6 +64,14 @@ ${nav("token")}
 <div id="tk_modal"></div>`;
 
   typeLabels(root);
+  // ?chain=hood (or robinhood) opens the Robinhood board directly; the board
+  // links on iqlabs.dev use it. Same reset as switchChain, before the first paint.
+  const want = { hood: "hood", robinhood: "hood", solana: "solana" }[new URLSearchParams(location.search).get("chain")];
+  if (want && want !== st.chain) {
+    st.chain = want;
+    st.open = false; st.picked = null; st.staged = null;
+    st.coins = []; st.priced = {};
+  }
   paintChainNav(root);
   wireWallet(root);
   root.querySelector("#tk_open").onclick = () => { st.open = true; st.phase = "menu"; st.error = null; paintModal(root); };
