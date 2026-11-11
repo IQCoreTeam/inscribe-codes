@@ -541,3 +541,54 @@ a.tk_link:hover > span:last-child { color: var(--acc); }
   .nf-choice, .ah-gw, .ah-hand, .ah-pw, .nf-form3, .nf-opts, .nf-done3, .ah-rep, .nf-singlegrid { grid-template-columns: 1fr; }
   .ah-edit { border-left: none; padding-left: 0; }
 }
+
+/* ── phones (<= 640px): stack what sits side by side, one card per row. Every
+   rule lives in this block so wider viewports render exactly as before. ── */
+@media (max-width: 640px) {
+  /* nav: let the buttons wrap onto a second row instead of overflowing */
+  .navwrap { padding: 8px 8px 0; }
+  .navbar { flex-wrap: wrap; gap: 8px; padding: 6px 8px; }
+  .navgrp { flex-wrap: wrap; gap: 8px; }
+  .navbtn, .navbtn2, .navconnect, .navpill { font-size: 14px; padding: 6px 9px; }
+  #nav_wallet { margin-left: auto; }
+
+  /* home */
+  .hero { font-size: 24px; }
+
+  /* token board: two cards per row, launch form rows stacked */
+  #desk .win { outline-offset: 2px; }
+  #tk_cards { grid-template-columns: repeat(2, 1fr) !important; gap: 8px !important; padding: 10px !important; }
+  .tk_row { flex-wrap: wrap; }
+  .tk_row > * { min-width: 100%; }
+  .tk_backdrop { padding: 12px 6px !important; }
+  .tk_info { padding: 12px; }
+
+  /* nft desk: one collection card per row, two item cards per row */
+  .nf-desk { padding: 10px 8px 12px; gap: 12px; }
+  .nf-lpbody { padding: 14px 12px 14px; }
+  .nf-colgrid { grid-template-columns: 1fr; }
+  .nf-minegrid { grid-template-columns: repeat(2, 1fr); gap: 8px; }
+  .nf-act { min-width: 0; }
+  .nf-scroll { padding-right: 0; margin-right: 0; }
+  .nf-pager { flex-wrap: wrap; }
+
+  /* collection page: logo above the title, title wraps */
+  .nf-colleft, .nf-colright { padding: 16px 12px; }
+  .nf-colhead { flex-direction: column; gap: 12px; }
+  .nf-collogo { width: 96px; height: 96px; }
+  .nf-colname { font-size: 30px; line-height: 1.05; word-break: break-word; }
+  .nf-itemgrid { grid-template-columns: repeat(4, 1fr); gap: 6px; }
+  .nf-pricenum { font-size: 52px; }
+
+  /* popups: use the full width */
+  .nf-overlay { padding: 12px 6px; }
+  .nf-vleft, .nf-vright, .nf-vcenter { padding: 14px 12px; }
+  .nf-vbtns { grid-template-columns: 1fr 1fr; }
+  .nf-wizbody { padding: 16px 12px 18px; }
+  .nf-form2, .nf-form3 { grid-template-columns: 1fr; }
+  .nf-brand { flex-direction: column; }
+  .nf-done3, .nf-opts { grid-template-columns: 1fr; }
+  .ah-items, .ah-gengrid, .ah-samples { grid-template-columns: repeat(3, 1fr); }
+  .ah-main { width: 100%; max-width: 260px; }
+  .nf-singlegrid { grid-template-columns: 1fr; }
+}

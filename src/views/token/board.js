@@ -449,13 +449,13 @@ function formHtml() {
   const fees = [...ch().feeLine, ...(ch().devBuy ? [["dev buy", devBuy + " SOL"]] : []), ["total", ch().totalFor(devBuy)]];
   return `
     <div class="big" data-tty>Step 2 of 2: name it and launch</div>
-    <div style="display:flex;gap:10px;margin-top:14px">
+    <div class="tk_row" style="display:flex;gap:10px;margin-top:14px">
       <div style="flex:1"><div class="sm">Name</div><input id="tk_name" value="${esc(st.name)}" style="width:100%;box-sizing:border-box;background:var(--panel2);color:var(--acc);border:1px solid var(--line);font:inherit;font-size:18px;padding:9px 10px"></div>
       <div style="flex:0 0 140px"><div class="sm">Symbol</div><input id="tk_sym" value="${esc(st.symbol)}" maxlength="10" style="width:100%;box-sizing:border-box;background:var(--panel2);color:var(--acc);border:1px solid var(--line);font:inherit;font-size:18px;padding:9px 10px"></div>
     </div>
     <div class="sm" style="margin-top:10px">Description</div>
     <textarea id="tk_desc" style="width:100%;box-sizing:border-box;min-height:54px;resize:vertical;background:var(--panel2);color:var(--acc);border:1px solid var(--line);font:inherit;font-size:16px;padding:9px 10px">${esc(st.desc)}</textarea>
-    <div style="display:flex;gap:10px;margin-top:10px">
+    <div class="tk_row" style="display:flex;gap:10px;margin-top:10px">
       ${ch().devBuy ? `<div style="flex:0 0 180px"><div class="sm">Initial dev buy (SOL)</div><input id="tk_buy" value="${st.devBuy || ""}" placeholder="0" style="width:100%;box-sizing:border-box;background:var(--panel2);color:var(--acc);border:1px solid var(--line);font:inherit;font-size:18px;padding:9px 10px"></div>` : ""}
       <div style="flex:1"><div class="sm">X link (optional)</div><input id="tk_x" value="${esc(st.xlink)}" placeholder="https://x.com/..." style="width:100%;box-sizing:border-box;background:var(--panel2);color:var(--acc);border:1px solid var(--line);font:inherit;font-size:18px;padding:9px 10px"></div>
     </div>
