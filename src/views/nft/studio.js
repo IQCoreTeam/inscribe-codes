@@ -154,15 +154,15 @@ function generateHtml() {
   <div class="ah-gw">
     <div class="ah-col">
       <div>
-        <div class="fl" style="display:flex;justify-content:space-between"><span>Layers</span><span>arrows · top = front</span></div>
-        <div style="display:flex;flex-direction:column;gap:6px">
-          ${st.layers.map((l, i) => `
+        <div class="fl" style="display:flex;justify-content:space-between"><span>Layers</span><span>drag or arrows · top = front</span></div>
+        <div style="display:flex;flex-direction:column;gap:6px" id="ns_layers">
+          ${st.layers.slice().reverse().map((l, ri) => { const i = st.layers.length - 1 - ri; return `
           <div class="lrow ${i === st.sel ? "on" : ""} ns_lsel" data-i="${i}">
             <div class="grip">${'<span class="gdot"></span>'.repeat(6)}</div>
             <div style="flex:1;min-width:0"><div class="n">${esc(l.name)}</div>
               <div class="sws">${l.traits.slice(0, 6).map((t) => `<span class="sw" style="background-image:url(${traitUrl(t)})"></span>`).join("")}<span class="cm" style="margin-left:4px">${l.traits.length} image${l.traits.length === 1 ? "" : "s"}</span></div></div>
-            <div style="display:flex;flex-direction:column;gap:3px"><div class="arw ns_lup ${i === 0 ? "off" : ""}" data-i="${i}">↑</div><div class="arw ns_ldn ${i === st.layers.length - 1 ? "off" : ""}" data-i="${i}">↓</div></div>
-          </div>`).join("")}
+            <div style="display:flex;flex-direction:column;gap:3px"><div class="arw ns_lup ${i === st.layers.length - 1 ? "off" : ""}" data-i="${i}" title="bring forward">↑</div><div class="arw ns_ldn ${i === 0 ? "off" : ""}" data-i="${i}" title="send back">↓</div></div>
+          </div>`; }).join("")}
         </div>
         <button class="btn2 ns_addlayer" style="margin-top:8px;padding:8px;font-size:16px;width:100%">+ Add attribute</button>
       </div>
@@ -410,8 +410,39 @@ function wire(root, modal) {
   // step 2: generate
   all(".ns_addlayer", (el) => { el.onclick = () => { st.layers.push({ name: "Attribute " + (st.layers.length + 1), traits: [] }); st.sel = st.layers.length - 1; st.mainPicks = null; paint(root); }; });
   all(".ns_lsel", (el) => { el.onclick = (e) => { if (e.target.closest(".arw")) return; st.sel = Number(el.dataset.i); paint(root); }; });
-  all(".ns_lup", (el) => { el.onclick = () => { const i = Number(el.dataset.i); if (i > 0) { st.layers.splice(i - 1, 0, st.layers.splice(i, 1)[0]); st.sel = i - 1; st.mainPicks = null; paint(root); } }; });
-  all(".ns_ldn", (el) => { el.onclick = () => { const i = Number(el.dataset.i); if (i < st.layers.length - 1) { st.layers.splice(i + 1, 0, st.layers.splice(i, 1)[0]); st.sel = i + 1; st.mainPicks = null; paint(root); } }; });
+  // Layers draw back to front in index order, so the list shows the last
+  // index on top: up = bring forward, down = send back.
+  const moveLayer = (i, to) => { st.layers.splice(to, 0, st.layers.splice(i, 1)[0]); st.sel = to; st.mainPicks = null; paint(root); };
+  all(".ns_lup", (el) => { el.onclick = () => { const i = Number(el.dataset.i); if (i < st.layers.length - 1) moveLayer(i, i + 1); }; });
+  all(".ns_ldn", (el) => { el.onclick = () => { const i = Number(el.dataset.i); if (i > 0) moveLayer(i, i - 1); }; });
+  // Grip drag: the row follows the pointer through the list (DOM only), and
+  // the new top-to-bottom order is committed on release. Listeners sit on the
+  // document, not the grip: moving the row re-inserts it, which would drop a
+  // pointer capture. The grip has touch-action none so a finger drags, not scrolls.
+  all(".lrow .grip", (grip) => { grip.onpointerdown = (e) => {
+    const row = grip.closest(".lrow"), list = row.parentElement;
+    const from = Number(row.dataset.i), id = e.pointerId;
+    e.preventDefault(); row.classList.add("dragging");
+    const move = (ev) => {
+      if (ev.pointerId !== id) return;
+      for (const other of list.querySelectorAll(".lrow")) {
+        if (other === row) continue;
+        const r = other.getBoundingClientRect(), mid = r.top + r.height / 2;
+        const before = row.compareDocumentPosition(other) & Node.DOCUMENT_POSITION_FOLLOWING;
+        if (before && ev.clientY > mid) other.after(row);
+        else if (!before && ev.clientY < mid) other.before(row);
+      }
+    };
+    const done = (ev) => {
+      if (ev.pointerId !== id) return;
+      document.removeEventListener("pointermove", move); document.removeEventListener("pointerup", done); document.removeEventListener("pointercancel", done);
+      const topToBottom = [...list.querySelectorAll(".lrow")].map((r) => Number(r.dataset.i));
+      const was = st.layers;
+      st.layers = topToBottom.slice().reverse().map((i) => was[i]);
+      st.sel = st.layers.indexOf(was[from]); st.mainPicks = null; paint(root);
+    };
+    document.addEventListener("pointermove", move); document.addEventListener("pointerup", done); document.addEventListener("pointercancel", done);
+  }; });
   on("#ns_lname", (el) => { el.oninput = () => { st.layers[st.sel].name = el.value; const row = modal.querySelector(`.ns_lsel[data-i="${st.sel}"] .n`); if (row) row.textContent = el.value; }; });
   all(".ns_ltraits", (inp) => { inp.onchange = async () => {
     const l = st.layers[st.sel];
