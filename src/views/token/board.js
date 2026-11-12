@@ -14,6 +14,8 @@ import { connect as rpcConnect } from "../../chain/rpc.js";
 import { estimateCost } from "../../chain/burner.js";
 import { nav, paintWalletPill as paintNavWallet } from "../../ui/nav.js";
 
+const hasMarketPrice = (row) => Number.isFinite(Number(row.priceUsd)) && Number(row.priceUsd) > 0;
+
 const CAP_KB = 256; // encoded row cap for the in-browser path; bigger goes via the SDK
 const SDK_DOCS = "https://iqlabs.mintlify.app/docs-typescript";
 
@@ -58,7 +60,7 @@ ${nav("token")}
     <div id="tk_tip" style="display:flex;justify-content:space-between;gap:12px;align-items:center;padding:7px 14px;border-bottom:1px solid var(--line)"><span class="sm">Click any token to see its chart.</span><span class="sm lnk" id="tk_tipx" style="padding:0 4px">x</span></div>
     <div style="display:flex;justify-content:space-between;align-items:baseline;padding:12px 14px 10px;border-bottom:1px solid var(--line)"><span class="sm">Recent launches</span><span class="sm">click a card for the chart</span></div>
     <div id="tk_cards" class="ttyrows" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(172px,1fr));gap:12px;padding:14px">${skeleton(6, "tk")}</div>
-    <p class="sm" style="margin:0;padding:10px 14px;border-top:1px solid var(--line)">Tokens launched from the feed, biggest first. Prices refresh every 30 seconds; new launches show "indexing" for a few minutes.</p>
+    <p class="sm" style="margin:0;padding:10px 14px;border-top:1px solid var(--line)">Tokens launched from the feed, biggest first. Prices refresh every 30 seconds when available.</p>
   </div>
 </div>
 <div id="tk_modal"></div>`;
@@ -163,7 +165,9 @@ function paintCards(root) {
   const sorted = st.coins.slice().sort((a, b) => ((st.priced[b.mint] || {}).mcap || 0) - ((st.priced[a.mint] || {}).mcap || 0));
   el.innerHTML = sorted.map((c) => {
     const p = st.priced[c.mint] || {};
-    const live = (p.mcap || 0) > 0;
+    const live = Number(p.mcap) > 0;
+    const price = Number(p.priceUsd);
+    const hasPrice = hasMarketPrice(p);
     return `<div class="flick tkcard" data-mint="${esc(c.mint)}" style="border:1px solid ${live ? "var(--acc)" : "var(--line)"};background:var(--panel);cursor:pointer">
       <div style="aspect-ratio:1;overflow:hidden;background:var(--panel);position:relative">
         ${(p.icon || c.img) ? `<img src="${esc(p.icon || c.img)}" alt="" loading="lazy" ${c.imgAlt ? `onerror="this.onerror=null;this.src='${esc(c.imgAlt)}'"` : ""} style="width:100%;height:100%;object-fit:cover;image-rendering:pixelated">` : `<div class="hero" style="display:grid;place-items:center;height:100%;font-size:28px;color:var(--mut)">$${esc((c.symbol || "?").slice(0, 6))}</div>`}
@@ -172,9 +176,9 @@ function paintCards(root) {
       <div style="padding:9px 10px 10px">
         <div style="color:var(--ink);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font:400 16px 'Jersey 15',monospace">${esc(c.name || "")}</div>
         <div class="sm" style="white-space:nowrap;overflow:hidden;text-overflow:ellipsis">$${esc(c.symbol || "?")}</div>
-        <div style="margin-top:6px;display:flex;justify-content:space-between;align-items:baseline"><span class="hero" style="font-size:22px">${live ? fmtUsd(p.mcap) : "..."}</span><span class="sm">MC</span></div>
-        <div class="sm" style="margin-top:6px">${p.priceUsd != null ? "$" + Number(p.priceUsd).toPrecision(4) : "&nbsp;"}</div>
-        <div class="sm" style="margin-top:4px;color:${live ? "var(--mut)" : "var(--cta)"}">${live ? esc(p.via || "") : "indexing"}</div>
+        <div style="margin-top:6px;display:flex;justify-content:space-between;align-items:baseline"><span class="hero" style="font-size:22px">${live ? fmtUsd(p.mcap) : "—"}</span><span class="sm">MC</span></div>
+        <div class="sm" style="margin-top:6px">${hasPrice ? "$" + price.toPrecision(4) : "&nbsp;"}</div>
+        <div class="sm" style="margin-top:4px;color:${hasPrice ? "var(--mut)" : "var(--cta)"}">${hasPrice ? esc(p.via || "") : "No price data"}</div>
       </div>
     </div>`;
   }).join("");
@@ -194,7 +198,7 @@ function openChart(root, mint) {
       <aside class="tk_info" data-mint="${esc(mint)}">${infoHtml(c, p, chain, null)}</aside>
       <section style="padding:14px;min-width:0">
         ${p.embed ? `<iframe src="${esc(p.embed)}" style="width:100%;height:480px;border:1px solid var(--line);background:var(--panel)"></iframe>`
-          : `<div style="height:480px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:10px;padding:0 20px;text-align:center;border:1px dashed rgba(63,210,79,.3)"><span class="cm" style="color:var(--cta)">indexing</span><span class="cm">Brand new. The chart appears within minutes. You can trade on ${esc(chain.venue)} meanwhile.</span></div>`}
+          : `<div style="height:480px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:10px;padding:0 20px;text-align:center;border:1px dashed rgba(63,210,79,.3)"><span class="cm" style="color:var(--cta)">Chart unavailable</span><span class="cm">Open ${esc(chain.venue)} to view this token.</span></div>`}
         <div style="display:flex;gap:10px;flex-wrap:wrap;margin-top:12px;align-items:center">
           <a class="cta" style="font-size:16px;padding:8px 14px" href="${esc(tradeUrl(chain.market, mint))}" target="_blank" rel="noopener">${tradeLabel(chain.market)}</a>
           ${p.url ? `<a class="btn2" style="font-size:16px" href="${esc(p.url)}" target="_blank" rel="noopener">${esc(p.siteLabel || "CHART SITE")}</a>` : ""}
@@ -214,7 +218,8 @@ function openChart(root, mint) {
 // Left pane of the chart modal: what the coin registered on chain. info=null
 // paints the head + a skeleton while the description is still loading.
 function infoHtml(c, p, chain, info) {
-  const live = (p.mcap || 0) > 0;
+  const live = Number(p.mcap) > 0;
+  const hasPrice = hasMarketPrice(p);
   const img = p.icon || c.img;
   const stat = (k, v, color) => `<div class="tk_stat"><span class="lab">${k}</span><span${color ? ` style="color:${color}"` : ""}>${v}</span></div>`;
   const head = `
@@ -222,13 +227,13 @@ function infoHtml(c, p, chain, info) {
       <div class="tk_infoimg">${img ? `<img src="${esc(img)}" alt="" ${c.imgAlt ? `onerror="this.onerror=null;this.src='${esc(c.imgAlt)}'"` : ""}>` : `<div class="hero" style="display:grid;place-items:center;height:100%;font-size:20px;color:var(--mut)">$${esc((c.symbol || "?").slice(0, 6))}</div>`}</div>
       <div style="min-width:0">
         <div style="font:400 22px/1.1 'Jersey 15',monospace;color:var(--ink);word-break:break-word">${esc(c.name || "")}</div>
-        <div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:6px"><span class="chip">$${esc(c.symbol || "?")}</span><span class="chip">${esc(chain.label)}</span><span class="chip ${live ? "live" : "soon"}">${live ? "LIVE" : "INDEXING"}</span></div>
+        <div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:6px"><span class="chip">$${esc(c.symbol || "?")}</span><span class="chip">${esc(chain.label)}</span><span class="chip ${hasPrice ? "live" : "soon"}">${hasPrice ? "LIVE" : "NO PRICE DATA"}</span></div>
       </div>
     </div>
     <div class="tk_stats">
-      ${stat("price", p.priceUsd != null ? "$" + Number(p.priceUsd).toPrecision(4) : "...")}
+      ${stat("price", hasPrice ? "$" + Number(p.priceUsd).toPrecision(4) : "—")}
       ${stat("24h", p.chg24 != null ? fmtPct(p.chg24) : "...", p.chg24 == null ? "" : p.chg24 >= 0 ? "var(--acc)" : "var(--bad)")}
-      ${stat("market cap", live ? fmtUsd(p.mcap) : "...")}
+      ${stat("market cap", live ? fmtUsd(p.mcap) : "—")}
       ${stat("24h volume", p.vol24 != null ? fmtUsd(p.vol24) : "...")}
     </div>`;
   if (!info) return head + `<div class="skel" style="border:0;margin-top:16px"><div class="b" style="padding:0"><i></i><i style="width:85%"></i><i style="width:60%"></i><i style="width:40%;margin-top:18px"></i><i style="width:70%"></i><i style="width:55%"></i></div></div>`;
