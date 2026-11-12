@@ -56,8 +56,8 @@ ${nav("token")}
       <button class="cta" id="tk_open" style="flex:0 0 auto">&rarr; Launch a token</button>
     </div>
     <div id="tk_tip" style="display:flex;justify-content:space-between;gap:12px;align-items:center;padding:7px 14px;border-bottom:1px solid var(--line)"><span class="sm">Click any token to see its chart.</span><span class="sm lnk" id="tk_tipx" style="padding:0 4px">x</span></div>
-    <div style="display:flex;justify-content:space-between;align-items:baseline;padding:12px 14px 10px;border-bottom:1px solid var(--line)"><span class="sm">Recent launches</span><span class="sm">click a card for the chart</span></div>
-    <div id="tk_cards" class="ttyrows" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(172px,1fr));gap:12px;padding:14px">${skeleton(6, "tk")}</div>
+    <div class="tk-list-head"><span class="sm">Recent launches</span><span class="sm tk-chart-hint">click a card for the chart</span></div>
+    <div id="tk_cards" class="ttyrows">${skeleton(6, "tk")}</div>
     <p class="sm" style="margin:0;padding:10px 14px;border-top:1px solid var(--line)">Tokens launched from the feed, biggest first. Prices refresh every 30 seconds; new launches show "indexing" for a few minutes.</p>
   </div>
 </div>
@@ -89,7 +89,8 @@ function paintChainNav(root) {
   const slot = root.querySelector("#nav_chain");
   if (!slot) return;
   const other = st.chain === "solana" ? "hood" : "solana";
-  slot.innerHTML = `<button class="navbtn2" id="tk_chain">${other === "hood" ? "Robinhood chain" : "Solana chain"} &rarr;</button>`;
+  const label = other === "hood" ? "Robinhood" : "Solana";
+  slot.innerHTML = `<button class="navbtn2" id="tk_chain" aria-label="Switch to ${label}"><span class="nav-full">${label} chain &rarr;</span><span class="nav-short" aria-hidden="true">${label === "Solana" ? "SOL" : label}</span></button>`;
   slot.querySelector("#tk_chain").onclick = () => switchChain(root, other);
 }
 

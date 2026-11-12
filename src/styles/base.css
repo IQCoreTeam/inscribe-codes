@@ -56,13 +56,15 @@ img { display: block; }
 .navbtn:hover { background: var(--acc); color: var(--bg); }
 .navbtn2 { border: 1px solid var(--mut); color: var(--ink2); padding: 7px 12px; }
 .navbtn2:hover { border-color: var(--acc); color: var(--acc); }
+.navbrand { display: flex; }
+.nav-short { display: none; }
 .navlogo { height: 18px; filter: brightness(0) invert(0.75) sepia(1) hue-rotate(70deg) saturate(3); }
 .navlbl, #nav_mid { font: 400 16px "Jersey 15", monospace; color: var(--mut); white-space: nowrap; }
 .navstripwrap { flex: 1 1 0; min-width: 0; overflow: hidden; display: flex; justify-content: flex-end; }
 .navstrip { height: 45px; width: auto; max-width: 100%; object-fit: cover; object-position: right center; }
 @media (max-width: 1280px) { .navlbl { display: none; } }
 @media (max-width: 1100px) { #nav_mid { display: none; } }
-@media (max-width: 860px) { .navstripwrap, .navlogo { display: none; } }
+@media (max-width: 860px) { .navstripwrap, .navbrand { display: none; } }
 
 /* flicker-on-hover tile (design .flick) */
 @keyframes flick { 0%, 49% { border-color: var(--fc, var(--acc)); box-shadow: 0 0 0 1px var(--fc, var(--acc)); } 50%, 100% { border-color: var(--fo, var(--line)); box-shadow: none; } }
@@ -152,6 +154,9 @@ img { display: block; }
 .mint { color: #8dffa0; }
 
 /* ── token board: chart modal, info pane + chart (Board v5) ── */
+.tk-list-head { display: flex; justify-content: space-between; align-items: baseline; gap: 12px; padding: 12px 14px 10px; border-bottom: 1px solid var(--line); }
+#tk_cards { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(172px, 100%), 1fr)); gap: 12px; padding: 14px; }
+#tk_cards > * { min-width: 0; }
 .tk_split { display: grid; grid-template-columns: 340px minmax(0, 1fr); }
 /* height 0 + min-height 100%: the pane takes the chart column's height and scrolls inside it */
 .tk_info { padding: 16px; border-right: 1px solid var(--line); min-width: 0; height: 0; min-height: 100%; box-sizing: border-box; overflow: auto; }
@@ -546,11 +551,16 @@ a.tk_link:hover > span:last-child { color: var(--acc); }
 /* ── phones (<= 640px): stack what sits side by side, one card per row. Every
    rule lives in this block so wider viewports render exactly as before. ── */
 @media (max-width: 640px) {
-  /* nav: let the buttons wrap onto a second row instead of overflowing */
   .navwrap { padding: 8px 8px 0; }
-  .navbar { flex-wrap: wrap; gap: 8px; padding: 6px 8px; }
-  .navgrp { flex-wrap: wrap; gap: 8px; }
-  .navbtn, .navbtn2, .navconnect, .navpill { font-size: 14px; padding: 6px 9px; }
+  .navbar, .navgrp { gap: 6px; min-width: 0; }
+  .navbar { padding: 4px 6px; }
+  .navbar .navbtn, .navbar .navbtn2, .navbar .navconnect, .navbar .navpill {
+    display: flex; align-items: center; justify-content: center; box-sizing: border-box;
+    min-width: 44px; min-height: 44px; font-size: 14px; padding: 4px 6px; white-space: nowrap;
+  }
+  .nav-full { display: none; }
+  .nav-short { display: inline; }
+  #nav_chain:empty { display: none; }
   #nav_wallet { margin-left: auto; }
 
   /* home */
@@ -558,7 +568,8 @@ a.tk_link:hover > span:last-child { color: var(--acc); }
 
   /* token board: two cards per row, launch form rows stacked */
   #desk .win { outline-offset: 2px; }
-  #tk_cards { grid-template-columns: repeat(2, 1fr) !important; gap: 8px !important; padding: 10px !important; }
+  #tk_cards { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; padding: 10px; }
+  .tk-chart-hint { display: none; }
   .tk_row { flex-wrap: wrap; }
   .tk_row > * { min-width: 100%; }
   .tk_backdrop { padding: 12px 6px !important; }
@@ -568,7 +579,7 @@ a.tk_link:hover > span:last-child { color: var(--acc); }
   .nf-desk { padding: 10px 8px 12px; gap: 12px; }
   .nf-lpbody { padding: 14px 12px 14px; }
   .nf-colgrid { grid-template-columns: 1fr; }
-  .nf-minegrid { grid-template-columns: repeat(2, 1fr); gap: 8px; }
+  .nf-minegrid { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
   .nf-act { min-width: 0; }
   .nf-scroll { padding-right: 0; margin-right: 0; }
   .nf-pager { flex-wrap: wrap; }
@@ -578,7 +589,7 @@ a.tk_link:hover > span:last-child { color: var(--acc); }
   .nf-colhead { flex-direction: column; gap: 12px; }
   .nf-collogo { width: 96px; height: 96px; }
   .nf-colname { font-size: 30px; line-height: 1.05; word-break: break-word; }
-  .nf-itemgrid { grid-template-columns: repeat(4, 1fr); gap: 6px; }
+  .nf-itemgrid { grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 6px; }
   .nf-pricenum { font-size: 52px; }
 
   /* popups: use the full width */
