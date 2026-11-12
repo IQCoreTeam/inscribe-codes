@@ -66,7 +66,8 @@ ${nav("token")}
   typeLabels(root);
   // ?chain=hood (or robinhood) opens the Robinhood board directly; the board
   // links on iqlabs.dev use it. Same reset as switchChain, before the first paint.
-  const want = { hood: "hood", robinhood: "hood", solana: "solana" }[new URLSearchParams(location.search).get("chain")];
+  const params = new URLSearchParams(location.search);
+  const want = { hood: "hood", robinhood: "hood", solana: "solana" }[params.get("chain")];
   if (want && want !== st.chain) {
     st.chain = want;
     st.open = false; st.picked = null; st.staged = null;
@@ -78,7 +79,12 @@ ${nav("token")}
   const tipx = root.querySelector("#tk_tipx");
   if (tipx) tipx.onclick = () => { const t = root.querySelector("#tk_tip"); if (t) t.remove(); };
 
+  const modal = root.querySelector("#tk_modal");
   await loadCoins(root);
+  const mint = params.get("mint");
+  if (mint && modal.isConnected && (!want || want === st.chain) && st.coins.some((coin) => coin.mint === mint)) {
+    openChart(root, mint);
+  }
   const timer = setInterval(() => loadCoins(root).catch(() => {}), 30000);
   return () => { clearInterval(timer); document.body.removeAttribute("data-net"); };
 }
@@ -166,7 +172,7 @@ function paintCards(root) {
     const live = (p.mcap || 0) > 0;
     return `<div class="flick tkcard" data-mint="${esc(c.mint)}" style="border:1px solid ${live ? "var(--acc)" : "var(--line)"};background:var(--panel);cursor:pointer">
       <div style="aspect-ratio:1;overflow:hidden;background:var(--panel);position:relative">
-        ${(p.icon || c.img) ? `<img src="${esc(p.icon || c.img)}" alt="" loading="lazy" ${c.imgAlt ? `onerror="this.onerror=null;this.src='${esc(c.imgAlt)}'"` : ""} style="width:100%;height:100%;object-fit:cover;image-rendering:pixelated">` : `<div class="hero" style="display:grid;place-items:center;height:100%;font-size:28px;color:var(--mut)">$${esc((c.symbol || "?").slice(0, 6))}</div>`}
+        ${(p.icon || c.img) ? `<img src="${esc(p.icon || c.img)}" alt="" loading="lazy" ${c.imgAlt ? `onerror="this.onerror=null;this.src='${esc(c.imgAlt)}'"` : ""} style="width:100%;height:100%;object-fit:contain;image-rendering:pixelated">` : `<div class="hero" style="display:grid;place-items:center;height:100%;font-size:28px;color:var(--mut)">$${esc((c.symbol || "?").slice(0, 6))}</div>`}
         ${p.chg24 != null ? `<span class="chip live" style="position:absolute;left:6px;top:6px;background:rgba(0,0,0,.85);color:${p.chg24 >= 0 ? "var(--acc)" : "var(--bad)"}">${fmtPct(p.chg24)}</span>` : ""}
       </div>
       <div style="padding:9px 10px 10px">

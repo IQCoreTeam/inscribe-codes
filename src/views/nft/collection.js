@@ -26,14 +26,15 @@ export async function render(root, slug) {
 
   const ch = chainOf(col);
   const status = statusOf(col);
-  const cover = coverOf(col);
+  const logo = col.logo || (col.coverSig ? imgUrl(col.coverSig) : "");
   body.innerHTML = `
 <div class="win nf-win nf-colwin">
   <div class="wh"><span>Collection · ${esc(col.slug)}</span><a class="wh-right wh-x" href="?view=nft">← all collections</a></div>
+  ${col.banner ? `<img class="nf-colbanner" src="${esc(col.banner)}" alt="">` : ""}
   <div class="nf-colpage">
     <div class="nf-colleft">
       <div class="nf-colhead">
-        <div class="nf-collogo">${col.logo || cover ? `<img src="${esc(col.logo || cover)}" alt="">` : ""}</div>
+        ${logo ? `<div class="nf-collogo"><img src="${esc(logo)}" alt=""></div>` : ""}
         <div class="nf-colinfo">
           <div class="nf-coltitle"><div class="nf-colname">${esc(col.name)}</div><span class="chip ${status === "LIVE" ? "live" : status === "Upcoming" ? "soon" : "out"}">${status}</span><span class="chip">${ch.icon} ${esc(ch.name)}</span></div>
           <div class="cm" style="margin-top:6px">by ${esc(shortAddr(col.creator))} · ${col.maxSupply.toLocaleString("en-US")} items${col.symbol ? " · $" + esc(col.symbol) : ""}</div>
@@ -76,6 +77,15 @@ export async function render(root, slug) {
     </div>
   </div>
 </div>`;
+
+  const banner = body.querySelector(".nf-colbanner");
+  if (banner) {
+    const fitBanner = () => {
+      if (banner.naturalWidth && banner.naturalWidth === banner.naturalHeight) banner.classList.add("square");
+    };
+    if (banner.complete) fitBanner();
+    else banner.addEventListener("load", fitBanner, { once: true });
+  }
 
   const desc = body.querySelector("#nc_desc"), dmore = body.querySelector("#nc_descmore");
   if (desc.scrollHeight > desc.clientHeight + 2) {

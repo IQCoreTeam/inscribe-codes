@@ -81,6 +81,19 @@ img { display: block; }
 
 /* list row (home top3, tickers) */
 .row { display: grid; grid-template-columns: 36px minmax(0, 1fr) auto; gap: 16px; align-items: baseline; padding: 12px 0; border-top: 1px solid var(--line); text-decoration: none; }
+.home-header { display: flex; justify-content: space-between; align-items: center; gap: 24px; flex-wrap: wrap; }
+.home-links { display: flex; gap: 24px; flex-wrap: wrap; }
+.home-wallet-button { padding: 0; border: 0; background: transparent; color: inherit; }
+.featured-collection, .featured-token { grid-template-columns: 24px 64px minmax(0, 1fr) auto; gap: 10px; align-items: center; }
+.featured-logo, .featured-token-art { width: 100%; aspect-ratio: 1; box-sizing: border-box; border: 1px solid var(--acc); }
+.featured-logo { object-fit: contain; background: var(--bg); }
+.featured-name, .featured-meta { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.featured-meta { font-style: normal; }
+.featured-value { text-align: right; white-space: nowrap; }
+.featured-value .sm { display: block; min-height: 1lh; }
+.featured-token-art { position: relative; display: grid; place-items: center; overflow: hidden; color: var(--acc); background: #050a06; }
+.featured-token-ascii { font: 14px/1.05 "Courier New", monospace; white-space: pre; }
+.featured-token-art img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: contain; background: var(--panel); }
 
 /* RECENT ticker: scrollbar hidden, still hand-scrollable, auto marquee */
 .ticker { position: relative; display: flex; gap: 0 28px; white-space: nowrap; overflow-x: auto; padding-bottom: 6px; scrollbar-width: none; -ms-overflow-style: none; cursor: grab; }
@@ -157,7 +170,7 @@ img { display: block; }
 .tk_info { padding: 16px; border-right: 1px solid var(--line); min-width: 0; height: 0; min-height: 100%; box-sizing: border-box; overflow: auto; }
 .tk_infohead { display: flex; gap: 12px; align-items: center; }
 .tk_infoimg { width: 84px; height: 84px; flex: none; overflow: hidden; border: 1px solid var(--line); background: var(--panel); }
-.tk_infoimg img { width: 100%; height: 100%; object-fit: cover; image-rendering: pixelated; display: block; }
+.tk_infoimg img { width: 100%; height: 100%; object-fit: contain; image-rendering: pixelated; display: block; }
 .tk_stats { display: grid; grid-template-columns: 1fr 1fr; gap: 8px 12px; margin-top: 14px; padding-top: 12px; border-top: 1px solid var(--line); }
 .tk_stat { display: flex; flex-direction: column; gap: 2px; font: 400 18px/1.1 "Jersey 15", monospace; color: var(--ink); }
 .tk_sec { margin-top: 16px; }
@@ -318,6 +331,8 @@ a.tk_link:hover > span:last-child { color: var(--acc); }
 .nf-colwin { flex: 1; }
 .nf-colpage { display: grid; grid-template-columns: minmax(0, 1.5fr) minmax(300px, 0.9fr); flex: 1; min-height: 0; }
 .nf-colleft { padding: 22px 24px; border-right: 1px solid var(--line); min-width: 0; display: flex; flex-direction: column; min-height: 0; }
+.nf-colbanner { width: 100%; height: auto; max-height: max(240px, 42vw); flex: 0 0 auto; object-fit: contain; background: var(--panel); border-bottom: 1px solid var(--line); }
+.nf-colbanner.square { object-fit: fill; }
 .nf-colhead { display: flex; gap: 16px; align-items: flex-start; flex-wrap: wrap; }
 .nf-collogo { width: 120px; height: 120px; border: 1px solid var(--line); flex: 0 0 auto; overflow: hidden; background: var(--panel); }
 .nf-collogo img { width: 100%; height: 100%; object-fit: cover; }
@@ -554,6 +569,12 @@ a.tk_link:hover > span:last-child { color: var(--acc); }
   #nav_wallet { margin-left: auto; }
 
   /* home */
+  .home-header { display: grid; grid-template-columns: minmax(0, 1fr); gap: 10px; }
+  .home-links { justify-content: center; gap: 8px clamp(10px, 3vw, 18px); }
+  #h_wallet { justify-self: end; }
+  .home-wallet-button { min-height: 44px; }
+  .featured-collection, .featured-token { grid-template-columns: 52px minmax(0, 1fr) auto; gap: 8px; }
+  .featured-rank { display: none; }
   .hero { font-size: 24px; }
 
   /* token board: two cards per row, launch form rows stacked */
