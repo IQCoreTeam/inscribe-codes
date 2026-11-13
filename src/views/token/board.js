@@ -90,7 +90,7 @@ function paintChainNav(root) {
   if (!slot) return;
   const other = st.chain === "solana" ? "hood" : "solana";
   const label = other === "hood" ? "Robinhood" : "Solana";
-  slot.innerHTML = `<button class="navbtn2" id="tk_chain" aria-label="Switch to ${label}"><span class="nav-full">${label} chain &rarr;</span><span class="nav-short" aria-hidden="true">${label === "Solana" ? "SOL" : label}</span></button>`;
+  slot.innerHTML = `<button class="navbtn2" id="tk_chain" aria-label="Switch to ${label}">${label}<span class="nav-chain-word">&nbsp;chain</span>&nbsp;&rarr;</button>`;
   slot.querySelector("#tk_chain").onclick = () => switchChain(root, other);
 }
 

@@ -8,8 +8,8 @@ const MID = { nft: "Every item lives on chain" };
 
 export function nav(active) {
   const cross = active === "token"
-    ? '<a class="navbtn2" href="?view=nft" aria-label="NFT Launchpad"><span class="nav-full">NFT Launchpad &rarr;</span><span class="nav-short" aria-hidden="true">NFTs</span></a>'
-    : '<a class="navbtn2" href="?view=token" aria-label="Token markets"><span class="nav-full">Token markets &rarr;</span><span class="nav-short" aria-hidden="true">Tokens</span></a>';
+    ? '<a class="navbtn2" href="?view=nft" aria-label="NFT Launchpad">NFT Launchpad &rarr;</a>'
+    : '<a class="navbtn2" href="?view=token" aria-label="Token markets">Token markets &rarr;</a>';
   return `
 <div class="navwrap">
   <div class="navbar">
@@ -32,7 +32,7 @@ export function paintWalletPill(el, address, onConnect, onPill) {
   if (!el) return;
   el.innerHTML = address
     ? `<span class="navpill" title="${onPill ? "click to disconnect" : esc(address)}"><i></i>${esc(shortAddr(address))}</span>`
-    : '<button class="btn2 navconnect" aria-label="Connect wallet"><span class="nav-full">Connect wallet</span><span class="nav-short" aria-hidden="true">Connect</span></button>';
+    : '<button class="btn2 navconnect" aria-label="Connect wallet">Connect wallet</button>';
   const b = el.querySelector(".navconnect");
   if (b) b.onclick = () => onConnect().catch((e) => alert(e.message));
   const p = el.querySelector(".navpill");

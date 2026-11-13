@@ -57,7 +57,11 @@ img { display: block; }
 .navbtn2 { border: 1px solid var(--mut); color: var(--ink2); padding: 7px 12px; }
 .navbtn2:hover { border-color: var(--acc); color: var(--acc); }
 .navbrand { display: flex; }
-.nav-short { display: none; }
+#nav_chain { container: chain-switch / inline-size; flex: 0 1 150px; width: 150px; min-width: 64px; }
+#nav_chain .navbtn2 { width: 100%; box-sizing: border-box; }
+@container chain-switch (max-width: 130px) {
+  .nav-chain-word { display: none; }
+}
 .navlogo { height: 18px; filter: brightness(0) invert(0.75) sepia(1) hue-rotate(70deg) saturate(3); }
 .navlbl, #nav_mid { font: 400 16px "Jersey 15", monospace; color: var(--mut); white-space: nowrap; }
 .navstripwrap { flex: 1 1 0; min-width: 0; overflow: hidden; display: flex; justify-content: flex-end; }
@@ -552,14 +556,14 @@ a.tk_link:hover > span:last-child { color: var(--acc); }
    rule lives in this block so wider viewports render exactly as before. ── */
 @media (max-width: 640px) {
   .navwrap { padding: 8px 8px 0; }
-  .navbar, .navgrp { gap: 6px; min-width: 0; }
+  .navbar, .navgrp { gap: 4px; min-width: 0; }
+  .navgrp { flex: 1; }
+  .navgrp > a, #nav_wallet { flex-shrink: 0; }
   .navbar { padding: 4px 6px; }
   .navbar .navbtn, .navbar .navbtn2, .navbar .navconnect, .navbar .navpill {
     display: flex; align-items: center; justify-content: center; box-sizing: border-box;
-    min-width: 44px; min-height: 44px; font-size: 14px; padding: 4px 6px; white-space: nowrap;
+    min-width: 44px; min-height: 44px; font-size: clamp(12px, 3.6vw, 16px); padding: 4px; white-space: nowrap;
   }
-  .nav-full { display: none; }
-  .nav-short { display: inline; }
   #nav_chain:empty { display: none; }
   #nav_wallet { margin-left: auto; }
 
