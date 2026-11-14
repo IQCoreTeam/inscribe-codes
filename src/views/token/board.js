@@ -58,9 +58,9 @@ ${nav("token")}
       <button class="cta" id="tk_open" style="flex:0 0 auto">&rarr; Launch a token</button>
     </div>
     <div id="tk_tip" style="display:flex;justify-content:space-between;gap:12px;align-items:center;padding:7px 14px;border-bottom:1px solid var(--line)"><span class="sm">Click any token to see its chart.</span><span class="sm lnk" id="tk_tipx" style="padding:0 4px">x</span></div>
-    <div style="display:flex;justify-content:space-between;align-items:baseline;padding:12px 14px 10px;border-bottom:1px solid var(--line)"><span class="sm">Recent launches</span><span class="sm">click a card for the chart</span></div>
-    <div id="tk_cards" class="ttyrows" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(172px,1fr));gap:12px;padding:14px">${skeleton(6, "tk")}</div>
-    <p class="sm" style="margin:0;padding:10px 14px;border-top:1px solid var(--line)">Tokens launched from the feed, biggest first. Prices refresh every 30 seconds when available.</p>
+    <div class="tk-list-head"><span class="sm">Recent launches</span><span class="sm tk-chart-hint">click a card for the chart</span></div>
+    <div id="tk_cards" class="ttyrows">${skeleton(6, "tk")}</div>
+    <p class="sm" style="margin:0;padding:10px 14px;border-top:1px solid var(--line)">Tokens launched from the feed, biggest first. Prices refresh every 30 seconds; new launches show "indexing" for a few minutes.</p>
   </div>
 </div>
 <div id="tk_modal"></div>`;
@@ -68,7 +68,8 @@ ${nav("token")}
   typeLabels(root);
   // ?chain=hood (or robinhood) opens the Robinhood board directly; the board
   // links on iqlabs.dev use it. Same reset as switchChain, before the first paint.
-  const want = { hood: "hood", robinhood: "hood", solana: "solana" }[new URLSearchParams(location.search).get("chain")];
+  const params = new URLSearchParams(location.search);
+  const want = { hood: "hood", robinhood: "hood", solana: "solana" }[params.get("chain")];
   if (want && want !== st.chain) {
     st.chain = want;
     st.open = false; st.picked = null; st.staged = null;
@@ -80,7 +81,12 @@ ${nav("token")}
   const tipx = root.querySelector("#tk_tipx");
   if (tipx) tipx.onclick = () => { const t = root.querySelector("#tk_tip"); if (t) t.remove(); };
 
+  const modal = root.querySelector("#tk_modal");
   await loadCoins(root);
+  const mint = params.get("mint");
+  if (mint && modal.isConnected && (!want || want === st.chain) && st.coins.some((coin) => coin.mint === mint)) {
+    openChart(root, mint);
+  }
   const timer = setInterval(() => loadCoins(root).catch(() => {}), 30000);
   return () => { clearInterval(timer); document.body.removeAttribute("data-net"); };
 }
@@ -91,7 +97,8 @@ function paintChainNav(root) {
   const slot = root.querySelector("#nav_chain");
   if (!slot) return;
   const other = st.chain === "solana" ? "hood" : "solana";
-  slot.innerHTML = `<button class="navbtn2" id="tk_chain">${other === "hood" ? "Robinhood chain" : "Solana chain"} &rarr;</button>`;
+  const label = other === "hood" ? "Robinhood" : "Solana";
+  slot.innerHTML = `<button class="navbtn2" id="tk_chain" aria-label="Switch to ${label}">${label}<span class="nav-chain-word">&nbsp;chain</span>&nbsp;&rarr;</button>`;
   slot.querySelector("#tk_chain").onclick = () => switchChain(root, other);
 }
 
@@ -170,7 +177,7 @@ function paintCards(root) {
     const hasPrice = hasMarketPrice(p);
     return `<div class="flick tkcard" data-mint="${esc(c.mint)}" style="border:1px solid ${live ? "var(--acc)" : "var(--line)"};background:var(--panel);cursor:pointer">
       <div style="aspect-ratio:1;overflow:hidden;background:var(--panel);position:relative">
-        ${(p.icon || c.img) ? `<img src="${esc(p.icon || c.img)}" alt="" loading="lazy" ${c.imgAlt ? `onerror="this.onerror=null;this.src='${esc(c.imgAlt)}'"` : ""} style="width:100%;height:100%;object-fit:cover;image-rendering:pixelated">` : `<div class="hero" style="display:grid;place-items:center;height:100%;font-size:28px;color:var(--mut)">$${esc((c.symbol || "?").slice(0, 6))}</div>`}
+        ${(p.icon || c.img) ? `<img src="${esc(p.icon || c.img)}" alt="" loading="lazy" ${c.imgAlt ? `onerror="this.onerror=null;this.src='${esc(c.imgAlt)}'"` : ""} style="width:100%;height:100%;object-fit:contain;image-rendering:pixelated">` : `<div class="hero" style="display:grid;place-items:center;height:100%;font-size:28px;color:var(--mut)">$${esc((c.symbol || "?").slice(0, 6))}</div>`}
         ${p.chg24 != null ? `<span class="chip live" style="position:absolute;left:6px;top:6px;background:rgba(0,0,0,.85);color:${p.chg24 >= 0 ? "var(--acc)" : "var(--bad)"}">${fmtPct(p.chg24)}</span>` : ""}
       </div>
       <div style="padding:9px 10px 10px">
