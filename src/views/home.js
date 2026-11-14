@@ -12,12 +12,12 @@ const HERO = "*inscribe.codes is an inscription-first launchpad. Every NFT and e
 export async function mount(root) {
   root.innerHTML = `
 <div style="max-width:1080px;margin:0 auto;padding:28px 24px 100px;display:flex;flex-direction:column;gap:64px">
-  <div class="sm" style="display:flex;justify-content:space-between;gap:24px;flex-wrap:wrap">
-    <div style="display:flex;gap:24px;flex-wrap:wrap">
+  <div class="sm home-header">
+    <nav class="home-links" aria-label="Main navigation">
       <a href="?view=home">./</a><a href="?view=nft">NFT</a><a href="?view=token">Token</a>
       <a href="https://iqlabs.mintlify.app/docs-typescript" target="_blank" rel="noopener">Docs</a>
       <a href="https://iqlabs.dev" target="_blank" rel="noopener">iqlabs.dev</a>
-    </div>
+    </nav>
     <span id="h_wallet"></span>
   </div>
 
@@ -99,7 +99,7 @@ async function wireWallet(el) {
   const paint = () => {
     const w = current();
     el.innerHTML = w ? "<span>" + esc(shortAddr(w.publicKey.toBase58())) + "</span>"
-      : '<span class="lnk">Connect wallet</span>';
+      : '<button type="button" class="sm lnk home-wallet-button">Connect wallet</button>';
     if (!w) el.querySelector(".lnk").onclick = () => connect().then(paint).catch((e) => alert(e.message));
   };
   paint();
@@ -115,11 +115,11 @@ async function loadCollections(root) {
   root.querySelector("#h_topnft").innerHTML = top.map((c, i) => {
     const soldOut = c.minted >= c.maxSupply;
     const status = soldOut ? "Sold out" : "LIVE";
-    return `<a href="?view=nft" class="row" style="grid-template-columns:36px 64px minmax(0,1fr) auto;align-items:center">
-      <span class="sm">0${i + 1}</span>
-      ${c.logo ? `<img src="${esc(c.logo)}" alt="" style="width:64px;height:64px;object-fit:cover;border:1px solid var(--acc)">` : "<span></span>"}
-      <span class="big" style="min-width:0"><span>${esc(c.name)}</span><br><span class="cap" style="font-style:normal">${c.minted.toLocaleString()} / ${c.maxSupply.toLocaleString()} minted · ${esc(c.chain || "solana")}</span></span>
-      <span class="big" style="text-align:right;white-space:nowrap">${fmtSol(c.priceLamports * c.minted)}<br><span class="sm" style="color:${soldOut ? "var(--mut)" : "var(--acc)"}">${status}</span></span>
+    return `<a href="?view=nft&c=${encodeURIComponent(c.slug)}" class="row featured-collection">
+      <span class="sm featured-rank">0${i + 1}</span>
+      ${c.logo ? `<img class="featured-logo" src="${esc(c.logo)}" alt="" loading="lazy">` : "<span></span>"}
+      <span class="big"><span class="featured-name" title="${esc(c.name)}">${esc(c.name)}</span><span class="cap featured-meta">${c.minted.toLocaleString()} / ${c.maxSupply.toLocaleString()} minted · ${esc(c.chain || "solana")}</span></span>
+      <span class="big featured-value">${fmtSol(c.priceLamports * c.minted)}<span class="sm" style="color:${soldOut ? "var(--mut)" : "var(--acc)"}">${status}</span></span>
     </a>`;
   }).join("") || '<span class="sm" style="padding:12px 0">no collections yet</span>';
 
@@ -141,13 +141,17 @@ async function loadTokens(root) {
   const byMint = Object.fromEntries(tokens.map((t) => [t.mint, t]));
   root.querySelector("#h_toptok").innerHTML = top.map((r, i) => {
     const t = byMint[r.mint] || {};
-    return `<a href="?view=token" class="row" style="grid-template-columns:36px 64px minmax(0,1fr) auto;align-items:center">
-      <span class="sm">0${i + 1}</span>
-      ${r.icon ? `<img src="${esc(r.icon)}" alt="" style="width:64px;height:64px;object-fit:cover;border:1px solid var(--acc)">` : "<span></span>"}
-      <span class="big" style="min-width:0"><span>$${esc(t.symbol || "?")}</span> <span style="color:var(--mut)">${esc(t.name || "")}</span><br><span class="cap" style="font-style:normal">from inscription ${esc(shortAddr(t.src || ""))}</span></span>
-      <span class="big" style="text-align:right;white-space:nowrap">${fmtUsd(r.mcap)}<br><span class="sm" style="color:${r.chg24 >= 0 ? "var(--acc)" : "var(--bad)"}">${fmtPct(r.chg24)}</span></span>
+    return `<a href="?view=token&chain=solana&mint=${encodeURIComponent(r.mint)}" class="row featured-token">
+      <span class="sm featured-rank">0${i + 1}</span>
+      <span class="featured-token-art" aria-hidden="true"><span class="featured-token-ascii">+---+<br>| $ |<br>+---+</span>${r.icon ? `<img src="${esc(r.icon)}" alt="" loading="lazy">` : ""}</span>
+      <span class="big"><span class="featured-name" title="${esc(("$" + (t.symbol || "?") + " " + (t.name || "")).trim())}">$${esc(t.symbol || "?")} <span style="color:var(--mut)">${esc(t.name || "")}</span></span><span class="cap featured-meta">from inscription ${esc(shortAddr(t.src || ""))}</span></span>
+      <span class="big featured-value">${fmtUsd(r.mcap)}<span class="sm" style="color:${r.chg24 >= 0 ? "var(--acc)" : "var(--bad)"}">${fmtPct(r.chg24)}</span></span>
     </a>`;
   }).join("") || '<span class="sm" style="padding:12px 0">no priced tokens yet</span>';
+  for (const image of root.querySelectorAll("#h_toptok .featured-token-art img")) {
+    if (image.complete && !image.naturalWidth) image.remove();
+    else image.addEventListener("error", () => image.remove(), { once: true });
+  }
 }
 
 async function loadRecent(root) {

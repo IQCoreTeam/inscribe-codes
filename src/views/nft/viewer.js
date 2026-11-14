@@ -43,19 +43,20 @@ function marketHtml(a, listing) {
 // One window: header (with headerRight = close X or back link), the 3-column
 // grid, then the details-json section below the same frame.
 function viewerHtml(a, info, listing, headerRight) {
-  const tier = (info && info.rarity && info.rarity.tier) || "common";
+  const rarity = info?.rarity;
+  const tier = Object.hasOwn(LEVEL, rarity?.tier) ? rarity.tier : "";
   const idx = a.attributes && a.attributes.index != null ? a.attributes.index : info && info.index;
   const colName = (info && info.collectionName) || (a.metadata && a.metadata.collection && a.metadata.collection.name) || "";
   const std = (a.attributes && a.attributes.std) || "iqnft-0.1";
-  const pips = [0, 1, 2, 3].map((i) => `<i class="${i < (LEVEL[tier] || 1) ? "on" : ""}"></i>`).join("");
+  const pips = [0, 1, 2, 3].map((i) => `<i class="${i < LEVEL[tier] ? "on" : ""}"></i>`).join("");
   const extra = ((a.metadata && a.metadata.attributes) || []).filter((x) => !["index", "inscription", "metadata", "std"].includes(x.trait_type));
   return `
 <div class="win nf-win nf-viewer ${tier}">
-  <div class="wh"><span>${esc(a.name)}</span>${tier !== "common" ? `<span class="nf-vchip">${esc(tier)}</span>` : ""}${headerRight}</div>
+  <div class="wh"><span>${esc(a.name)}</span>${tier && tier !== "common" ? `<span class="nf-vchip">${esc(tier)}</span>` : ""}${headerRight}</div>
   <div class="nf-vgrid">
     <div class="nf-vleft">
       <div><div class="lab nf-vlab">Name</div><div class="nf-vname">${esc(a.name)}</div><div class="cm" style="margin-top:2px">${esc(colName)}</div></div>
-      <div class="nf-vsec"><div class="lab nf-vlab">Rarity</div><div class="nf-vrar">${esc(tier)}${info && info.rarity && info.rarity.rank ? ` · rank ${info.rarity.rank} / ${info.rarity.total}` : ""}</div><div class="nf-vpips">${pips}</div></div>
+      ${tier ? `<div class="nf-vsec"><div class="lab nf-vlab">Rarity</div><div class="nf-vrar">${esc(tier)}${rarity.rank ? ` · rank ${rarity.rank} / ${rarity.total}` : ""}</div><div class="nf-vpips">${pips}</div></div>` : ""}
       <div class="nf-vsec"><div class="lab nf-vlab">Owner</div><div class="nf-vowner">${esc(shortAddr(a.owner))}</div></div>
       ${marketHtml(a, listing)}
       ${extra.length ? `<div class="nf-vsec"><div class="lab nf-vlab">Traits</div><div class="nf-vkv">${extra.map((x) => `<span>${esc(x.trait_type)}</span><b>${esc(String(x.value))}</b>`).join("")}</div></div>` : ""}
