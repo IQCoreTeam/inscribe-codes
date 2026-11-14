@@ -8,14 +8,14 @@ const MID = { nft: "Every item lives on chain" };
 
 export function nav(active) {
   const cross = active === "token"
-    ? '<a class="navbtn2" href="?view=nft">NFT Launchpad &rarr;</a>'
-    : '<a class="navbtn2" href="?view=token">Token markets &rarr;</a>';
+    ? '<a class="navbtn2" href="?view=nft" aria-label="NFT Launchpad">NFT Launchpad &rarr;</a>'
+    : '<a class="navbtn2" href="?view=token" aria-label="Token markets">Token markets &rarr;</a>';
   return `
 <div class="navwrap">
   <div class="navbar">
     <div class="navgrp">
       <a class="navbtn" href="?view=home">&larr; Home</a>
-      <a href="https://iqlabs.dev" target="_blank" rel="noopener" style="display:flex"><img class="navlogo" src="public/img/text_logo.webp" alt="IQLabs"></a>
+      <a class="navbrand" href="https://iqlabs.dev" target="_blank" rel="noopener"><img class="navlogo" src="public/img/text_logo.webp" alt="IQLabs"></a>
       <span id="nav_chain"></span>
       ${active === "home" ? "" : cross}
     </div>
@@ -32,7 +32,7 @@ export function paintWalletPill(el, address, onConnect, onPill) {
   if (!el) return;
   el.innerHTML = address
     ? `<span class="navpill" title="${onPill ? "click to disconnect" : esc(address)}"><i></i>${esc(shortAddr(address))}</span>`
-    : '<button class="btn2 navconnect">Connect wallet</button>';
+    : '<button class="btn2 navconnect" aria-label="Connect wallet">Connect wallet</button>';
   const b = el.querySelector(".navconnect");
   if (b) b.onclick = () => onConnect().catch((e) => alert(e.message));
   const p = el.querySelector(".navpill");
