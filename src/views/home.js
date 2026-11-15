@@ -22,7 +22,7 @@ export async function mount(root) {
   </div>
 
   <div class="grid2" style="display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1.4fr);gap:24px;align-items:end">
-    <div style="position:relative;aspect-ratio:1;background:var(--panel)"><img src="public/img/hero.webp" alt="" style="width:100%;height:100%;object-fit:cover"></div>
+    <div style="position:relative;aspect-ratio:1;background:var(--panel)"><img src="public/img/hero.webp" width="880" height="880" alt="" style="position:absolute;inset:0;width:100%;height:100%;object-fit:cover"></div>
     <div style="display:flex;flex-direction:column;gap:14px">
       <div class="sm" data-tty>inscribe.codes · Solana · Robinhood chain:</div>
       <div class="hero" style="min-height:3.6em"><span id="h_hero"></span><span class="ttycur"></span></div>

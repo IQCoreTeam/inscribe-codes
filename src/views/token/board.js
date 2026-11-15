@@ -60,7 +60,7 @@ ${nav("token")}
     <div id="tk_tip" style="display:flex;justify-content:space-between;gap:12px;align-items:center;padding:7px 14px;border-bottom:1px solid var(--line)"><span class="sm">Click any token to see its chart.</span><span class="sm lnk" id="tk_tipx" style="padding:0 4px">x</span></div>
     <div class="tk-list-head"><span class="sm">Recent launches</span><span class="sm tk-chart-hint">click a card for the chart</span></div>
     <div id="tk_cards" class="ttyrows">${skeleton(6, "tk")}</div>
-    <p class="sm" style="margin:0;padding:10px 14px;border-top:1px solid var(--line)">Tokens launched from the feed, biggest first. Prices refresh every 30 seconds; new launches show "indexing" for a few minutes.</p>
+    <p class="sm" style="margin:0;padding:10px 14px;border-top:1px solid var(--line)">Tokens launched from the feed, biggest first. Prices refresh every 30 seconds when available.</p>
   </div>
 </div>
 <div id="tk_modal"></div>`;
