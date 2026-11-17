@@ -613,7 +613,8 @@ async function runDeploy(root) {
       royaltyBps: Math.round(parseFloat(st.royaltyPct || "0") * 100) || 0,
       sequential: st.sequential,
       logo: st.logoBitmap ? () => bitmapToImageData(st.logoBitmap) : null,
-      banner: st.bannerBitmap ? () => bitmapToImageData(st.bannerBitmap, 1024) : null,
+      // 1023 is divisible by three, so a 3:1 banner retains its exact ratio.
+      banner: st.bannerBitmap ? () => bitmapToImageData(st.bannerBitmap, 1023, { pad: false }) : null,
     };
     const { deploy } = await import("../../chain/nft-deploy.js");
     st.result = await deploy({ connection, wallet: session.wallet, burner, spec, items: its, onStage: live });
