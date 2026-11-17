@@ -14,6 +14,8 @@ import { connect as rpcConnect } from "../../chain/rpc.js";
 import { estimateCost } from "../../chain/burner.js";
 import { nav, paintWalletPill as paintNavWallet } from "../../ui/nav.js";
 
+import { PAIRS, PUMP_FEE_SOL, USDC_MINT } from "../../chain/launch/options.js";
+
 const hasMarketPrice = (row) => Number.isFinite(Number(row.priceUsd)) && Number(row.priceUsd) > 0;
 
 const CAP_KB = 256; // encoded row cap for the in-browser path; bigger goes via the SDK
@@ -21,12 +23,8 @@ const SDK_DOCS = "https://iqlabs.mintlify.app/docs-typescript";
 
 // The only place the two chains differ.
 const CHAINS = {
-  solana: { label: "SOLANA", market: "solana", venue: "pump.fun", devBuy: true,
-    feeLine: [["platform fee", "0.069 SOL"]],
-    totalFor: (devBuy) => "~" + (0.069 + devBuy + 0.003).toFixed(3) + " SOL" },
-  hood: { label: "ROBINHOOD", market: "robinhood", venue: "Pons", devBuy: false,
-    feeLine: [["pons launch fee", "0.0005 ETH"]],
-    totalFor: () => "~0.0015 ETH + gas" },
+  solana: { label: "SOLANA", market: "solana", venue: "pump.fun" },
+  hood: { label: "ROBINHOOD", market: "robinhood", venue: "Pons" },
 };
 
 const st = {
@@ -37,7 +35,7 @@ const st = {
   text: "", staged: null, picked: null,
   ascii: { dataUrl: null, font: 8, spacing: -2, out: "" },
   srcSig: null, srcKind: null,
-  name: "", symbol: "", desc: "", devBuy: 0, xlink: "",
+  name: "", symbol: "", desc: "", launchOptions: null, pumpDraft: null,
   result: null, error: null, progress: 0, stepLabel: "",
   coins: [], priced: {}, info: {},
 };
@@ -105,6 +103,7 @@ function paintChainNav(root) {
 function switchChain(root, chain) {
   if (st.chain === chain) return;
   st.chain = chain;
+  st.launchOptions = null;
   st.open = false; st.picked = null; st.staged = null;
   st.sol.mine = null; st.hood.mine = null;
   st.coins = []; st.priced = {};
@@ -292,7 +291,7 @@ async function solanaInfo(c) {
   if (!m) return { description: "", attributes: [["inscription tx", c.src]] };
   const attributes = (m.attributes || []).map((a) => [a.trait_type, a.value]);
   if (c.meta) attributes.push(["metadata inscription", c.meta]);
-  return { description: m.description || "", website: m.website, twitter: m.twitter, external: m.external_url, attributes };
+  return { description: m.description || "", website: m.website, twitter: m.twitter, telegram: m.telegram, external: m.external_url, attributes };
 }
 
 // Robinhood: the Pons token holds its description + socials itself.
@@ -465,27 +464,69 @@ function progressHtml() {
 }
 
 function formHtml() {
-  const devBuy = Number(st.devBuy) || 0;
-  const fees = [...ch().feeLine, ...(ch().devBuy ? [["dev buy", devBuy + " SOL"]] : []), ["total", ch().totalFor(devBuy)]];
+  const solana = st.chain === "solana";
+  const options = st.launchOptions || {};
+  const pairs = PAIRS[st.chain];
+  const other = options.pair === "custom";
+  const field = (label, key, type = "text", attrs = "") =>
+    `<label><span class="sm">${label}</span><input name="${key}" type="${type}" value="${esc(options[key] || "")}" ${attrs}></label>`;
   return `
     <div class="big" data-tty>Step 2 of 2: name it and launch</div>
-    <div class="tk_row" style="display:flex;gap:10px;margin-top:14px">
-      <div style="flex:1"><div class="sm">Name</div><input id="tk_name" value="${esc(st.name)}" style="width:100%;box-sizing:border-box;background:var(--panel2);color:var(--acc);border:1px solid var(--line);font:inherit;font-size:18px;padding:9px 10px"></div>
-      <div style="flex:0 0 140px"><div class="sm">Symbol</div><input id="tk_sym" value="${esc(st.symbol)}" maxlength="10" style="width:100%;box-sizing:border-box;background:var(--panel2);color:var(--acc);border:1px solid var(--line);font:inherit;font-size:18px;padding:9px 10px"></div>
-    </div>
-    <div class="sm" style="margin-top:10px">Description</div>
-    <textarea id="tk_desc" style="width:100%;box-sizing:border-box;min-height:54px;resize:vertical;background:var(--panel2);color:var(--acc);border:1px solid var(--line);font:inherit;font-size:16px;padding:9px 10px">${esc(st.desc)}</textarea>
-    <div class="tk_row" style="display:flex;gap:10px;margin-top:10px">
-      ${ch().devBuy ? `<div style="flex:0 0 180px"><div class="sm">Initial dev buy (SOL)</div><input id="tk_buy" value="${st.devBuy || ""}" placeholder="0" style="width:100%;box-sizing:border-box;background:var(--panel2);color:var(--acc);border:1px solid var(--line);font:inherit;font-size:18px;padding:9px 10px"></div>` : ""}
-      <div style="flex:1"><div class="sm">X link (optional)</div><input id="tk_x" value="${esc(st.xlink)}" placeholder="https://x.com/..." style="width:100%;box-sizing:border-box;background:var(--panel2);color:var(--acc);border:1px solid var(--line);font:inherit;font-size:18px;padding:9px 10px"></div>
-    </div>
-    <div style="margin-top:12px;border:1px solid var(--line)" class="sm">
-      ${fees.map(([k, v]) => `<div class="kv" style="padding:6px 12px"><span>${k}</span><span style="color:var(--acc)">${v}</span></div>`).join("")}
-    </div>
-    <div class="sm" style="margin-top:8px">${st.chain === "solana" ? "Fees stream to token holders (holder-rewards coin). If the launch does not go through, the platform fee is not charged." : "Launched on Pons; the coin page links back to your on-chain original. If the launch does not go through, nothing is charged."}</div>
-    ${st.error ? `<div class="sm" style="margin-top:10px;color:var(--bad)">${esc(st.error)}</div>` : ""}
-    <button id="tk_launch" class="cta" style="width:100%;margin-top:12px;text-align:center">Launch on ${ch().venue}</button>
-    <div class="sm lnk" id="tk_back" style="margin-top:10px;text-align:center">&larr; back</div>`;
+    <form id="tk_form" class="tk-launch-form">
+      <div class="tk-form-grid tk-form-identity">
+        <label><span class="sm">Name</span><input id="tk_name" value="${esc(st.name)}" maxlength="32" required></label>
+        <label><span class="sm">Symbol</span><input id="tk_sym" value="${esc(st.symbol)}" maxlength="${solana ? 13 : 10}" required></label>
+      </div>
+      <label><span class="sm">Description</span><textarea id="tk_desc" rows="2" ${solana ? "" : 'maxlength="256"'}>${esc(st.desc)}</textarea></label>
+      <label><span class="sm">Trading pair</span><select name="pair" aria-describedby="tk_pair_hint">
+        ${pairs.map(([label, address]) => `<option value="${esc(address)}" ${!other && (options.pair || "") === address ? "selected" : ""}>${esc(label)}</option>`).join("")}
+        <option value="custom" ${other ? "selected" : ""}>Other supported asset…</option>
+      </select></label>
+      <label id="tk_pair_address" ${other ? "" : "hidden"}>Quote asset ${solana ? "mint" : "contract address"}
+        <input name="customPair" value="${esc(options.customPair || "")}" spellcheck="false">
+      </label>
+      <p id="tk_pair_hint" class="sm">${solana ? "Choose a supported Pump asset or paste an eligible Pump coin mint." : "Choose an asset approved by Pons, or paste its Robinhood Chain contract address."} The pair is fixed at launch.</p>
+      <div class="tk-form-grid tk-form-buy">
+        ${field('<span id="tk_buy_label">Opening buy</span>', "initialBuy", "text", 'inputmode="decimal" placeholder="0"')}
+        ${field("X link (optional)", "twitter", "url", 'placeholder="https://x.com/..."')}
+      </div>
+      ${solana ? "" : field("Minimum coins to receive", "minTokensOut", "text", 'inputmode="decimal"')}
+      <details class="tk-launch-advanced" ${options.advanced ? "open" : ""}>
+        <summary class="sm">Advanced options</summary>
+        <div class="tk-form-grid">
+          ${field("Telegram link", "telegram", "url")}
+          ${solana ? field("Website", "website", "url") : ""}
+          ${solana ? `
+            <label><span class="sm">Launch mode</span><select name="mode">
+              ${[["holders", "Holder rewards"], ["standard", "Standard"], ["mayhem", "Mayhem"], ["sharing", "Creator fee sharing"], ["agent", "Tokenized agent (unavailable)"]].map(([id,label]) =>
+                `<option value="${id}" ${id === "agent" ? "disabled" : ""} ${(options.mode || "holders") === id && id !== "agent" ? "selected" : ""}>${label}</option>`).join("")}
+            </select></label>
+            <label data-launch-mode="sharing"><span class="sm">Creator fee recipients</span>
+              <textarea name="feeShares" rows="3" spellcheck="false" aria-describedby="tk_share_help">${esc(options.feeShares || "")}</textarea>
+              <span id="tk_share_help" class="sm">One wallet and share per line, separated by a space. Shares must total 10,000 bps. The split locks at launch.</span>
+            </label>
+            ${field("Custom creator fee (bps)", "creatorFee", "number", 'min="0" step="1" placeholder="Venue default"')}
+          ` : `
+            ${field("Discord link", "discord", "url")}
+            ${field("Farcaster link", "farcaster", "url")}
+            ${field("Creator fee wallet", "recipient", "text", 'placeholder="Connected wallet"')}
+            ${field("Launch configuration ID", "configId", "number", 'min="0" step="1" placeholder="Venue default"')}
+            ${field("Creator tax (bps)", "creatorFee", "number", 'min="0" step="1" placeholder="0"')}
+            ${field("Opening-tax exempt wallets", "exemptions", "text", 'placeholder="Optional, comma-separated"')}
+            <label class="tk-check"><input name="buyback" type="checkbox" ${options.buyback ? "checked" : ""}> Enable buybacks</label>
+          `}
+        </div>
+        <p class="sm">${solana ? "Holder rewards are permanent. Pump currently blocks new agent accounts. Custom fees apply only to eligible pairs; 100 bps = 1%." : "For an opening buy, set your minimum received. A stock-token buy may need a separate approval for the exact amount."}</p>
+      </details>
+      <div class="sm tk-launch-cost">
+        <div class="kv"><span>${solana ? "platform fee" : "Pons launch fee"}</span><span>${solana ? PUMP_FEE_SOL + " SOL" : "quoted before signing"}</span></div>
+        <div class="kv"><span>opening buy</span><span id="tk_buy_cost"></span></div>
+      </div>
+      <p class="sm">${solana ? "Inscription and network fees are additional. Larger launches may need a separate lookup table approval and account rent." : "Gas and inscription costs are additional."}</p>
+      ${st.error ? `<p class="sm" role="alert" style="color:var(--bad)">${esc(st.error)}</p>` : ""}
+      <button id="tk_launch" class="cta" type="submit">Launch on ${ch().venue}</button>
+    </form>
+    <button class="sm lnk tk-form-back" type="button" id="tk_back">← back</button>`;
 }
 
 function doneHtml() {
@@ -495,7 +536,7 @@ function doneHtml() {
     <div style="text-align:center;padding:16px 0 4px">
       <div class="hero" style="font-size:48px" data-tty>Launched.</div>
       <div class="big" style="margin-top:12px">$${esc(st.symbol)} · ${esc(st.name)}</div>
-      <div class="sm" style="margin-top:8px">mint: ${esc(r.mint)}<br>a kind=token row was inscribed, so it shows in Markets and on the iqlabs.dev board</div>
+      <div class="sm" style="margin-top:8px">mint: ${esc(r.mint)}<br>a kind=token row was inscribed, so it shows in Markets and on the iqlabs.dev board${r.lookupTable ? "<br>Lookup table: " + esc(r.lookupTable) : ""}</div>
     </div>
     <div style="display:flex;gap:10px;justify-content:center;flex-wrap:wrap;margin-top:18px" class="sm">
       <a class="cta" style="font-size:16px;padding:10px 16px" href="${esc(tradeUrl(ch().market, r.mint))}" target="_blank" rel="noopener">View on ${ch().venue}</a>
@@ -530,15 +571,74 @@ function wireModalEvents(root, modal) {
   const again = modal.querySelector(".tk_again");
   if (again) again.onclick = () => {
     st.phase = "menu"; st.picked = null; st.staged = null; st.text = ""; st.ascii = { dataUrl: null, font: 8, spacing: -2, out: "" };
-    st.srcSig = null; st.srcKind = null; st.result = null; st.error = null; st.progress = 0;
+    st.srcSig = null; st.srcKind = null; st.launchOptions = null; st.pumpDraft = null; st.result = null; st.error = null; st.progress = 0;
     paintModal(root);
   };
   const go = modal.querySelector("#tk_go");
   if (go) go.onclick = () => (walletAddr() ? startInscribe(root) : st.connectWallet().catch((e) => alert(e.message)));
-  const launch = modal.querySelector("#tk_launch");
-  if (launch) launch.onclick = () => { if (readForm(root, modal)) startLaunch(root); };
-  const back = modal.querySelector("#tk_back");
-  if (back) back.onclick = () => { readForm(root, modal); st.phase = "menu"; st.error = null; paintModal(root); };
+  const form = modal.querySelector("#tk_form");
+  if (form) {
+    const pair = form.elements.namedItem("pair");
+    const custom = form.elements.namedItem("customPair");
+    const buy = form.elements.namedItem("initialBuy");
+    const buyLabel = form.querySelector("#tk_buy_label");
+    const buyCost = form.querySelector("#tk_buy_cost");
+    const updateBuyCost = () => {
+      const label = PAIRS[st.chain].find(([, address]) => address === pair.value)?.[0];
+      const unit = label?.split(" · ").at(-1) || "quote asset";
+      buyLabel.textContent = `Opening buy (${unit})`;
+      const amount = buy.value.trim() || "0";
+      buyCost.textContent = /^\d+(?:\.\d+)?$/.test(amount) ? `${amount} ${unit}` : "—";
+    };
+    buy.addEventListener("input", updateBuyCost);
+    const updatePair = () => {
+      custom.closest("label").hidden = pair.value !== "custom";
+      custom.required = pair.value === "custom";
+      updateBuyCost();
+      if (st.chain === "solana") {
+        const fee = form.elements.namedItem("creatorFee");
+        fee.disabled = !pair.value || pair.value === USDC_MINT;
+        fee.closest("label").hidden = fee.disabled;
+      }
+    };
+    pair.onchange = updatePair;
+    updatePair();
+    const mode = form.elements.namedItem("mode");
+    if (mode) {
+      const updateMode = () => {
+        for (const section of form.querySelectorAll("[data-launch-mode]")) {
+          const selected = section.dataset.launchMode === mode.value;
+          section.hidden = !selected;
+          const input = section.querySelector("input, textarea");
+          input.disabled = !selected;
+          input.required = selected;
+        }
+      };
+      mode.onchange = updateMode;
+      updateMode();
+    } else {
+      const minimum = form.elements.namedItem("minTokensOut");
+      const updateBuy = () => {
+        minimum.required = Number(buy.value) > 0;
+        minimum.disabled = !minimum.required;
+        minimum.closest("label").hidden = minimum.disabled;
+      };
+      buy.oninput = updateBuy;
+      updateBuy();
+    }
+    form.addEventListener("invalid", (event) => {
+      const details = event.target.closest("details");
+      if (details) details.open = true;
+    }, true);
+    form.onsubmit = (event) => {
+      event.preventDefault();
+      if (readForm(root, form)) void startLaunch(root);
+    };
+    modal.querySelector("#tk_back").onclick = () => {
+      readForm(root, form, false);
+      st.phase = "menu"; st.error = null; paintModal(root);
+    };
+  }
   if (st.tab === "pick" && walletAddr() && st.phase === "menu") loadMine(root);
 }
 
@@ -551,15 +651,34 @@ function refreshEstimate(modal) {
   if (size) size.textContent = sizeLine();
 }
 
-function readForm(root, modal) {
-  st.name = ((modal.querySelector("#tk_name") || {}).value || st.name).trim();
-  st.symbol = ((modal.querySelector("#tk_sym") || {}).value || st.symbol).toUpperCase().trim();
-  const d = modal.querySelector("#tk_desc"); if (d) st.desc = d.value;
-  st.devBuy = parseFloat((modal.querySelector("#tk_buy") || {}).value) || 0;
-  st.xlink = ((modal.querySelector("#tk_x") || {}).value || "").trim();
-  if (!st.name || !st.symbol) { st.error = "name and symbol are required"; paintModal(root); return false; }
-  st.error = null;
-  return true;
+function readForm(root, form, validate = true) {
+  const data = new FormData(form);
+  st.name = form.querySelector("#tk_name").value.trim();
+  st.symbol = form.querySelector("#tk_sym").value.toUpperCase().trim();
+  st.desc = form.querySelector("#tk_desc").value;
+  const options = Object.fromEntries(data);
+  const customPair = options.customPair.trim();
+  st.launchOptions = { ...options, customPair, advanced: form.querySelector(".tk-launch-advanced").open, buyback: data.has("buyback") };
+  if (!validate) return;
+  const utf8 = new TextEncoder();
+  if (!st.name || !st.symbol || (st.chain === "solana" && (utf8.encode(st.name).length > 32 || utf8.encode(st.symbol).length > 13))) {
+    st.error = "Enter a name and symbol within the venue’s length limits.";
+  } else if (options.pair === "custom" && !customPair) {
+    st.error = "Enter the quote asset address.";
+  } else if (options.initialBuy && !/^\d+(?:\.\d+)?$/.test(options.initialBuy)) {
+    st.error = "Enter a non-negative initial buy amount.";
+  } else if (options.minTokensOut && (!/^\d+(?:\.\d+)?$/.test(options.minTokensOut) || Number(options.minTokensOut) <= 0)) {
+    st.error = "Enter a positive minimum number of coins to receive.";
+  } else if (options.mode === "agent") {
+    st.error = "Pump currently blocks creation of new agent accounts.";
+  } else if (options.creatorFee && !/^\d{1,5}$/.test(options.creatorFee)) {
+    st.error = "Enter the fee as a whole number of basis points.";
+  } else {
+    st.error = null;
+    return true;
+  }
+  paintModal(root);
+  return false;
 }
 
 const hasContent = () =>
@@ -701,6 +820,9 @@ async function startLaunch(root) {
 
 async function launchSolana(root) {
   const connection = rpcConnect();
+  const options = st.launchOptions;
+  const { launchOnPump, preparePump } = await import("../../chain/launch/pumpfun.js");
+  const terms = await preparePump(connection, { ...options, creator: st.sol.wallet.publicKey, pair: options.pair === "custom" ? options.customPair : options.pair });
   const burner = await ensureSolBurner();
   const who = walletAddr();
   const image = st.srcKind === "image" ? imgUrl(st.srcSig) : renderUrl(st.srcSig);
@@ -708,31 +830,42 @@ async function launchSolana(root) {
   const meta = {
     name: st.name, symbol: st.symbol,
     description: (st.desc.trim() ? st.desc.trim() + "\n\n" : "") + "fully on-chain: this coin's artwork and metadata are Solana inscriptions. recover them with the IQ SDK from the chain alone. original: " + viewLink,
-    image, external_url: viewLink, website: st.xlink || viewLink, showName: true,
+    image, external_url: viewLink, website: options.website || viewLink, showName: true,
     attributes: [
       { trait_type: "inscription tx", value: st.srcSig },
       { trait_type: "inscription kind", value: st.srcKind },
-      { trait_type: "rewards", value: "token holders" },
+      ...(terms.holderReward ? [{ trait_type: "rewards", value: "token holders" }] : []),
+      ...(terms.shareholders ? [{ trait_type: "creator fees", value: "shared" }] : []),
+      ...(terms.buybackBps !== undefined ? [{ trait_type: "agent buyback bps", value: String(terms.buybackBps) }] : []),
       { trait_type: "storage", value: "fully on-chain (solana code-in)" },
       { trait_type: "feed", value: "iq6900-codein-feed-v1 / global-feed" },
     ],
     properties: { category: "image", files: [{ uri: image, type: "image/png" }] },
   };
-  if (st.xlink) meta.twitter = st.xlink;
+  if (options.twitter) meta.twitter = options.twitter;
+  if (options.telegram) meta.telegram = options.telegram;
   // Warm the gateway caches: pump fetches uri + image with short timeouts and a
   // cold reassembly (~25s) would cache as a permanent miss.
   try { fetch(image, { mode: "no-cors" }); } catch (e) {}
 
   liveProgress(root, 10, "inscribing the coin metadata");
   const { inscribeMeta, inscribeRow } = await import("../../chain/feed.js");
-  const { sig: metaSig } = await inscribeMeta({ connection, wallet: st.sol.wallet, burner, json: JSON.stringify(meta) });
+  const metadata = JSON.stringify(meta);
+  const { advanced, ...launchSettings } = options;
+  const key = JSON.stringify([who, st.srcSig, launchSettings, metadata]);
+  if (st.pumpDraft?.key !== key) st.pumpDraft = { key };
+  const draft = st.pumpDraft;
+  if (!draft.metaSig) {
+    const { sig } = await inscribeMeta({ connection, wallet: st.sol.wallet, burner, json: metadata });
+    draft.metaSig = sig;
+  }
+  const { metaSig } = draft;
   try { fetch(metaUrl(metaSig), { mode: "no-cors" }); } catch (e) {}
 
   liveProgress(root, 35, "creating the coin on pump.fun");
-  const { launchOnPump } = await import("../../chain/launch/pumpfun.js");
   st.result = await launchOnPump({
     connection, wallet: st.sol.wallet, name: st.name, symbol: st.symbol,
-    uri: metaUrl(metaSig), devBuySol: st.devBuy,
+    uri: metaUrl(metaSig), terms, draft,
     onStep: (label) => liveProgress(root, Math.min(90, st.progress + 18), label),
   });
 
@@ -759,7 +892,8 @@ async function launchHood(root) {
   liveProgress(root, 20, "launching on pons");
   const out = await launchOnPons({
     signer: evmSigner(), name: st.name, symbol: st.symbol, logo, description,
-    socials: { twitter: st.xlink, website: viewLink },
+    socials: { twitter: st.launchOptions.twitter, telegram: st.launchOptions.telegram, discord: st.launchOptions.discord, website: viewLink, farcaster: st.launchOptions.farcaster },
+    options: { ...st.launchOptions, pair: st.launchOptions.pair === "custom" ? st.launchOptions.customPair : st.launchOptions.pair },
     onStep: (label) => liveProgress(root, Math.min(85, st.progress + 20), label),
   });
   st.result = { mint: out.token, sig: out.txHash };

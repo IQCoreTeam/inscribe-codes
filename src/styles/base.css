@@ -629,3 +629,32 @@ a.tk_link:hover > span:last-child { color: var(--acc); }
   .ah-main { width: 100%; max-width: 260px; }
   .nf-singlegrid { grid-template-columns: 1fr; }
 }
+
+.tk-launch-form, .tk-launch-form label { display: grid; }
+.tk-launch-form { gap: 10px; margin-top: 14px; }
+.tk-launch-form label { gap: 2px; min-width: 0; }
+.tk-launch-form label[hidden] { display: none; }
+.tk-launch-form input:not([type="checkbox"]), .tk-launch-form select, .tk-launch-form textarea {
+  width: 100%; min-width: 0; box-sizing: border-box; padding: 9px 10px;
+  background: var(--panel2); color: var(--acc); border: 1px solid var(--line);
+  font: inherit; font-size: 18px; border-radius: 0;
+}
+.tk-launch-form textarea { min-height: 54px; resize: vertical; font-size: 16px; }
+.tk-form-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
+.tk-form-identity { grid-template-columns: minmax(0, 1fr) 140px; }
+.tk-form-buy { grid-template-columns: minmax(0, 180px) minmax(0, 1fr); }
+.tk-launch-advanced { border: 1px solid var(--line); padding: 6px 10px; }
+.tk-launch-advanced summary { cursor: pointer; }
+.tk-launch-form :is(input, textarea, select, summary):focus-visible { outline: 1px solid var(--acc); outline-offset: 2px; }
+.tk-launch-advanced .tk-form-grid { margin-top: 8px; }
+.tk-launch-form .tk-check { grid-template-columns: auto 1fr; align-items: center; font-size: 16px; }
+.tk-launch-form p { margin: 0; }
+.tk-launch-advanced p { margin-top: 8px; }
+.tk-launch-cost { border: 1px solid var(--line); }
+.tk-launch-cost .kv { padding: 6px 12px; }
+.tk-launch-cost .kv > span:last-child { color: var(--acc); }
+.tk-form-back { display: block; margin: 10px auto 0; background: none; color: inherit; border: 0; }
+@media (max-width: 460px) {
+  .tk-form-grid { grid-template-columns: minmax(0, 1fr); }
+  .tk-form-identity { grid-template-columns: minmax(0, 1fr) minmax(76px, 26%); }
+}
