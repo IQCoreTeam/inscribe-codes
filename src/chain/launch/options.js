@@ -1,5 +1,11 @@
-export const PUMP_FEE_SOL = 0.069;
+export const IQ_LAUNCH_FEE_SOL = 0.069;
 export const USDC_MINT = "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v";
+export const SOL_MINT = "So11111111111111111111111111111111111111112";
+
+export function canSetHolderRewardRate(mode, pair) {
+  return mode === "holders" && Boolean(pair) && pair !== SOL_MINT &&
+    pair !== USDC_MINT && pair !== "11111111111111111111111111111111";
+}
 
 // Curated shortcuts. The launch adapters verify the exact mint or contract
 // against the venue at launch; pasted addresses use the same checks.
