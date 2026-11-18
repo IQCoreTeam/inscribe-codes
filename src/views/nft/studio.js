@@ -16,12 +16,13 @@ const st = {
   logoBitmap: null, bannerBitmap: null, logoUrl: "", bannerUrl: "",
   layers: [], sel: 0, supply: 100, mainPicks: null, generated: null, confirm: false, showMeta: false,
   handItems: [], selItem: 0,
-  folderItems: null, folderReport: null,
+  folderItems: null, folderReport: null, folderImport: 0, preserveOriginalWebp: false,
   priceSol: "0.01", depositSol: "0", royaltyPct: "5", sequential: false,
   deploying: false, pct: 0, phase: "", log: [], error: null, result: null,
 };
 
 export function open(root) {
+  st.folderImport++; st.preserveOriginalWebp = false;
   st.step = 0; st.error = null; st.result = null; st.deploying = false; st.generated = null; st.confirm = false;
   paint(root);
 }
@@ -293,12 +294,17 @@ function checkHtml() {
     <div data-tty class="nf-h">Check results</div>
     <div style="margin-top:12px">
       <div class="kv"><span>items</span><span>${n.toLocaleString("en-US")} · numbers 1 to ${n} · no gaps</span></div>
-      <div class="kv"><span>images</span><span>${n} · compressed to 512px webp in your browser at deploy <span class="mint">✓</span></span></div>
+      <div class="kv"><span>images</span><span>${n} · ${st.preserveOriginalWebp ? "original WebP files at full resolution" : "compressed to 512px WebP in your browser at deploy"} <span class="mint">✓</span></span></div>
       <div class="kv"><span>details</span><span>${n} json · ${withTraits} with traits <span class="mint">✓</span></span></div>
       <div class="kv"><span>collection</span><span>${st.logoBitmap ? "logo ✓" : "no logo (first item is the cover)"} · ${st.bannerBitmap ? "banner ✓" : "no banner"}</span></div>
       <div class="kv"><span>warnings</span><span class="${longNames ? "amber" : ""}">${longNames ? longNames + " names over 32 characters will be shortened" : "none"}</span></div>
-      <div class="kv"><span>upload</span><span>${n} images → Arweave in batches of 40 · ${n > 400 ? "roughly " + Math.ceil(n / 400) * 2 + " min" : "a couple of minutes"}</span></div>
+      <div class="kv"><span>upload</span><span>${n} images → Arweave in size-limited batches</span></div>
     </div>
+    ${st.producer === "folder" && n && its.every((it) => it.originalWebp) ? `
+      <label class="cm" style="display:block;margin-top:12px">
+        <input type="checkbox" id="ns_original_webp" ${st.preserveOriginalWebp ? "checked" : ""}>
+        Keep original WebP files
+      </label>` : ""}
     ${nav(true, true)}`;
 }
 
@@ -340,7 +346,7 @@ function deployHtml() {
       <div class="kv"><span>collection + registry rent, tx fees</span><span>~0.01 SOL <span class="cm">unused part refunded</span></span></div>
       <div class="kv"><span>to</span><span>your burner <span class="cm">(derived from your wallet, swept back after)</span></span></div>
     </div></details>
-    <div class="cm" style="margin-top:10px">Your browser compresses and uploads the images first, then asks for the one signature. When it finishes, ${esc(shortAddr(addr()))} holds the collection authority and receives the mint price.</div>
+    <div class="cm" style="margin-top:10px">Your browser ${st.preserveOriginalWebp ? "uploads the original WebPs" : "compresses and uploads the images"} first, then asks for the one signature. When it finishes, ${esc(shortAddr(addr()))} holds the collection authority and receives the mint price.</div>
     ${err()}
     <button class="btn ns_deploy" style="margin-top:14px;padding:14px 0;font-size:16px;width:100%">Sign and pay</button>
     <div class="cm ns_back" style="margin-top:12px;text-align:center;cursor:pointer;text-decoration:underline">← back</div>`;
@@ -388,7 +394,11 @@ function wire(root, modal) {
   overlay.onclick = (e) => { if (e.target === overlay && !st.deploying) modal.innerHTML = ""; };
 
   on("#ns_connect", (el) => { el.onclick = () => connectWallet().then(() => { paintWalletPill(root.querySelector("#nav_wallet")); paint(root); }).catch((e) => alert(e.message)); });
-  all(".ns_pick", (el) => { el.onclick = () => { st.producer = el.dataset.p; go(1); }; });
+  all(".ns_pick", (el) => { el.onclick = () => {
+    if (st.producer !== el.dataset.p) st.preserveOriginalWebp = false;
+    st.producer = el.dataset.p;
+    go(1);
+  }; });
   all(".ns_back", (el) => { el.onclick = back; });
   all(".ns_method", (el) => { el.onclick = () => go(0); });
   all(".ns_next", (el) => { el.onclick = () => {
@@ -482,8 +492,11 @@ function wire(root, modal) {
     el.ondragleave = () => el.classList.remove("over");
     el.ondrop = (e) => { e.preventDefault(); el.classList.remove("over"); parseFolder(root, e.dataTransfer.files); };
   });
-  all(".ns_fclear", (el) => { el.onclick = () => { st.folderItems = null; st.folderReport = null; paint(root); }; });
+  all(".ns_fclear", (el) => { el.onclick = () => { st.folderImport++; st.preserveOriginalWebp = false; st.folderItems = null; st.folderReport = null; paint(root); }; });
 
+  on("#ns_original_webp", (el) => {
+    el.onchange = () => { st.preserveOriginalWebp = el.checked; paint(root); };
+  });
   // step 4
   on("#ns_price", (el) => { el.oninput = () => { st.priceSol = el.value; }; });
   on("#ns_deposit", (el) => { el.oninput = () => { st.depositSol = el.value; }; });
@@ -536,6 +549,10 @@ function generate() {
 }
 
 async function parseFolder(root, files) {
+  const id = ++st.folderImport;
+  st.preserveOriginalWebp = false;
+  const overlay = root.querySelector("#ns_overlay");
+  const active = () => id === st.folderImport && overlay?.isConnected && st.step === 2 && st.producer === "folder";
   const imgs = new Map(), jsons = new Map(), formats = new Set();
   for (const f of files) {
     const m = f.name.match(/^(\d+)\.(png|jpe?g|webp|gif|json)$/i);
@@ -551,7 +568,15 @@ async function parseFolder(root, files) {
   let jsonBad = 0, withDesc = 0, withAttrs = 0, urls = 0;
   for (let i = 0; i < keys.length; i++) {
     const k = keys[i];
-    const bitmap = await fileToBitmap(imgs.get(k));
+    if (!active()) return;
+    const file = imgs.get(k);
+    try { (await fileToBitmap(file)).close(); }
+    catch {
+      if (!active()) return;
+      st.folderItems = null;
+      st.folderReport = { error: "Could not decode " + file.name };
+      return paint(root);
+    }
     let meta = {};
     if (jsons.has(k)) {
       try { meta = JSON.parse(await jsons.get(k).text()); } catch (e) { jsonBad++; meta = {}; }
@@ -563,9 +588,14 @@ async function parseFolder(root, files) {
       index: i + 1,
       name: meta.name || st.name + " #" + (i + 1),
       template: { ...(meta.description ? { description: meta.description } : {}), attributes: Array.isArray(meta.attributes) ? meta.attributes : [] },
-      imageData: () => bitmapToImageData(bitmap),
+      originalWebp: file.name.toLowerCase().endsWith(".webp") ? file : null,
+      imageData: async () => {
+        const bitmap = await fileToBitmap(file);
+        try { return bitmapToImageData(bitmap); } finally { bitmap.close(); }
+      },
     });
   }
+  if (!active()) return;
   st.folderItems = out;
   st.folderReport = { count: out.length, formats: [...formats].join("/"), base, jsons: jsons.size, gaps, jsonBad, withDesc, withAttrs, urls };
   paint(root);
@@ -612,8 +642,9 @@ async function runDeploy(root) {
       deposit: Math.round(parseFloat(st.depositSol || "0") * 1e9) || 0,
       royaltyBps: Math.round(parseFloat(st.royaltyPct || "0") * 100) || 0,
       sequential: st.sequential,
+      preserveOriginalWebp: st.producer === "folder" && st.preserveOriginalWebp,
       logo: st.logoBitmap ? () => bitmapToImageData(st.logoBitmap) : null,
-      banner: st.bannerBitmap ? () => bitmapToImageData(st.bannerBitmap, 1024) : null,
+      banner: st.bannerBitmap ? () => bitmapToImageData(st.bannerBitmap, 1024, { pad: false }) : null,
     };
     const { deploy } = await import("../../chain/nft-deploy.js");
     st.result = await deploy({ connection, wallet: session.wallet, burner, spec, items: its, onStage: live });

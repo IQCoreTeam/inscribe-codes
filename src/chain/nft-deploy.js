@@ -10,10 +10,10 @@ import { Keypair, Transaction } from "@solana/web3.js";
 import { writer } from "@iqlabs-official/solana-sdk";
 import { estimateCost, getAccountRent, topUp, sweep, confirmOrCheck } from "./burner.js";
 import { writeFeedRow } from "./feed.js";
-import { bytesToBase64, base64ToBytes } from "./nft.js";
+import { bytesToBase64, base64ToBytes, sha256Hex } from "./nft.js";
 import { call } from "../services/nft-backend.js";
 import { notify } from "../services/gateway.js";
-import { compressImage } from "../ui/image.js";
+import { compressImage, encodeCollectionItem } from "../ui/image.js";
 
 // Collection account + registry (bitmap) rent + tx fees, swept back after deploy.
 const DEPLOY_OVERHEAD = 15_000_000;
@@ -21,6 +21,7 @@ const DEPLOY_OVERHEAD = 15_000_000;
 // Images go up this many at a time: one request stays a couple of MB and the
 // server's Arweave upload for the batch finishes well under any proxy timeout.
 const STAGE_BATCH = 40;
+const STAGE_MAX_REQUEST_BYTES = 6 * 1024 * 1024;
 // Hand control back to the browser between images so the bar paints and the
 // page stays responsive (the squoosh encode otherwise pegs the main thread).
 const tick = () => new Promise((r) => setTimeout(r, 0));
@@ -41,6 +42,80 @@ async function deployBudget(connection, burner, { manifestJson, collectionJson, 
   return manifest + coll + Number(deployFeeLamports || 0) + DEPLOY_OVERHEAD;
 }
 
+function originalManifest(raw, count) {
+  const { items } = JSON.parse(raw);
+  if (!Array.isArray(items) || items.length !== count)
+    throw Error("The staged manifest has the wrong item count.");
+  const byIndex = new Map(items.map((item) => [item.index, item]));
+  if (byIndex.size !== count) throw Error("The staged manifest repeats an item number.");
+  return byIndex;
+}
+
+function assertOriginalRow(manifest, { index, name, image, metadata }) {
+  const item = manifest.get(index);
+  if (!item || item.name !== name || item.image_mime !== "image/webp" ||
+      item.image_sha256 !== image || item.meta_sha256 !== metadata)
+    throw Error("Staged image or metadata differs at item #" + index + ". Review the stage before funding.");
+}
+
+async function originalRow(index, name, bytes, template) {
+  const image = await sha256Hex(bytes);
+  const metadata = await sha256Hex(new TextEncoder().encode(JSON.stringify(template)));
+  return { index, name, image, metadata };
+}
+
+async function stageCollectionFiles(spec, items, who, stage) {
+  const { slug } = spec;
+  if (spec.preserveOriginalWebp && items.some(item => !item.originalWebp?.size))
+    throw Error("Original WebP files are required for full-resolution staging");
+  const begin = await call("/creator/stage/begin", {
+    slug, creator: who, name: spec.name, symbol: spec.symbol,
+    description: spec.description || "", price: spec.price || 0, deposit: spec.deposit || 0,
+    royaltyBps: spec.royaltyBps || 0, sequential: !!spec.sequential,
+  });
+  if (begin.status === 409) throw new Error('the handle "' + slug + '" is taken; pick another');
+  if (begin.status !== 200) throw new Error((begin.json && begin.json.error) || "stage failed (" + begin.status + ")");
+  const stagingId = begin.json.stagingId;
+
+  const encoder = new TextEncoder();
+  const originals = spec.preserveOriginalWebp ? [] : null;
+  const envelopeBytes = encoder.encode(JSON.stringify({ stagingId, items: [] })).length;
+  let batch = [], uploaded = 0, batchBytes = envelopeBytes;
+  const flush = async () => {
+    if (!batch.length) return;
+    const r = await call("/creator/stage/batch", { stagingId, items: batch });
+    if (r.status !== 200) throw new Error((r.json && r.json.error) || "upload failed (" + r.status + ")");
+    uploaded += batch.length;
+    batch = [];
+    batchBytes = envelopeBytes;
+    stage("stage", { done: uploaded, total: items.length });
+    await tick();
+  };
+  for (let i = 0; i < items.length; i++) {
+    if (!originals) stage("compress", { done: i, total: items.length });
+    const { bytes, mime } = await encodeCollectionItem(items[i], spec);
+    const payload = { index: items[i].index ?? i + 1, name: items[i].name, mime, imageBase64: bytesToBase64(bytes), template: items[i].template || {} };
+    const payloadBytes = encoder.encode(JSON.stringify(payload)).length;
+    if (envelopeBytes + payloadBytes > STAGE_MAX_REQUEST_BYTES) throw Error("Staging item exceeds the request limit");
+    if (batchBytes + payloadBytes + 1 > STAGE_MAX_REQUEST_BYTES && batch.length) await flush();
+    batchBytes += payloadBytes + (batch.length ? 1 : 0);
+    if (originals) originals.push(await originalRow(payload.index, payload.name, bytes, payload.template));
+    batch.push(payload);
+    await tick();
+    if (batch.length >= STAGE_BATCH) await flush();
+  }
+  await flush();
+
+  const fin = await call("/creator/stage/finish", { stagingId });
+  if (fin.status !== 200) throw new Error((fin.json && fin.json.error) || "stage finish failed (" + fin.status + ")");
+  if (originals) {
+    if (fin.json.itemCount !== originals.length) throw Error("The stage returned the wrong item count.");
+    const manifest = originalManifest(fin.json.manifestJson, originals.length);
+    for (const row of originals) assertOriginalRow(manifest, row);
+  }
+  return { stagingId, ...fin.json };
+}
+
 // ── deploy ──────────────────────────────────────────────────────────────────
 // items: [{ index?, name, imageData, template }] where imageData is decoded
 // pixels or a thunk returning them (generative sets composite one at a time so
@@ -58,42 +133,21 @@ export async function deploy({ connection, wallet, burner, spec, items, onStage 
 
   // 1. Compress + stage in batches (begin -> batch* -> finish); the backend
   //    uploads each batch to Arweave and keeps the shuffle seed server-side.
-  if (!p.stagingId) {
-    const begin = await call("/creator/stage/begin", {
-      slug, creator: who, name: spec.name, symbol: spec.symbol,
-      description: spec.description || "", price: spec.price || 0, deposit: spec.deposit || 0,
-      royaltyBps: spec.royaltyBps || 0, sequential: !!spec.sequential,
-    });
-    if (begin.status === 409) throw new Error('the handle "' + slug + '" is taken; pick another');
-    if (begin.status !== 200) throw new Error((begin.json && begin.json.error) || "stage failed (" + begin.status + ")");
-    const stagingId = begin.json.stagingId;
-
-    let batch = [], uploaded = 0;
-    const flush = async () => {
-      if (!batch.length) return;
-      const r = await call("/creator/stage/batch", { stagingId, items: batch });
-      if (r.status !== 200) throw new Error((r.json && r.json.error) || "upload failed (" + r.status + ")");
-      uploaded += batch.length;
-      batch = [];
-      stage("stage", { done: uploaded, total: items.length });
-      await tick();
-    };
-    for (let i = 0; i < items.length; i++) {
-      stage("compress", { done: i, total: items.length });
-      const src = items[i].imageData;
-      const imageData = typeof src === "function" ? await src() : src;
-      const { bytes, mime } = await compressImage(imageData, spec.compress);
-      batch.push({ index: items[i].index ?? i + 1, name: items[i].name, mime, imageBase64: bytesToBase64(bytes), template: items[i].template || {} });
-      await tick();
-      if (batch.length >= STAGE_BATCH) await flush();
+  if (p.stagingId && Boolean(p.preserveOriginalWebp) !== Boolean(spec.preserveOriginalWebp))
+    throw Error("The saved stage uses a different image format. Resume with the original choice.");
+  if (p.stagingId && spec.preserveOriginalWebp) {
+    const manifest = originalManifest(p.manifestJson, items.length);
+    for (const [i, item] of items.entries()) {
+      const file = await encodeCollectionItem(item, spec);
+      assertOriginalRow(manifest, await originalRow(item.index ?? i + 1, item.name, file.bytes, item.template || {}));
     }
-    await flush();
-
-    const fin = await call("/creator/stage/finish", { stagingId });
-    if (fin.status !== 200) throw new Error((fin.json && fin.json.error) || "stage finish failed (" + fin.status + ")");
+  }
+  if (!p.stagingId) {
+    const staged = await stageCollectionFiles(spec, items, who, stage);
     Object.assign(p, {
-      stagingId, manifestJson: fin.json.manifestJson, collectionJson: fin.json.collectionJson,
-      itemCount: fin.json.itemCount, deployFeeLamports: fin.json.deployFeeLamports,
+      stagingId: staged.stagingId, manifestJson: staged.manifestJson, collectionJson: staged.collectionJson,
+      itemCount: staged.itemCount, deployFeeLamports: staged.deployFeeLamports,
+      preserveOriginalWebp: Boolean(spec.preserveOriginalWebp),
     });
     saveProgress(slug, p);
   }

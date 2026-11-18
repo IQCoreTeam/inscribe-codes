@@ -44,13 +44,14 @@ export const pendingMint = (slug) => loadProgress(slug);
 
 // ── Shared helpers (also used by the deploy engine: one source) ─────────────
 export function bytesToBase64(bytes) {
+  if (typeof bytes.toBase64 === "function") return bytes.toBase64();
   let bin = "";
   const chunk = 0x8000;
   for (let i = 0; i < bytes.length; i += chunk) bin += String.fromCharCode.apply(null, bytes.subarray(i, i + chunk));
   return btoa(bin);
 }
 export const base64ToBytes = (b64) => Uint8Array.from(atob(b64), (c) => c.charCodeAt(0));
-async function sha256Hex(bytes) {
+export async function sha256Hex(bytes) {
   const d = await crypto.subtle.digest("SHA-256", bytes);
   return Array.from(new Uint8Array(d)).map((b) => b.toString(16).padStart(2, "0")).join("");
 }
