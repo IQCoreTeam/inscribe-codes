@@ -348,8 +348,8 @@ a.tk_link:hover > span:last-child { color: var(--acc); }
 .nf-colinfo { min-width: 0; flex: 1; }
 .nf-coltitle { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
 .nf-colname { font: 400 48px/1 "Terminal16", "Jersey 15", monospace; color: var(--ink); }
-.nf-coldesc { margin: 10px 0 0; font: 400 16px/1.8 "Jersey 15", monospace; opacity: 0.8; color: var(--ink2); }
-.nf-coldesc.clamp { display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 4; overflow: hidden; }
+.nf-coldesc { --desc-lines: 4; margin: 10px 0 0; font: 400 16px/1.8 "Jersey 15", monospace; opacity: 0.8; color: var(--ink2); }
+.nf-coldesc.clamp { display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: var(--desc-lines); overflow: hidden; }
 .nf-descmore { margin-top: 6px; padding: 0; background: none; border: 0; cursor: pointer; font: 400 16px "Jersey 15", monospace; letter-spacing: 0.04em; color: var(--acc); }
 .nf-descmore:hover { color: var(--mut); }
 .nf-collinks { display: flex; gap: 8px; margin-top: 12px; flex-wrap: wrap; }
@@ -387,7 +387,11 @@ a.tk_link:hover > span:last-child { color: var(--acc); }
 .c.bl { left: 0; bottom: 0; border-left-width: 1.5px; border-bottom-width: 1.5px; }
 .c.br { right: 0; bottom: 0; border-right-width: 1.5px; border-bottom-width: 1.5px; }
 .nf-pricenum { font: 400 64px/1 "Terminal16", "Jersey 15", monospace; color: var(--ink); }
+.nf-pricenum.nf-pricenum-long { font-size: 24px; overflow-wrap: anywhere; }
 .nf-priceunit { font: 400 16px "Jersey 15", monospace; color: #8dffa0; }
+.nf-mint-costs { max-width: 360px; margin: 8px auto 0; text-align: left; }
+.nf-mint-costs .kv { padding: 5px 0; }
+.nf-mint-costs dd { margin: 0; overflow-wrap: anywhere; }
 .nf-mintedline { display: flex; justify-content: space-between; align-items: baseline; margin-top: 7px; font: 400 16px "Jersey 15", monospace; color: var(--mut); }
 .nf-details summary { cursor: pointer; list-style: none; font: 400 16px "Jersey 15", monospace; letter-spacing: 0.1em; color: var(--mut); padding: 6px 0; }
 .nf-details summary::-webkit-details-marker { display: none; }

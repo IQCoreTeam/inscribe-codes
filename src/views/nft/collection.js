@@ -8,11 +8,12 @@ import { imgUrl } from "../../services/gateway.js";
 import { nftMarkets } from "../../services/markets.js";
 import { skeleton } from "../../ui/skeleton.js";
 import { connect as rpcConnect, explorerTx } from "../../chain/rpc.js";
+import { PLATFORM_FEE_BPS } from "../../chain/nft-fees.js";
 import { frame, statusOf, chainOf, coverOf, priceOf, segsHtml } from "./launchpad.js";
 import { session, addr, connectWallet, ensureBurner, paintWalletPill } from "./session.js";
 
 const PAGE = 500;
-const MINT_OVERHEAD = "~0.0135 SOL"; // image + metadata inscription + asset rent, measured on mainnet
+const formatMintAmount = (lamports) => (lamports / 1e9).toLocaleString("en-US", { maximumFractionDigits: 9 });
 const TIER_LABEL = { legendary: "Legendary", epic: "EPIC", rare: "RARE" };
 const st = { col: null, items: [], total: 0, hasRarity: false, filter: "all", mint: "idle", pct: 0, log: [], result: null, error: null, busy: false };
 
@@ -27,6 +28,10 @@ export async function render(root, slug) {
   const ch = chainOf(col);
   const status = statusOf(col);
   const logo = col.logo || (col.coverSig ? imgUrl(col.coverSig) : "");
+  const mintPrice = Number(col.priceLamports || 0);
+  const priceLabel = mintPrice ? formatMintAmount(mintPrice) : "FREE";
+  // The registry truncates the fee to whole lamports. Funding rounds up.
+  const platformFee = Math.floor(mintPrice * PLATFORM_FEE_BPS / 10_000);
   body.innerHTML = `
 <div class="win nf-win nf-colwin">
   <div class="wh"><span>Collection · ${esc(col.slug)}</span><a class="wh-right wh-x" href="?view=nft">← all collections</a></div>
@@ -39,7 +44,7 @@ export async function render(root, slug) {
           <div class="nf-coltitle"><div class="nf-colname">${esc(col.name)}</div><span class="chip ${status === "LIVE" ? "live" : status === "Upcoming" ? "soon" : "out"}">${status}</span><span class="chip">${ch.icon} ${esc(ch.name)}</span></div>
           <div class="cm" style="margin-top:6px">by ${esc(shortAddr(col.creator))} · ${col.maxSupply.toLocaleString("en-US")} items${col.symbol ? " · $" + esc(col.symbol) : ""}</div>
           <p class="nf-coldesc clamp" id="nc_desc">${esc(col.description || "")}</p>
-          <button type="button" class="nf-descmore" id="nc_descmore" hidden>see more</button>
+          <button type="button" class="nf-descmore" id="nc_descmore" aria-controls="nc_desc" aria-expanded="false" hidden>see more</button>
           <div class="nf-collinks lab">
             <a class="btn2" href="https://solscan.io/account/${esc(col.collection)}" target="_blank" rel="noopener">Collection on chain</a>
             <a class="btn2" href="https://magiceden.io/marketplace/${esc(col.collection)}" target="_blank" rel="noopener">Magic eden</a>
@@ -58,8 +63,13 @@ export async function render(root, slug) {
       <div class="lab" style="letter-spacing:.2em;opacity:.7">Mint</div>
       <div class="nf-pricebox">
         <div class="nf-price"><span class="c tl"></span><span class="c tr"></span><span class="c bl"></span><span class="c br"></span>
-          <span class="nf-pricenum">${col.priceLamports ? String(+(col.priceLamports / 1e9).toFixed(4)) : "FREE"}</span>${col.priceLamports ? `<span class="nf-priceunit">${ch.unit}</span>` : ""}</div>
-        <div class="cm" style="margin-top:10px">+ ${MINT_OVERHEAD} to put your item on chain. Nothing hidden.</div>
+          <span class="nf-pricenum${priceLabel.length > 6 ? " nf-pricenum-long" : ""}">${priceLabel}</span>${mintPrice ? `<span class="nf-priceunit">${ch.unit}</span>` : ""}</div>
+        ${ch.unit === "SOL" && mintPrice ? `
+          <dl class="nf-mint-costs">
+            <div class="kv"><dt>Platform fee (${PLATFORM_FEE_BPS / 100}%)</dt><dd>${formatMintAmount(platformFee)} SOL</dd></div>
+            <div class="kv"><dt>Subtotal</dt><dd>${formatMintAmount(mintPrice + platformFee)} SOL</dd></div>
+          </dl>` : ""}
+        <div class="cm" style="margin-top:10px">${ch.unit === "SOL" ? "Inscription, account rent, and network costs are additional." : "Network costs are additional."}</div>
       </div>
       <div>
         <div class="cc-segs" style="height:14px;margin:0" id="nc_segs">${segsHtml(col.minted, col.maxSupply)}</div>
@@ -88,10 +98,22 @@ export async function render(root, slug) {
   }
 
   const desc = body.querySelector("#nc_desc"), dmore = body.querySelector("#nc_descmore");
-  if (desc.scrollHeight > desc.clientHeight + 2) {
-    dmore.hidden = false;
-    dmore.onclick = () => { dmore.textContent = desc.classList.toggle("clamp") ? "see more" : "see less"; };
+  function expandDescription(expanded) {
+    desc.classList.toggle("clamp", !expanded);
+    dmore.textContent = expanded ? "see less" : "see more";
+    dmore.setAttribute("aria-expanded", String(expanded));
   }
+  function syncDescription() {
+    if (!desc.isConnected) { descriptionObserver.disconnect(); return; }
+    const style = getComputedStyle(desc);
+    const collapsedHeight = parseFloat(style.lineHeight) * Number(style.getPropertyValue("--desc-lines"));
+    dmore.hidden = desc.scrollHeight <= Math.ceil(collapsedHeight);
+    if (dmore.hidden) expandDescription(false);
+  }
+  const descriptionObserver = new ResizeObserver(syncDescription);
+  descriptionObserver.observe(desc);
+  document.fonts.ready.then(syncDescription);
+  dmore.onclick = () => expandDescription(desc.classList.contains("clamp"));
 
   for (const t of body.querySelectorAll(".nf-tabs .tab")) t.onclick = () => {
     st.filter = t.dataset.f;

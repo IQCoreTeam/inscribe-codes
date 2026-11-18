@@ -16,11 +16,11 @@ import { estimateCost, getAccountRent, topUp, sweep, confirmOrCheck } from "./bu
 import { writeFeedRow } from "./feed.js";
 import { call, collection as getCollection } from "../services/nft-backend.js";
 import { notify, imgUrl } from "../services/gateway.js";
+import { PLATFORM_FEE_BPS } from "./nft-fees.js";
 
 // One popup funds the whole mint, so the budget is generous and the remainder
 // sweeps back: deposit + price + the program's platform fee + register-time
 // rents + both inscriptions at their caps.
-const PLATFORM_FEE_BPS = 500; // must track the program constant
 const ASSET_OVERHEAD = 12_000_000; // Core asset + record rent + register fee, swept back
 const IMAGE_CAP_BYTES = 256 * 1024;
 const META_CAP_BYTES = 4096;
