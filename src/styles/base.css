@@ -58,6 +58,7 @@ img { display: block; }
 .navbtn2:hover { border-color: var(--acc); color: var(--acc); }
 .navbrand { display: flex; }
 #nav_chain { container: chain-switch / inline-size; flex: 0 1 150px; width: 150px; min-width: 64px; }
+#nav_chain:empty { display: none; }
 #nav_chain .navbtn2 { width: 100%; box-sizing: border-box; }
 @container chain-switch (max-width: 130px) {
   .nav-chain-word { display: none; }
@@ -65,7 +66,7 @@ img { display: block; }
 .navlogo { height: 18px; filter: brightness(0) invert(0.75) sepia(1) hue-rotate(70deg) saturate(3); }
 .navlbl, #nav_mid { font: 400 16px "Jersey 15", monospace; color: var(--mut); white-space: nowrap; }
 .navstripwrap { flex: 1 1 0; min-width: 0; overflow: hidden; display: flex; justify-content: flex-end; }
-.navstrip { height: 45px; width: auto; max-width: 100%; object-fit: cover; object-position: right center; }
+.navstrip { height: 45px; width: auto; max-width: 100%; object-fit: contain; object-position: right center; }
 @media (max-width: 1280px) { .navlbl { display: none; } }
 @media (max-width: 1100px) { #nav_mid { display: none; } }
 @media (max-width: 860px) { .navstripwrap, .navbrand { display: none; } }
@@ -337,8 +338,8 @@ a.tk_link:hover > span:last-child { color: var(--acc); }
 
 /* ── collection page ── */
 @keyframes legend { 0%, 100% { box-shadow: 0 0 0 1px rgba(176, 122, 26, 0.45); } 50% { box-shadow: 0 0 0 2px rgba(176, 122, 26, 0.9); } }
-.nf-colwin { flex: 1; }
-.nf-colpage { display: grid; grid-template-columns: minmax(0, 1.5fr) minmax(300px, 0.9fr); flex: 1; min-height: 0; }
+.nf-colwin { flex: 1; overflow-y: auto; }
+.nf-colpage { display: grid; grid-template-columns: minmax(0, 1.5fr) minmax(300px, 0.9fr); flex: 1 0 auto; }
 .nf-colleft { padding: 22px 24px; border-right: 1px solid var(--line); min-width: 0; display: flex; flex-direction: column; min-height: 0; }
 .nf-colbanner { width: 100%; height: auto; max-height: max(240px, 42vw); flex: 0 0 auto; object-fit: contain; background: var(--panel); border-bottom: 1px solid var(--line); }
 .nf-colbanner.square { object-fit: fill; }
@@ -579,7 +580,6 @@ a.tk_link:hover > span:last-child { color: var(--acc); }
     display: flex; align-items: center; justify-content: center; box-sizing: border-box;
     min-width: 44px; min-height: 44px; font-size: clamp(12px, 3.6vw, 16px); padding: 4px; white-space: nowrap;
   }
-  #nav_chain:empty { display: none; }
   #nav_wallet { margin-left: auto; }
 
   /* home */
