@@ -332,7 +332,7 @@ function settingsHtml() {
 function deployHtml() {
   if (st.resumeSlug) return `
     <div class="nf-h">Deployment confirmed</div>
-    <div class="cm" style="margin-top:10px">Retry finalization using the confirmed transaction. No new wallet approval is needed.</div>
+    <div class="cm" style="margin-top:10px">Retry uses the confirmed transaction without funding or deploying again. Your wallet may ask you to unlock the burner.</div>
     ${err()}
     <button class="btn ns_deploy" style="margin-top:14px;width:100%">Retry finalization</button>
     <button class="btn2 ns_method" style="margin-top:12px">← Back</button>`;

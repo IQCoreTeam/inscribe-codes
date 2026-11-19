@@ -11,7 +11,7 @@ import { writer } from "@iqlabs-official/solana-sdk";
 import { estimateCost, getAccountRent, topUp, sweep, confirmOrCheck } from "./burner.js";
 import { writeFeedRow } from "./feed.js";
 import { bytesToBase64, base64ToBytes } from "./nft.js";
-import { call } from "../services/nft-backend.js";
+import { call, collection as getCollection } from "../services/nft-backend.js";
 import { notify } from "../services/gateway.js";
 import { compressImage } from "../ui/image.js";
 
@@ -182,7 +182,7 @@ export async function deploy({ connection, wallet, burner, spec, items, onStage 
   if (f.status !== 200) {
     // A completed request can lose its response after the server records the
     // collection and removes the staged upload.
-    const recorded = f.status === 404 ? (await call("/c/" + encodeURIComponent(slug))).json : null;
+    const recorded = f.status === 404 ? await getCollection(encodeURIComponent(slug)).catch(() => null) : null;
     if (recorded?.collection !== collection || recorded.registry !== p.registry ||
         recorded.creator !== who || recorded.metaSig !== p.metaSig || recorded.manifestSig !== p.manifestSig) {
       throw new Error((f.json && f.json.error) || "finalize failed (" + f.status + ")");
