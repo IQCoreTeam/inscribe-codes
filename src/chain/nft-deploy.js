@@ -148,22 +148,27 @@ export async function deploy({ connection, wallet, burner, spec, items, onStage 
   else { col = Keypair.generate(); p.collectionSecret = Array.from(col.secretKey); saveProgress(slug, p); }
 
   // 6. Build the deploy tx (backend), sign (burner payer + collection), land.
-  stage("deploy");
-  const d = await call("/creator/deploy", { stagingId: p.stagingId, creator: who, collection: col.publicKey.toBase58(), payer: burnerPk, manifestSig: p.manifestSig, metaSig: p.metaSig });
-  if (d.status === 404) { clearProgress(slug); throw new Error("the staged deploy expired; run it again"); }
-  if (d.status !== 200) throw new Error((d.json && d.json.error) || "deploy build failed (" + d.status + ")");
-  const tx = Transaction.from(base64ToBytes(d.json.transaction));
-  tx.partialSign(burner, col);
-  const deploySig = await connection.sendRawTransaction(tx.serialize());
-  if (!(await confirmOrCheck(connection, deploySig, tx.recentBlockhash, d.json.lastValidBlockHeight))) throw new Error("deploy tx was not confirmed");
+  if (!p.deploySig) {
+    stage("deploy");
+    const d = await call("/creator/deploy", { stagingId: p.stagingId, creator: who, collection: col.publicKey.toBase58(), payer: burnerPk, manifestSig: p.manifestSig, metaSig: p.metaSig });
+    if (d.status === 404) { clearProgress(slug); throw new Error("the staged deploy expired; run it again"); }
+    if (d.status !== 200) throw new Error((d.json && d.json.error) || "deploy build failed (" + d.status + ")");
+    const tx = Transaction.from(base64ToBytes(d.json.transaction));
+    tx.partialSign(burner, col);
+    const deploySig = await connection.sendRawTransaction(tx.serialize());
+    if (!(await confirmOrCheck(connection, deploySig, tx.recentBlockhash, d.json.lastValidBlockHeight))) throw new Error("deploy tx was not confirmed");
+    p.deploySig = deploySig;
+    p.registry = d.json.registry;
+    saveProgress(slug, p);
+  }
 
   // 7. Finalize (DB rows once the registry is on chain), sweep, report.
   stage("finalize");
-  const f = await call("/creator/finalize", { stagingId: p.stagingId });
+  const f = await call("/creator/finalize", { stagingId: p.stagingId, deploySig: p.deploySig });
   if (f.status !== 200) throw new Error((f.json && f.json.error) || "finalize failed (" + f.status + ")");
   await sweep(connection, burner, wallet.publicKey).catch(() => {});
   clearProgress(slug);
-  const result = { slug, collection: col.publicKey.toBase58(), registry: d.json.registry, deploySig, itemCount: p.itemCount };
+  const result = { slug, collection: col.publicKey.toBase58(), registry: p.registry, deploySig: p.deploySig, itemCount: p.itemCount };
   stage("done", result);
   return result;
 }
