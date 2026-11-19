@@ -5,8 +5,9 @@
 // wallet signs only funding transfers; the burner signs everything else.
 //
 // The signature is key material. Never log or transmit it.
-import { Keypair, SystemProgram, Transaction } from "@solana/web3.js";
+import { Keypair, PublicKey, SystemProgram, Transaction } from "@solana/web3.js";
 import { contract, constants } from "@iqlabs-official/solana-sdk";
+import { createAtaIx, transferIx, tokenBalance } from "./token.js";
 
 const DERIVE_MESSAGE =
   "IQ6900 code-in burner v1. Sign to unlock your inscription wallet. This costs nothing and never leaves your browser.";
@@ -26,6 +27,9 @@ const INIT_RENT = 69307680; // pre-quote default for the one-time account init
 // keep it after the transfer; both are rejected in preflight otherwise.
 const RENT_FLOOR = 900000;
 const RENT_MIN = 890880;
+// Rent budget for one Token-2022 account of a stock mint (its extensions make
+// the account a little larger than the 165-byte base).
+export const TOKEN_ACCOUNT_RENT = 3000000;
 // Headroom for fee variance and orphaned retry sessions; swept back after.
 const MARGIN = 10000000;
 
@@ -64,28 +68,44 @@ export async function getAccountRent(connection, publicKey) {
   return rents.reduce((total, rent) => total + rent, 0);
 }
 
-// Fund the burner up to `target`, sending only the shortfall. The user signs
-// this one transfer. An expired transfer can never land, so a fresh-blockhash
-// retry cannot double-spend, and the shortfall is recomputed each attempt.
-export async function topUp(connection, wallet, burnerPubkey, target) {
-  if ((await connection.getBalance(burnerPubkey)) >= target) return;
+// Fund the burner up to `target` lamports, and (for a stock-priced mint) up to
+// `token.amount` raw units of `token.mint`, sending only the shortfalls. The
+// user signs this one transaction. An expired transaction can never land, so a
+// fresh-blockhash retry cannot double-spend, and the shortfalls are recomputed
+// each attempt.
+export async function topUp(connection, wallet, burnerPubkey, target, token) {
+  const mint = token && new PublicKey(token.mint);
+  const short = async () => ({
+    sol: Math.max(0, target - (await connection.getBalance(burnerPubkey))),
+    tok: token ? Math.max(0, token.amount - (await tokenBalance(connection, burnerPubkey, mint))) : 0,
+  });
+  const first = await short();
+  if (!first.sol && !first.tok) return;
   const walletBal = await connection.getBalance(wallet.publicKey);
-  const need = target - (await connection.getBalance(burnerPubkey));
-  if (walletBal < need + TX_FEE + RENT_MIN) {
+  // The wallet also pays the burner's token account rent the first time.
+  const solNeed = first.sol + TX_FEE + RENT_MIN + (first.tok ? TOKEN_ACCOUNT_RENT : 0);
+  if (walletBal < solNeed) {
     throw new Error(
-      "insufficient SOL in your wallet: need ~" + ((need + TX_FEE + RENT_MIN) / 1e9).toFixed(4) +
+      "insufficient SOL in your wallet: need ~" + (solNeed / 1e9).toFixed(4) +
       " SOL (~0.0009 of it must stay in your wallet for rent), have " + (walletBal / 1e9).toFixed(4) +
       " SOL. fund the connected wallet and retry.",
     );
   }
+  if (first.tok) {
+    const have = await tokenBalance(connection, wallet.publicKey, mint);
+    if (have < first.tok) {
+      const units = (raw) => String(raw / 10 ** token.decimals);
+      throw new Error("insufficient " + token.symbol + " in your wallet: need " + units(first.tok) + ", have " + units(have) + ". this mint is paid in " + token.symbol + ".");
+    }
+  }
   const expiredTwice = () => new Error("funding transfer expired twice (slow wallet approval or congested RPC). nothing was spent; retry, or add your own RPC.");
   for (let attempt = 0; ; attempt++) {
-    const shortfall = target - (await connection.getBalance(burnerPubkey));
-    if (shortfall <= 0) return;
+    const need = attempt ? await short() : first;
+    if (!need.sol && !need.tok) return;
     const { blockhash, lastValidBlockHeight } = await connection.getLatestBlockhash();
-    const tx = new Transaction({ recentBlockhash: blockhash, feePayer: wallet.publicKey }).add(
-      SystemProgram.transfer({ fromPubkey: wallet.publicKey, toPubkey: burnerPubkey, lamports: shortfall }),
-    );
+    const tx = new Transaction({ recentBlockhash: blockhash, feePayer: wallet.publicKey });
+    if (need.sol) tx.add(SystemProgram.transfer({ fromPubkey: wallet.publicKey, toPubkey: burnerPubkey, lamports: need.sol }));
+    if (need.tok) tx.add(createAtaIx(wallet.publicKey, burnerPubkey, mint), transferIx(wallet.publicKey, burnerPubkey, mint, need.tok, token.decimals));
     const signed = await wallet.signTransaction(tx);
     let sig;
     try { sig = await sendRaw(connection, signed); }
@@ -96,8 +116,9 @@ export async function topUp(connection, wallet, burnerPubkey, target) {
       if (attempt >= 1) throw expiredTwice();
       continue;
     }
-    const landed = await confirmOrCheck(connection, sig, blockhash, lastValidBlockHeight);
-    if (landed || (await connection.getBalance(burnerPubkey)) >= target) return;
+    if (await confirmOrCheck(connection, sig, blockhash, lastValidBlockHeight)) return;
+    const after = await short();
+    if (!after.sol && !after.tok) return;
     if (attempt >= 1) throw expiredTwice();
   }
 }

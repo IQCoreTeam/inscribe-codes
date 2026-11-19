@@ -12,27 +12,32 @@
 //   M = writer.codeIn of the backend's /json body, inscribed verbatim.
 import { Keypair, PublicKey, SystemProgram, Transaction } from "@solana/web3.js";
 import { writer } from "@iqlabs-official/solana-sdk";
-import { estimateCost, getAccountRent, topUp, sweep, confirmOrCheck } from "./burner.js";
+import { estimateCost, getAccountRent, topUp, sweep, confirmOrCheck, TOKEN_ACCOUNT_RENT } from "./burner.js";
+import { ataOf, createAtaIx, transferIx, tokenBalance, mintDecimals } from "./token.js";
 import { writeFeedRow } from "./feed.js";
-import { call, collection as getCollection } from "../services/nft-backend.js";
+import { call, collection as getCollection, curOf } from "../services/nft-backend.js";
 import { notify, imgUrl } from "../services/gateway.js";
 
 // One popup funds the whole mint, so the budget is generous and the remainder
 // sweeps back: deposit + price + the program's platform fee + register-time
-// rents + both inscriptions at their caps.
+// rents + both inscriptions at their caps. A stock-priced mint pays the price
+// and fee in the token (tokenDue) and budgets SOL for the two payee token
+// accounts it may have to open instead.
 const PLATFORM_FEE_BPS = 500; // must track the program constant
 const ASSET_OVERHEAD = 12_000_000; // Core asset + record rent + register fee, swept back
 const IMAGE_CAP_BYTES = 256 * 1024;
 const META_CAP_BYTES = 4096;
 
+const feeOf = (price) => Math.floor((price * PLATFORM_FEE_BPS) / 10000); // the program's integer division
+const tokenDue = (col) => Number(col.priceLamports || 0) + feeOf(Number(col.priceLamports || 0));
+
 export function mintBudget(col, accountRent) {
   const price = Number(col.priceLamports || 0);
   const deposit = Number(col.depositLamports || 0);
-  const fee = Math.ceil((price * PLATFORM_FEE_BPS) / 10000);
   const imageRowBytes = Math.ceil((IMAGE_CAP_BYTES * 4) / 3) + 128; // base64 + row wrapper
   const img = estimateCost(imageRowBytes, accountRent === undefined ? {} : { accountRent }).total;
   const meta = estimateCost(META_CAP_BYTES, { accountRent: 0 }).total; // accounts exist after C
-  return deposit + price + fee + ASSET_OVERHEAD + img + meta;
+  return deposit + (curOf(col) ? 2 * TOKEN_ACCOUNT_RENT : price + feeOf(price)) + ASSET_OVERHEAD + img + meta;
 }
 
 // ── Resume checkpoints ──────────────────────────────────────────────────────
@@ -55,15 +60,24 @@ async function sha256Hex(bytes) {
   return Array.from(new Uint8Array(d)).map((b) => b.toString(16).padStart(2, "0")).join("");
 }
 
-async function depositTransfer(connection, burner, treasury, lamports) {
+// A transaction the burner alone signs and pays for.
+async function burnerSend(connection, burner, instructions, what) {
   const { blockhash, lastValidBlockHeight } = await connection.getLatestBlockhash();
-  const tx = new Transaction({ recentBlockhash: blockhash, feePayer: burner.publicKey }).add(
-    SystemProgram.transfer({ fromPubkey: burner.publicKey, toPubkey: new PublicKey(treasury), lamports }),
-  );
+  const tx = new Transaction({ recentBlockhash: blockhash, feePayer: burner.publicKey }).add(...instructions);
   tx.sign(burner);
   const sig = await connection.sendRawTransaction(tx.serialize());
-  if (!(await confirmOrCheck(connection, sig, blockhash, lastValidBlockHeight))) throw new Error("deposit transfer was not confirmed");
+  if (!(await confirmOrCheck(connection, sig, blockhash, lastValidBlockHeight))) throw new Error(what + " was not confirmed");
   return sig;
+}
+
+// The program pays the creator's and the platform's token accounts and requires
+// both to exist. Open whichever is missing (normally neither after the first
+// mint in that token).
+async function openPayeeAccounts(connection, burner, col, mint) {
+  const owners = [new PublicKey(col.treasury), new PublicKey(col.platformTreasury)];
+  const found = await connection.getMultipleAccountsInfo(owners.map((o) => ataOf(o, mint)));
+  const missing = owners.filter((o, i) => !found[i]);
+  if (missing.length) await burnerSend(connection, burner, missing.map((o) => createAtaIx(burner.publicKey, o, mint)), "opening the payee token accounts");
 }
 
 async function fetchItemBytes(gatewayBase, arweaveId, sha256) {
@@ -122,6 +136,9 @@ export async function mint({ connection, wallet, burner, slug, collection, onSta
   const burnerPk = burner.publicKey.toBase58();
   const stage = (s, x) => { try { onStage && onStage(s, x); } catch (e) {} };
   const col = collection || (await getCollection(slug));
+  const cur = curOf(col);
+  const mint = cur && new PublicKey(cur.mint);
+  const decimals = cur && (await mintDecimals(connection, mint));
 
   // A saved mint is only resumable for the same wallet+burner (the reservation
   // and the co-sign are bound to them). Otherwise start clean.
@@ -134,7 +151,7 @@ export async function mint({ connection, wallet, burner, slug, collection, onSta
   if (!p.funded) {
     stage("funding");
     const accountRent = await getAccountRent(connection, burner.publicKey);
-    await topUp(connection, wallet, burner.publicKey, mintBudget(col, accountRent));
+    await topUp(connection, wallet, burner.publicKey, mintBudget(col, accountRent), cur && { ...cur, decimals, amount: tokenDue(col) });
     p.funded = true; saveProgress(slug, p);
   }
 
@@ -142,7 +159,7 @@ export async function mint({ connection, wallet, burner, slug, collection, onSta
   if (!p.reservationId) {
     if (Number(col.depositLamports) > 0 && !p.depositSig) {
       stage("deposit");
-      p.depositSig = await depositTransfer(connection, burner, col.treasury, Number(col.depositLamports));
+      p.depositSig = await burnerSend(connection, burner, [SystemProgram.transfer({ fromPubkey: burner.publicKey, toPubkey: new PublicKey(col.treasury), lamports: Number(col.depositLamports) })], "deposit transfer");
       saveProgress(slug, p);
     }
     stage("reserve");
@@ -187,6 +204,7 @@ export async function mint({ connection, wallet, burner, slug, collection, onSta
   else { asset = Keypair.generate(); p.asset = Array.from(asset.secretKey); saveProgress(slug, p); }
   stage("register");
   await touch();
+  if (cur) await openPayeeAccounts(connection, burner, col, mint);
   let co = await mintCall(slug, { reservationId: p.reservationId, inscriptionSig: p.C, metaSig: p.M, asset: asset.publicKey.toBase58() });
 
   let mintSig = null;
@@ -208,6 +226,10 @@ export async function mint({ connection, wallet, burner, slug, collection, onSta
 
   // 6. Report the landing, sweep, clear the checkpoint, report.
   if (p.reservationId) await reportLanded(slug, p.reservationId);
+  if (cur) { // any of the token the register did not take goes back with the SOL
+    const left = await tokenBalance(connection, burner.publicKey, mint).catch(() => 0);
+    if (left) await burnerSend(connection, burner, [transferIx(burner.publicKey, wallet.publicKey, mint, left, decimals)], "token refund").catch(() => {});
+  }
   await sweep(connection, burner, wallet.publicKey).catch(() => {});
   clearProgress(slug);
   const result = { slug, index: p.index, name: p.name, C: p.C, M: p.M, asset: asset.publicKey.toBase58(), mintSig };

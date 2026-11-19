@@ -588,9 +588,11 @@ a.tk_link:hover > span:last-child { color: var(--acc); }
 .cur::before { content: ""; width: 9px; height: 9px; border-radius: 50%; background: var(--tc, #ffb347); flex: none; }
 .cur em { margin-left: 2px; color: var(--mut); font-style: normal; }
 .band-price.t-NVDAx, .band-price.t-NVDA, .band-price.t-BLK, .band-price.t-SPY,
-.act-amt.t-NVDAx, .act-amt.t-NVDA, .act-amt.t-BLK, .act-amt.t-SPY { color: var(--tc); }
+.act-amt.t-NVDAx, .act-amt.t-NVDA, .act-amt.t-BLK, .act-amt.t-SPY,
+.nf-pricenum[class*=" t-"], .nf-priceunit[class*=" t-"] { color: var(--tc, #ffb347); }
 .act-amt { margin-left: 2px; }
 .nf-payrow { display: flex; align-items: center; gap: 10px; margin-top: 12px; }
+.nf-payrow[hidden] { display: none; }
 .nf-paylab { font: 400 10px/1.6 "Silkscreen", monospace; text-transform: uppercase; letter-spacing: 0.08em; color: var(--mut); }
 .nf-payseg { display: inline-flex; border: 1px solid var(--line); }
 .payb { font: 400 14px/1.2 "Jersey 15", monospace; padding: 6px 15px; color: var(--ink2); cursor: pointer; }

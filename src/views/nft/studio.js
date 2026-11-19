@@ -5,7 +5,7 @@
 // staged progress, resume on interruption.
 import { esc, fmtSol, shortAddr } from "../../ui/fmt.js";
 import { typeLabels } from "../../ui/tty.js";
-import { call } from "../../services/nft-backend.js";
+import { call, currencies } from "../../services/nft-backend.js";
 import { connect as rpcConnect, explorerTx } from "../../chain/rpc.js";
 import { fileToBitmap, bitmapToImageData, compositeImageData, compositeDataUrl } from "../../ui/image.js";
 import { session, addr, connectWallet, ensureBurner, paintWalletPill } from "./session.js";
@@ -18,11 +18,16 @@ const st = {
   handItems: [], selItem: 0,
   folderItems: null, folderReport: null,
   priceSol: "0.01", depositSol: "0", royaltyPct: "5", sequential: false,
+  // Stock currencies offered to this visitor (empty = SOL only) and the chosen
+  // one: null prices the collection in SOL.
+  stocks: [], currency: null,
   deploying: false, pct: 0, phase: "", log: [], error: null, result: null,
 };
 
 export function open(root) {
   st.step = 0; st.error = null; st.result = null; st.deploying = false; st.generated = null; st.confirm = false;
+  st.currency = null;
+  currencies().then((list) => { st.stocks = list; if (st.step === 4) paint(root); });
   paint(root);
 }
 
@@ -307,9 +312,12 @@ function settingsHtml() {
   const n = (items() || []).length;
   return `
     <div class="nf-form2">
-      <div><div class="fl">Price (SOL)</div><input class="inp" id="ns_price" value="${esc(st.priceSol)}"></div>
+      ${st.stocks.length ? `<div class="span2"><div class="fl">Minters pay in</div><div class="seg lab">${[null, ...st.stocks].map((c) => `<div class="${st.currency === c ? "on" : ""} ns_cur" data-mint="${c ? esc(c.mint) : ""}" title="${c ? esc(c.issuer) : ""}">${c ? esc(c.symbol) : "SOL"}</div>`).join("")}</div></div>` : ""}
+      <div><div class="fl">Price (${st.currency ? esc(st.currency.symbol) : "SOL"})</div><input class="inp" id="ns_price" value="${esc(st.priceSol)}"></div>
       <div><div class="fl">Supply</div><input class="inp" value="${n}" readonly></div>
-      <div><div class="fl">Deposit (SOL, paid at reservation, counts toward the price)</div><input class="inp" id="ns_deposit" value="${esc(st.depositSol)}"></div>
+      ${st.currency
+        ? `<div><div class="fl">Deposit</div><input class="inp" value="none for a ${esc(st.currency.symbol)} price" readonly></div>`
+        : `<div><div class="fl">Deposit (SOL, paid at reservation, counts toward the price)</div><input class="inp" id="ns_deposit" value="${esc(st.depositSol)}"></div>`}
       <div><div class="fl">Royalties (%)</div><input class="inp" id="ns_royalty" value="${esc(st.royaltyPct)}"></div>
       <div class="span2"><div class="fl">Payout wallet</div><input class="inp" value="${esc(shortAddr(addr()))} (you)" readonly></div>
     </div>
@@ -319,6 +327,7 @@ function settingsHtml() {
       <div class="nf-opt"><div class="fl">Reveal</div><div class="cm">Instant. Each item is revealed the moment it is minted; delayed reveal is not offered here.</div></div>
     </div>
     <div class="cm" style="margin-top:10px">Platform fee is 5% of the price, paid by the minter on top. Minters also pay their own inscription (~0.0135 SOL). Nothing up front from you except the deploy fee.</div>
+    ${st.currency ? `<div class="cm" style="margin-top:6px">Minters need ${esc(st.currency.symbol)} (${esc(st.currency.issuer)}) in their wallet and pay the price in it, straight to your wallet's ${esc(st.currency.symbol)} account. The currency cannot be changed after deploy.</div>` : ""}
     ${err()}
     ${nav(true, true)}`;
 }
@@ -485,6 +494,7 @@ function wire(root, modal) {
   all(".ns_fclear", (el) => { el.onclick = () => { st.folderItems = null; st.folderReport = null; paint(root); }; });
 
   // step 4
+  all(".ns_cur", (el) => { el.onclick = () => { st.currency = st.stocks.find((c) => c.mint === el.dataset.mint) || null; paint(root); }; });
   on("#ns_price", (el) => { el.oninput = () => { st.priceSol = el.value; }; });
   on("#ns_deposit", (el) => { el.oninput = () => { st.depositSol = el.value; }; });
   on("#ns_royalty", (el) => { el.oninput = () => { st.royaltyPct = el.value; }; });
@@ -608,8 +618,10 @@ async function runDeploy(root) {
     const burner = await ensureBurner();
     const spec = {
       slug: st.slug, name: st.name.trim(), symbol: st.symbol.trim(), description: st.description.trim(),
-      price: Math.round(parseFloat(st.priceSol || "0") * 1e9) || 0,
-      deposit: Math.round(parseFloat(st.depositSol || "0") * 1e9) || 0,
+      // Raw units of the chosen currency. A token price takes no SOL deposit.
+      price: Math.round(parseFloat(st.priceSol || "0") * 10 ** (st.currency ? st.currency.decimals : 9)) || 0,
+      deposit: st.currency ? 0 : Math.round(parseFloat(st.depositSol || "0") * 1e9) || 0,
+      currency: st.currency ? st.currency.mint : "SOL",
       royaltyBps: Math.round(parseFloat(st.royaltyPct || "0") * 100) || 0,
       sequential: st.sequential,
       logo: st.logoBitmap ? () => bitmapToImageData(st.logoBitmap) : null,
