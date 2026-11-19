@@ -25,11 +25,23 @@ const STAGE_BATCH = 40;
 // page stays responsive (the squoosh encode otherwise pegs the main thread).
 const tick = () => new Promise((r) => setTimeout(r, 0));
 
-const RKEY = (slug) => "ic_nft_deploy_" + slug;
+const PREFIX = "ic_nft_deploy_";
+const RKEY = (slug) => PREFIX + slug;
 const loadProgress = (slug) => { try { return JSON.parse(localStorage.getItem(RKEY(slug)) || "null"); } catch (e) { return null; } };
 const saveProgress = (slug, p) => { try { localStorage.setItem(RKEY(slug), JSON.stringify(p)); } catch (e) {} };
 const clearProgress = (slug) => { try { localStorage.removeItem(RKEY(slug)); } catch (e) {} };
-export const pendingDeploy = (slug) => loadProgress(slug);
+export function pendingFinalizations(wallet) {
+  if (!wallet) return [];
+  try {
+    return Object.keys(localStorage).filter(key => key.startsWith(PREFIX)).flatMap(key => {
+      const slug = key.slice(PREFIX.length);
+      const checkpoint = loadProgress(slug);
+      return checkpoint?.deploySig && checkpoint.wallet === wallet
+        ? [{ slug, name: checkpoint.name || slug }]
+        : [];
+    });
+  } catch (e) { return []; }
+}
 
 // One funding transfer covers: manifest inscription (the first write carries
 // the burner's init rent), collection.json, and the deploy tx. Generous on
@@ -54,7 +66,8 @@ export async function deploy({ connection, wallet, burner, spec, items, onStage 
 
   let p = loadProgress(slug);
   if (p && (p.wallet !== who || p.burner !== burnerPk)) p = null;
-  p = p || { wallet: who, burner: burnerPk };
+  if (!items?.length && !p?.deploySig) throw new Error("No confirmed deployment to finalize for this wallet.");
+  p = p || { wallet: who, burner: burnerPk, name: spec.name };
 
   // 1. Compress + stage in batches (begin -> batch* -> finish); the backend
   //    uploads each batch to Arweave and keeps the shuffle seed server-side.
@@ -168,7 +181,7 @@ export async function deploy({ connection, wallet, burner, spec, items, onStage 
   if (f.status !== 200) throw new Error((f.json && f.json.error) || "finalize failed (" + f.status + ")");
   await sweep(connection, burner, wallet.publicKey).catch(() => {});
   clearProgress(slug);
-  const result = { slug, collection: col.publicKey.toBase58(), registry: p.registry, deploySig: p.deploySig, itemCount: p.itemCount };
+  const result = { slug, name: p.name || spec.name || slug, collection: col.publicKey.toBase58(), registry: p.registry, deploySig: p.deploySig, itemCount: p.itemCount };
   stage("done", result);
   return result;
 }

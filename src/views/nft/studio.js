@@ -7,6 +7,7 @@ import { esc, fmtSol, shortAddr } from "../../ui/fmt.js";
 import { typeLabels } from "../../ui/tty.js";
 import { call } from "../../services/nft-backend.js";
 import { connect as rpcConnect, explorerTx } from "../../chain/rpc.js";
+import { deploy, pendingFinalizations } from "../../chain/nft-deploy.js";
 import { fileToBitmap, bitmapToImageData, compositeImageData, compositeDataUrl } from "../../ui/image.js";
 import { session, addr, connectWallet, ensureBurner, paintWalletPill } from "./session.js";
 
@@ -18,11 +19,11 @@ const st = {
   handItems: [], selItem: 0,
   folderItems: null, folderReport: null,
   priceSol: "0.01", depositSol: "0", royaltyPct: "5", sequential: false,
-  deploying: false, pct: 0, phase: "", log: [], error: null, result: null,
+  deploying: false, resumeSlug: null, pct: 0, phase: "", log: [], error: null, result: null,
 };
 
 export function open(root) {
-  st.step = 0; st.error = null; st.result = null; st.deploying = false; st.generated = null; st.confirm = false;
+  st.step = 0; st.resumeSlug = null; st.error = null; st.result = null; st.deploying = false; st.generated = null; st.confirm = false;
   paint(root);
 }
 
@@ -72,8 +73,12 @@ function choiceHtml() {
       <div class="cm">The collection and the mint registry end up owned by your wallet, so we need it from the start.</div>
       <button class="nf-connectbig dotbox" id="ns_connect">Connect wallet</button>
     </div>`;
+  const pending = pendingFinalizations(addr());
+  const resumes = pending.map(({ slug, name }) => `
+    <div class="kv"><span>${esc(name)}</span><button class="btn2 ns_resume" data-slug="${esc(slug)}">Retry finalization</button></div>`).join("");
   const card = (p, img, t, s) => `<div class="nf-card ns_pick" data-p="${p}"><div class="nf-cardimg"><img src="${img}" alt=""></div><div class="nf-cardtxt"><span class="t">${t}</span><span class="s">${s}</span></div></div>`;
   return `
+    ${resumes ? `<div class="fl">Confirmed deployments awaiting finalization</div>${resumes}` : ""}
     <div data-tty class="nf-h">What are you launching?</div>
     <div class="cm" style="margin-top:6px">Pick how the art comes in. Name and mint settings come next. Everything ends up fully on chain either way.</div>
     <div class="nf-choice">
@@ -325,6 +330,12 @@ function settingsHtml() {
 
 // ── step 5: deploy ──────────────────────────────────────────────────────────
 function deployHtml() {
+  if (st.resumeSlug) return `
+    <div class="nf-h">Deployment confirmed</div>
+    <div class="cm" style="margin-top:10px">Retry finalization using the confirmed transaction. No new wallet approval is needed.</div>
+    ${err()}
+    <button class="btn ns_deploy" style="margin-top:14px;width:100%">Retry finalization</button>
+    <button class="btn2 ns_method" style="margin-top:12px">← Back</button>`;
   const n = (items() || []).length;
   const fee = DEPLOY_FEE(n);
   const est = fee + 20_000_000;
@@ -363,7 +374,7 @@ function doneHtml() {
   return `
     <div style="text-align:center;padding:14px 0 6px">
       <div class="nf-bignum" data-tty>LIVE.</div>
-      <div class="cm" style="margin-top:12px">${esc(st.name)} · ${r.itemCount} items on chain · owner: ${esc(shortAddr(addr()))} (you)</div>
+      <div class="cm" style="margin-top:12px">${esc(r.name)} · ${r.itemCount} items on chain · owner: ${esc(shortAddr(addr()))} (you)</div>
       <div class="mint" style="margin-top:6px">✓ the unused part of the deposit swept back to your wallet</div>
     </div>
     <div class="nf-done3">
@@ -374,7 +385,7 @@ function doneHtml() {
     <div class="nf-btnrow lab" style="margin-top:18px">
       <a class="btng" href="?view=nft&c=${esc(r.slug)}">Open collection page →</a>
       <a class="btn2" href="${esc(explorerTx(r.deploySig))}" target="_blank" rel="noopener">Solscan</a>
-      <a class="btn2" href="https://x.com/intent/tweet?text=${encodeURIComponent(st.name + " is live, fully on chain: https://" + link)}" target="_blank" rel="noopener">Share on X</a>
+      <a class="btn2" href="https://x.com/intent/tweet?text=${encodeURIComponent(r.name + " is live, fully on chain: https://" + link)}" target="_blank" rel="noopener">Share on X</a>
     </div>`;
 }
 
@@ -388,7 +399,7 @@ function wire(root, modal) {
   overlay.onclick = (e) => { if (e.target === overlay && !st.deploying) modal.innerHTML = ""; };
 
   on("#ns_connect", (el) => { el.onclick = () => connectWallet().then(() => { paintWalletPill(root.querySelector("#nav_wallet")); paint(root); }).catch((e) => alert(e.message)); });
-  all(".ns_pick", (el) => { el.onclick = () => { st.producer = el.dataset.p; go(1); }; });
+  all(".ns_pick", (el) => { el.onclick = () => { st.resumeSlug = null; st.producer = el.dataset.p; go(1); }; });
   all(".ns_back", (el) => { el.onclick = back; });
   all(".ns_method", (el) => { el.onclick = () => go(0); });
   all(".ns_next", (el) => { el.onclick = () => {
@@ -491,6 +502,7 @@ function wire(root, modal) {
   all(".ns_assign", (el) => { el.onclick = () => { st.sequential = el.dataset.s === "1"; paint(root); }; });
 
   // step 5
+  all(".ns_resume", (el) => { el.onclick = () => { st.resumeSlug = el.dataset.slug; runDeploy(root); }; });
   all(".ns_deploy", (el) => { el.onclick = () => runDeploy(root); });
 }
 
@@ -587,8 +599,8 @@ const STAGES = {
 async function runDeploy(root) {
   if (st.deploying) return;
   if (!addr()) { try { await connectWallet(); } catch (e) { st.error = e.message; } return paint(root); }
-  const its = items();
-  if (!its || !its.length) { st.error = "no items"; st.step = 2; return paint(root); }
+  const its = st.resumeSlug ? null : items();
+  if (!st.resumeSlug && !its?.length) { st.error = "no items"; st.step = 2; return paint(root); }
   st.deploying = true; st.error = null; st.pct = 1; st.phase = "starting"; st.log = [];
   paint(root);
   const live = (s, x) => {
@@ -606,7 +618,7 @@ async function runDeploy(root) {
   try {
     const connection = rpcConnect();
     const burner = await ensureBurner();
-    const spec = {
+    const spec = st.resumeSlug ? { slug: st.resumeSlug } : {
       slug: st.slug, name: st.name.trim(), symbol: st.symbol.trim(), description: st.description.trim(),
       price: Math.round(parseFloat(st.priceSol || "0") * 1e9) || 0,
       deposit: Math.round(parseFloat(st.depositSol || "0") * 1e9) || 0,
@@ -615,10 +627,12 @@ async function runDeploy(root) {
       logo: st.logoBitmap ? () => bitmapToImageData(st.logoBitmap) : null,
       banner: st.bannerBitmap ? () => bitmapToImageData(st.bannerBitmap, 1024) : null,
     };
-    const { deploy } = await import("../../chain/nft-deploy.js");
     st.result = await deploy({ connection, wallet: session.wallet, burner, spec, items: its, onStage: live });
   } catch (e) {
-    st.error = String((e && e.message) || e) + " · Sign and pay again resumes where it stopped.";
+    const slug = st.resumeSlug || st.slug;
+    if (pendingFinalizations(addr()).some(p => p.slug === slug)) st.resumeSlug = slug;
+    st.error = String((e && e.message) || e);
+    if (!st.resumeSlug) st.error += " · Sign and pay again resumes where it stopped.";
     st.deploying = false;
     st.step = 5;
     return paint(root);
