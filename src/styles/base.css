@@ -577,6 +577,27 @@ a.tk_link:hover > span:last-child { color: var(--acc); }
   .ah-edit { border-left: none; padding-left: 0; }
 }
 
+/* ── v6 stock-token launch: ticker colours, currency chip, PAY WITH filter.
+   --tc is the per-ticker accent; the chip, the mint price and the activity
+   amount all read it. SOL collections carry no t-* class, so nothing changes
+   for them. ── */
+.t-NVDAx, .t-NVDA { --tc: #8fd400; }
+.t-BLK { --tc: #e9eee8; }
+.t-SPY { --tc: #6ea8ff; }
+.cur { position: absolute; top: 8px; left: 8px; z-index: 2; display: inline-flex; align-items: center; gap: 5px; font: 400 9px/1.6 "Silkscreen", monospace; padding: 3px 7px; background: rgba(0, 0, 0, 0.72); border: 1px solid var(--tc, #ffb347); color: var(--tc, #ffb347); white-space: nowrap; }
+.cur::before { content: ""; width: 9px; height: 9px; border-radius: 50%; background: var(--tc, #ffb347); flex: none; }
+.cur em { margin-left: 2px; color: var(--mut); font-style: normal; }
+.band-price.t-NVDAx, .band-price.t-NVDA, .band-price.t-BLK, .band-price.t-SPY,
+.act-amt.t-NVDAx, .act-amt.t-NVDA, .act-amt.t-BLK, .act-amt.t-SPY { color: var(--tc); }
+.act-amt { margin-left: 2px; }
+.nf-payrow { display: flex; align-items: center; gap: 10px; margin-top: 12px; }
+.nf-paylab { font: 400 10px/1.6 "Silkscreen", monospace; text-transform: uppercase; letter-spacing: 0.08em; color: var(--mut); }
+.nf-payseg { display: inline-flex; border: 1px solid var(--line); }
+.payb { font: 400 14px/1.2 "Jersey 15", monospace; padding: 6px 15px; color: var(--ink2); cursor: pointer; }
+.payb + .payb { border-left: 1px solid var(--line); }
+.payb.on { background: var(--acc); color: var(--bg); }
+.nf-stats.three { grid-template-columns: repeat(3, 1fr); }
+
 /* ── phones (<= 640px): stack what sits side by side, one card per row. Every
    rule lives in this block so wider viewports render exactly as before. ── */
 @media (max-width: 640px) {

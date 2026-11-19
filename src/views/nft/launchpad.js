@@ -54,7 +54,23 @@ export function statusOf(c) {
   if (c.startAt && c.startAt > now) return "Upcoming";
   return "LIVE";
 }
-export const priceOf = (c) => (c.priceLamports ? fmtSol(c.priceLamports) : "FREE");
+// A collection's non-SOL currency (its stored stock-token info), or null when it
+// prices in SOL. publicView.currency is only set on Solana collections.
+export const curOf = (c) => (c && c.currency && c.currency.symbol && c.currency.symbol !== "SOL" ? c.currency : null);
+// Ticker-colour class so the price, chip and activity amount pick up --tc from
+// base.css (".t-NVDAx" etc). Empty for SOL.
+export const tcls = (c) => { const u = curOf(c); return u ? "t-" + u.symbol : ""; };
+// A raw amount in a token's base unit, formatted like fmtSol but for N decimals,
+// trailing zeros trimmed ("0.0120" -> "0.012"). Single caller (priceOf).
+const fmtAmount = (raw, decimals) => {
+  const n = raw / 10 ** decimals;
+  return (n >= 1 ? n.toFixed(2) : n.toFixed(n >= 0.01 ? 3 : 4)).replace(/\.?0+$/, "");
+};
+export const priceOf = (c) => {
+  if (!c.priceLamports) return "FREE";
+  const u = curOf(c);
+  return u ? fmtAmount(c.priceLamports, u.decimals) + " " + u.symbol : fmtSol(c.priceLamports);
+};
 export const coverOf = (c) => c.banner || c.logo || (c.coverSig ? imgUrl(c.coverSig) : "");
 export const segsHtml = (minted, supply) => {
   const on = supply ? Math.round((SEGS * minted) / supply) : 0;
@@ -65,7 +81,17 @@ export const segsHtml = (minted, supply) => {
 
 // ── desk ───────────────────────────────────────────────────────────────────
 const PER = 6;
-const st = { tab: "cols", chain: "all", page: 1, cols: null, listings: null };
+const st = { tab: "cols", chain: "all", cur: "all", page: 1, cols: null, listings: null };
+
+// The PAY WITH filter: "all" shows every collection; "stocks" only stock-priced
+// ones; a ticker symbol only that currency. SOL collections drop from any stock
+// view. curOf is defined above with the other collection facts.
+const curMatch = (c) => {
+  if (st.cur === "all") return true;
+  const u = curOf(c);
+  if (!u) return false;
+  return st.cur === "stocks" || u.symbol === st.cur;
+};
 
 async function desk(root) {
   frame(root, `
@@ -85,6 +111,20 @@ async function desk(root) {
       </div>
       <button class="btn" id="nf_launch">+ Launch a collection</button>
     </div>
+    <div class="nf-payrow">
+      <span class="nf-paylab">Pay with</span>
+      <div class="nf-payseg">
+        <div class="payb on" data-cur="all">All</div>
+        <div class="payb" data-cur="stocks">Stocks</div>
+      </div>
+      <select id="nf_ticker" class="nf-select" hidden>
+        <option value="stocks">All stocks</option>
+        <option value="NVDAx">NVDAx</option>
+        <option value="NVDA">NVDA</option>
+        <option value="BLK">BLK</option>
+        <option value="SPY">SPY</option>
+      </select>
+    </div>
     <div id="nf_tabbody" class="nf-tabbody"></div>
   </div>
 </div>
@@ -98,6 +138,15 @@ async function desk(root) {
   chain.value = st.chain;
   chain.onchange = () => { st.chain = chain.value; st.page = 1; paintTab(root); };
   for (const t of root.querySelectorAll(".tab")) t.onclick = () => { st.tab = t.dataset.tab; st.page = 1; paintTab(root); };
+  const ticker = root.querySelector("#nf_ticker");
+  const setPay = (mode) => {
+    st.cur = mode === "stocks" ? ticker.value : "all";
+    ticker.hidden = mode !== "stocks";
+    for (const b of root.querySelectorAll(".payb")) b.classList.toggle("on", b.dataset.cur === mode);
+    st.page = 1; paintTab(root);
+  };
+  for (const b of root.querySelectorAll(".payb")) b.onclick = () => setPay(b.dataset.cur);
+  ticker.onchange = () => { st.cur = ticker.value; st.page = 1; paintTab(root); };
   root.querySelector("#nf_launch").onclick = async () => (await import("./studio.js")).open(root);
 
   paintTab(root);
@@ -124,7 +173,8 @@ async function paintCollections(el) {
     st.cols = await nft.collections();
     if (!el.isConnected || st.tab !== "cols") return;
   }
-  const all = st.chain === "all" ? st.cols : st.cols.filter((c) => (c.chain || "solana") === st.chain);
+  const byChain = st.chain === "all" ? st.cols : st.cols.filter((c) => (c.chain || "solana") === st.chain);
+  const all = byChain.filter(curMatch);
   const shown = Math.min(st.page * PER, all.length);
   const pages = Math.max(1, Math.ceil(all.length / PER));
   const where = st.chain === "all" ? "all chains" : st.chain === "solana" ? "on solana" : "on robinhood chain";
@@ -148,8 +198,10 @@ function cardHtml(c) {
   const vol = c.minted && c.priceLamports ? ((c.minted * c.priceLamports) / 1e9).toFixed(2) + " " + ch.unit : "-";
   const cls = status === "Sold out" || status === "Ended" ? "colcard soldout dim" : live ? "colcard flick" : "colcard dim";
   const cover = coverOf(c);
+  const u = curOf(c);
+  const chip = u ? `<span class="cur t-${esc(u.symbol)}">${esc(u.symbol)}${u.issuer ? `<em>${esc(u.issuer)}</em>` : ""}</span>` : "";
   return `<a class="${cls}" href="?view=nft&c=${esc(c.slug)}">
-  <div class="cc-cover">${cover ? `<img src="${esc(cover)}" alt="" loading="lazy">` : ""}</div>
+  <div class="cc-cover">${chip}${cover ? `<img src="${esc(cover)}" alt="" loading="lazy">` : ""}</div>
   <div class="cc-name">${esc(c.name)}</div>
   <div class="cc-segs">${segsHtml(c.minted, c.maxSupply)}</div>
   <div class="cc-mintrow"><span class="${live ? "amber" : ""}">${c.minted.toLocaleString("en-US")} / ${c.maxSupply.toLocaleString("en-US")}</span></div>
@@ -162,7 +214,7 @@ function cardHtml(c) {
   <div class="band">
     <div class="bandfill ${live ? "live" : ""}" ${status === "Sold out" ? "hidden" : ""}></div>
     <div class="bandtext">
-      <span class="band-price">${status === "Sold out" ? "minted out" : status === "Ended" ? "ended" : priceOf(c)}</span>
+      <span class="band-price ${status === "Sold out" || status === "Ended" ? "" : tcls(c)}">${status === "Sold out" ? "minted out" : status === "Ended" ? "ended" : priceOf(c)}</span>
       <span class="band-cta">${live ? "Mint" : "View"} <span class="bandarrow">→</span></span>
     </div>
   </div>
@@ -197,12 +249,14 @@ function listCardHtml(l) {
 
 async function paintMarket(el) {
   el.innerHTML = `<div class="nf-scroll"><div class="nf-minegrid">${skeleton(6, "nftitem")}</div></div>`;
-  const all = await allListings();
+  const all = (await allListings()).filter((l) => curMatch(l.col));
   if (!el.isConnected || st.tab !== "market") return;
+  const inStocks = all.filter((l) => curOf(l.col)).length;
   el.innerHTML = `
-  <div class="nf-stats">
+  <div class="nf-stats three">
     <div><div class="k">Listed</div><div class="v">${all.length || "-"}</div></div>
     <div><div class="k">Collections</div><div class="v">${new Set(all.map((l) => l.col.slug)).size || "-"}</div></div>
+    <div><div class="k">In stocks</div><div class="v">${inStocks || "-"}</div></div>
   </div>
   ${all.length
     ? `<div class="nf-scroll"><div class="nf-minegrid ttyrows">${all.map(listCardHtml).join("")}</div></div>`
@@ -256,11 +310,14 @@ async function loadActivity(root) {
   if (!recents.length) { el.insertAdjacentHTML("beforeend", '<div class="nf-note">no mints yet</div>'); return; }
   const evOf = (k) => (k === "sale" ? "SOLD" : k === "list" ? "LISTED" : "MINT");
   const actPrice = (r) => (r.kind === "mint" ? priceOf(r.col) : r.price ? fmtSol(r.price) : priceOf(r.col));
+  // A mint is paid in its collection's currency, so a stock mint is coloured; a
+  // sale/list carries a SOL price from Tensor, so it stays default.
+  const amtCls = (r) => (r.kind === "mint" ? tcls(r.col) : "");
   el.insertAdjacentHTML("beforeend", recents.map((r) => `
     <a class="actrow flickrow" href="?view=nft&asset=${esc(r.asset)}">
       <div class="act-l"><img src="${esc(imgUrl(r.inscriptionSig))}" alt="" loading="lazy">
         <div style="min-width:0"><div class="act-name">${esc(r.col.name)} #${r.index}</div>
-        <div class="act-sub"><span class="act-ev ${r.kind}">${evOf(r.kind)}</span>${esc(actPrice(r))}</div></div></div>
+        <div class="act-sub"><span class="act-ev ${r.kind}">${evOf(r.kind)}</span><span class="act-amt ${amtCls(r)}">${esc(actPrice(r))}</span></div></div></div>
       <span class="act-time">${fmtWhen(r.registeredAt)}</span>
     </a>`).join(""));
 }
