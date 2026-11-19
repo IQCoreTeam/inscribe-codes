@@ -378,6 +378,12 @@ a.tk_link:hover > span:last-child { color: var(--acc); }
 .icell-st { opacity: 0.4; white-space: nowrap; }
 .icell.minted .icell-st { opacity: 1; color: var(--fc); }
 .nf-colright { padding: 22px 24px; display: flex; flex-direction: column; gap: 14px; }
+/* The collection screen has a hero banner; on a short desktop it would push the
+   mint panel below a non-scrolling viewport (.nf-page is fixed-height, which is
+   right for the desk but wrong here). Let this one screen grow and scroll the
+   page, the same way the <=980px layout already does. */
+.nf-page:has(.nf-colwin) { height: auto; min-height: 100vh; overflow: visible; }
+.nf-page:has(.nf-colwin) .nf-itemscroll { max-height: none; }
 .nf-pricebox { text-align: center; padding: 10px 0 4px; }
 .nf-price { position: relative; display: inline-flex; align-items: baseline; gap: 8px; padding: 12px 24px; }
 .nf-price .c, .nf-vframe .c { position: absolute; width: 12px; height: 12px; border: 0 solid currentColor; }
