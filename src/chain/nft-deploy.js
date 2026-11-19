@@ -178,10 +178,19 @@ export async function deploy({ connection, wallet, burner, spec, items, onStage 
   // 7. Finalize (DB rows once the registry is on chain), sweep, report.
   stage("finalize");
   const f = await call("/creator/finalize", { stagingId: p.stagingId, deploySig: p.deploySig });
-  if (f.status !== 200) throw new Error((f.json && f.json.error) || "finalize failed (" + f.status + ")");
-  await sweep(connection, burner, wallet.publicKey).catch(() => {});
+  const collection = col.publicKey.toBase58();
+  if (f.status !== 200) {
+    // A completed request can lose its response after the server records the
+    // collection and removes the staged upload.
+    const recorded = f.status === 404 ? (await call("/c/" + encodeURIComponent(slug))).json : null;
+    if (recorded?.collection !== collection || recorded.registry !== p.registry ||
+        recorded.creator !== who || recorded.metaSig !== p.metaSig || recorded.manifestSig !== p.manifestSig) {
+      throw new Error((f.json && f.json.error) || "finalize failed (" + f.status + ")");
+    }
+  }
+  const refundLamports = await sweep(connection, burner, wallet.publicKey).catch(() => null);
   clearProgress(slug);
-  const result = { slug, name: p.name || spec.name || slug, collection: col.publicKey.toBase58(), registry: p.registry, deploySig: p.deploySig, itemCount: p.itemCount };
+  const result = { slug, name: p.name || spec.name || slug, collection, registry: p.registry, deploySig: p.deploySig, itemCount: p.itemCount, refundLamports };
   stage("done", result);
   return result;
 }

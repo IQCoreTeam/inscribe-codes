@@ -375,7 +375,8 @@ function doneHtml() {
     <div style="text-align:center;padding:14px 0 6px">
       <div class="nf-bignum" data-tty>LIVE.</div>
       <div class="cm" style="margin-top:12px">${esc(r.name)} · ${r.itemCount} items on chain · owner: ${esc(shortAddr(addr()))} (you)</div>
-      <div class="mint" style="margin-top:6px">✓ the unused part of the deposit swept back to your wallet</div>
+      ${r.refundLamports > 0 ? `<div class="mint" style="margin-top:6px">✓ Unused SOL returned to your wallet</div>`
+        : r.refundLamports === null ? '<div class="cm" style="margin-top:6px">Refund could not be confirmed. Any remaining SOL is available in your burner wallet.</div>' : ""}
     </div>
     <div class="nf-done3">
       <div><div class="fl" style="margin-bottom:4px">Authority</div>Your wallet holds the collection and the registry; the mint price pays straight to it.</div>
@@ -593,7 +594,7 @@ const STAGES = {
   banner: () => [70, "banner inscribed", true],
   collection: () => [74, "collection.json inscribed", true],
   deploy: () => [85, "collection + registry created in one transaction", true],
-  finalize: () => [95, "registry recorded, leftover sweeping back", true],
+  finalize: () => [95, "finalizing collection", true],
 };
 
 async function runDeploy(root) {
