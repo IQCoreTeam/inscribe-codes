@@ -4,7 +4,7 @@
 // 6 progress, 7 live. Ends in the deploy engine: one funding signature,
 // staged progress, resume on interruption.
 import { esc, fmtSol, shortAddr } from "../../ui/fmt.js";
-import { typeLabels } from "../../ui/tty.js";
+import { paintProgress, typeLabels } from "../../ui/tty.js";
 import { call } from "../../services/nft-backend.js";
 import { connect as rpcConnect, explorerTx } from "../../chain/rpc.js";
 import { fileToBitmap, bitmapToImageData, compositeImageData, compositeDataUrl } from "../../ui/image.js";
@@ -55,6 +55,7 @@ function paint(root) {
   ${st.confirm ? confirmHtml() : ""}
 </div>`;
   typeLabels(modal);
+  if (st.deploying) paintProgress(modal.querySelector("#ns_bar"), st.pct);
   for (const x of modal.querySelectorAll(".ns_close")) x.onclick = () => { if (!st.deploying) modal.innerHTML = ""; };
   wire(root, modal);
 }
@@ -318,7 +319,7 @@ function settingsHtml() {
       <div class="nf-opt"><div class="fl">Allowlist phase</div><div class="cm">Mint lists arrive with the manage update. Until then every mint is public.</div></div>
       <div class="nf-opt"><div class="fl">Reveal</div><div class="cm">Instant. Each item is revealed the moment it is minted; delayed reveal is not offered here.</div></div>
     </div>
-    <div class="cm" style="margin-top:10px">Platform fee is 5% of the price, paid by the minter on top. Minters also pay their own inscription (~0.0135 SOL). Nothing up front from you except the deploy fee.</div>
+    <div class="cm" style="margin-top:10px">Platform fee is 5% of the price, paid by the minter on top. Minters also pay variable inscription, account rent and network costs. Nothing up front from you except the deploy fee.</div>
     ${err()}
     ${nav(true, true)}`;
 }
@@ -346,13 +347,11 @@ function deployHtml() {
     <div class="cm ns_back" style="margin-top:12px;text-align:center;cursor:pointer;text-decoration:underline">← back</div>`;
 }
 
-const BAR_W = 28;
-const bar = (p) => { const n = Math.max(0, Math.min(BAR_W, Math.round((BAR_W * p) / 100))); return "[" + "█".repeat(n) + "░".repeat(BAR_W - n) + "] " + Math.round(p) + "%"; };
 
 function progressHtml() {
   return `
     <div data-tty class="nf-h">Deploying. Keep this tab open until every item lands.</div>
-    <div class="ttybar" id="ns_bar" style="margin-top:18px">${bar(st.pct)}</div><div class="ttyspin cm" id="ns_phase" style="margin-top:6px">${esc(st.phase || "starting")}</div>
+    <div class="ttybar" id="ns_bar" style="margin-top:18px"><progress max="100" aria-label="Deployment progress"></progress><span aria-hidden="true"></span></div><div class="ttyspin cm" id="ns_phase" style="margin-top:6px">${esc(st.phase || "starting")}</div>
     <div class="nf-log" id="ns_log" style="margin-top:16px">${st.log.map((l) => `<div class="${l.ok ? "ok" : ""}">&gt; ${esc(l.text)}</div>`).join("")}</div>
     <div class="cm" style="margin-top:14px">Your browser is doing the writing. If it stops, open the launcher again with the same handle and press Sign and pay: only the missing parts are redone.</div>`;
 }
@@ -599,7 +598,7 @@ async function runDeploy(root) {
     if (keep) st.log.push({ text, ok: true });
     else if (s === "funding") st.log.push({ text, ok: false });
     const b = root.querySelector("#ns_bar"), ph = root.querySelector("#ns_phase"), lg = root.querySelector("#ns_log");
-    if (b) b.textContent = bar(st.pct);
+    if (b) paintProgress(b, st.pct);
     if (ph) ph.textContent = text;
     if (lg) lg.innerHTML = st.log.map((l) => `<div class="${l.ok ? "ok" : ""}">&gt; ${esc(l.text)}</div>`).join("");
   };

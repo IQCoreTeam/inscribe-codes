@@ -67,7 +67,7 @@ export async function getAccountRent(connection, publicKey) {
 // Fund the burner up to `target`, sending only the shortfall. The user signs
 // this one transfer. An expired transfer can never land, so a fresh-blockhash
 // retry cannot double-spend, and the shortfall is recomputed each attempt.
-export async function topUp(connection, wallet, burnerPubkey, target) {
+export async function topUp(connection, wallet, burnerPubkey, target, onApproval) {
   if ((await connection.getBalance(burnerPubkey)) >= target) return;
   const walletBal = await connection.getBalance(wallet.publicKey);
   const need = target - (await connection.getBalance(burnerPubkey));
@@ -86,6 +86,7 @@ export async function topUp(connection, wallet, burnerPubkey, target) {
     const tx = new Transaction({ recentBlockhash: blockhash, feePayer: wallet.publicKey }).add(
       SystemProgram.transfer({ fromPubkey: wallet.publicKey, toPubkey: burnerPubkey, lamports: shortfall }),
     );
+    onApproval?.(shortfall);
     const signed = await wallet.signTransaction(tx);
     let sig;
     try { sig = await sendRaw(connection, signed); }
