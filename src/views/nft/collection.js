@@ -8,7 +8,7 @@ import { imgUrl } from "../../services/gateway.js";
 import { nftMarkets } from "../../services/markets.js";
 import { skeleton } from "../../ui/skeleton.js";
 import { connect as rpcConnect, explorerTx } from "../../chain/rpc.js";
-import { frame, statusOf, chainOf, coverOf, priceOf, segsHtml } from "./launchpad.js";
+import { frame, statusOf, chainOf, coverOf, priceOf, tcls, segsHtml } from "./launchpad.js";
 import { session, addr, connectWallet, ensureBurner, paintWalletPill } from "./session.js";
 
 const PAGE = 500;
@@ -26,6 +26,7 @@ export async function render(root, slug) {
 
   const ch = chainOf(col);
   const status = statusOf(col);
+  const cur = nft.curOf(col);
   const logo = col.logo || (col.coverSig ? imgUrl(col.coverSig) : "");
   body.innerHTML = `
 <div class="win nf-win nf-colwin">
@@ -58,7 +59,7 @@ export async function render(root, slug) {
       <div class="lab" style="letter-spacing:.2em;opacity:.7">Mint</div>
       <div class="nf-pricebox">
         <div class="nf-price"><span class="c tl"></span><span class="c tr"></span><span class="c bl"></span><span class="c br"></span>
-          <span class="nf-pricenum">${col.priceLamports ? String(+(col.priceLamports / 1e9).toFixed(4)) : "FREE"}</span>${col.priceLamports ? `<span class="nf-priceunit">${ch.unit}</span>` : ""}</div>
+          <span class="nf-pricenum ${tcls(col)}">${!col.priceLamports ? "FREE" : cur ? esc(priceOf(col).split(" ")[0]) : String(+(col.priceLamports / 1e9).toFixed(4))}</span>${col.priceLamports ? `<span class="nf-priceunit ${tcls(col)}">${cur ? esc(cur.symbol) : ch.unit}</span>` : ""}</div>
         <div class="cm" style="margin-top:10px">+ ${MINT_OVERHEAD} to put your item on chain. Nothing hidden.</div>
       </div>
       <div>
@@ -70,6 +71,7 @@ export async function render(root, slug) {
         <div class="kv"><span>per wallet</span><span>${col.maxPerWallet ? col.maxPerWallet + " per wallet" : "no limit"}</span></div>
         <div class="kv"><span>starts / ends</span><span>${when(col.startAt) || "open"} → ${when(col.endAt) || "open"}</span></div>
         <div class="kv"><span>order</span><span>${col.sequential ? "sequential" : "random"}</span></div>
+        ${cur ? `<div class="kv"><span>pay with</span><span>${esc(cur.symbol)}${cur.issuer ? " · " + esc(cur.issuer) : ""}, from your wallet, plus 5% platform fee</span></div>` : ""}
         ${col.depositLamports ? `<div class="kv"><span>deposit</span><span>${fmtSol(col.depositLamports)} at reservation, counts toward the price</span></div>` : ""}
         <div class="kv"><span>you</span><span id="nc_you">${addr() ? "connected" : "not connected"}</span></div>
       </div></details>

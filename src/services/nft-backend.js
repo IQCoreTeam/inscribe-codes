@@ -38,3 +38,13 @@ export const recent = async (slug, limit = 8) => (await read("/c/" + slug + "/re
 export const listings = (slug, limit = 200) => read("/c/" + slug + "/listings?limit=" + limit);
 export const held = async (wallet) => (await read("/owner/" + wallet)).items || [];
 export const assetInfo = (address) => read("/asset/" + address);
+
+// The stock-token currencies this visitor may price and pay in. The backend
+// decides by region and returns an empty list where they are not offered, so
+// every currency control is drawn from this alone. Fetched once per page.
+let offered = null;
+export const currencies = () => (offered ||= read("/creator/currencies").then((j) => j.currencies || [], () => []));
+
+// A collection's non-SOL currency { mint, symbol, decimals, issuer }, or null
+// when it prices in SOL.
+export const curOf = (c) => (c && c.currency && c.currency.symbol && c.currency.symbol !== "SOL" ? c.currency : null);

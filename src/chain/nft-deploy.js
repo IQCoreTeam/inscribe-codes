@@ -62,7 +62,7 @@ export async function deploy({ connection, wallet, burner, spec, items, onStage 
     const begin = await call("/creator/stage/begin", {
       slug, creator: who, name: spec.name, symbol: spec.symbol,
       description: spec.description || "", price: spec.price || 0, deposit: spec.deposit || 0,
-      royaltyBps: spec.royaltyBps || 0, sequential: !!spec.sequential,
+      royaltyBps: spec.royaltyBps || 0, sequential: !!spec.sequential, currency: spec.currency || "SOL",
     });
     if (begin.status === 409) throw new Error('the handle "' + slug + '" is taken; pick another');
     if (begin.status !== 200) throw new Error((begin.json && begin.json.error) || "stage failed (" + begin.status + ")");

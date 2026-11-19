@@ -54,21 +54,18 @@ export function statusOf(c) {
   if (c.startAt && c.startAt > now) return "Upcoming";
   return "LIVE";
 }
-// A collection's non-SOL currency (its stored stock-token info), or null when it
-// prices in SOL. publicView.currency is only set on Solana collections.
-export const curOf = (c) => (c && c.currency && c.currency.symbol && c.currency.symbol !== "SOL" ? c.currency : null);
 // Ticker-colour class so the price, chip and activity amount pick up --tc from
 // base.css (".t-NVDAx" etc). Empty for SOL.
-export const tcls = (c) => { const u = curOf(c); return u ? "t-" + u.symbol : ""; };
+export const tcls = (c) => { const u = nft.curOf(c); return u ? "t-" + u.symbol : ""; };
 // A raw amount in a token's base unit, formatted like fmtSol but for N decimals,
-// trailing zeros trimmed ("0.0120" -> "0.012"). Single caller (priceOf).
+// trailing zeros trimmed ("0.0120" -> "0.012").
 const fmtAmount = (raw, decimals) => {
   const n = raw / 10 ** decimals;
   return (n >= 1 ? n.toFixed(2) : n.toFixed(n >= 0.01 ? 3 : 4)).replace(/\.?0+$/, "");
 };
 export const priceOf = (c) => {
   if (!c.priceLamports) return "FREE";
-  const u = curOf(c);
+  const u = nft.curOf(c);
   return u ? fmtAmount(c.priceLamports, u.decimals) + " " + u.symbol : fmtSol(c.priceLamports);
 };
 export const coverOf = (c) => c.banner || c.logo || (c.coverSig ? imgUrl(c.coverSig) : "");
@@ -85,10 +82,10 @@ const st = { tab: "cols", chain: "all", cur: "all", page: 1, cols: null, listing
 
 // The PAY WITH filter: "all" shows every collection; "stocks" only stock-priced
 // ones; a ticker symbol only that currency. SOL collections drop from any stock
-// view. curOf is defined above with the other collection facts.
+// view.
 const curMatch = (c) => {
   if (st.cur === "all") return true;
-  const u = curOf(c);
+  const u = nft.curOf(c);
   if (!u) return false;
   return st.cur === "stocks" || u.symbol === st.cur;
 };
@@ -111,19 +108,13 @@ async function desk(root) {
       </div>
       <button class="btn" id="nf_launch">+ Launch a collection</button>
     </div>
-    <div class="nf-payrow">
+    <div class="nf-payrow" id="nf_payrow" hidden>
       <span class="nf-paylab">Pay with</span>
       <div class="nf-payseg">
         <div class="payb on" data-cur="all">All</div>
         <div class="payb" data-cur="stocks">Stocks</div>
       </div>
-      <select id="nf_ticker" class="nf-select" hidden>
-        <option value="stocks">All stocks</option>
-        <option value="NVDAx">NVDAx</option>
-        <option value="NVDA">NVDA</option>
-        <option value="BLK">BLK</option>
-        <option value="SPY">SPY</option>
-      </select>
+      <select id="nf_ticker" class="nf-select" hidden><option value="stocks">All stocks</option></select>
     </div>
     <div id="nf_tabbody" class="nf-tabbody"></div>
   </div>
@@ -147,6 +138,14 @@ async function desk(root) {
   };
   for (const b of root.querySelectorAll(".payb")) b.onclick = () => setPay(b.dataset.cur);
   ticker.onchange = () => { st.cur = ticker.value; st.page = 1; paintTab(root); };
+  // The row exists only where stock currencies are offered to this visitor;
+  // elsewhere the list is empty and the desk is the SOL-only one.
+  st.cur = "all";
+  nft.currencies().then((list) => {
+    if (!list.length) return;
+    for (const c of list) ticker.add(new Option(c.symbol, c.symbol));
+    root.querySelector("#nf_payrow").hidden = false;
+  });
   root.querySelector("#nf_launch").onclick = async () => (await import("./studio.js")).open(root);
 
   paintTab(root);
@@ -195,10 +194,11 @@ function cardHtml(c) {
   const live = status === "LIVE";
   const ch = chainOf(c);
   const hot = live && c.lastMintAt && Date.now() / 1000 - c.lastMintAt < 86400;
-  const vol = c.minted && c.priceLamports ? ((c.minted * c.priceLamports) / 1e9).toFixed(2) + " " + ch.unit : "-";
+  const cu = nft.curOf(c);
+  const vol = !(c.minted && c.priceLamports) ? "-" : cu ? fmtAmount(c.minted * c.priceLamports, cu.decimals) + " " + cu.symbol : ((c.minted * c.priceLamports) / 1e9).toFixed(2) + " " + ch.unit;
   const cls = status === "Sold out" || status === "Ended" ? "colcard soldout dim" : live ? "colcard flick" : "colcard dim";
   const cover = coverOf(c);
-  const u = curOf(c);
+  const u = nft.curOf(c);
   const chip = u ? `<span class="cur t-${esc(u.symbol)}">${esc(u.symbol)}${u.issuer ? `<em>${esc(u.issuer)}</em>` : ""}</span>` : "";
   return `<a class="${cls}" href="?view=nft&c=${esc(c.slug)}">
   <div class="cc-cover">${chip}${cover ? `<img src="${esc(cover)}" alt="" loading="lazy">` : ""}</div>
@@ -251,7 +251,7 @@ async function paintMarket(el) {
   el.innerHTML = `<div class="nf-scroll"><div class="nf-minegrid">${skeleton(6, "nftitem")}</div></div>`;
   const all = (await allListings()).filter((l) => curMatch(l.col));
   if (!el.isConnected || st.tab !== "market") return;
-  const inStocks = all.filter((l) => curOf(l.col)).length;
+  const inStocks = all.filter((l) => nft.curOf(l.col)).length;
   el.innerHTML = `
   <div class="nf-stats three">
     <div><div class="k">Listed</div><div class="v">${all.length || "-"}</div></div>
