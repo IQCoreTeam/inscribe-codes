@@ -93,8 +93,16 @@ export const tradeLabel = (chain) => (chain === "robinhood" ? "TRADE ON PONS" : 
 // Secondary NFT marketplaces (Solana). A listing's `source` is the venue name
 // Tensor's tx_history reports; Buy must open the venue that holds the ask.
 const NFT_MARKETS = {
-  tensor: { label: "Tensor", item: (asset) => "https://www.tensor.trade/item/" + asset },
-  magiceden: { label: "Magic Eden", item: (asset) => "https://magiceden.io/item-details/" + asset },
+  tensor: {
+    label: "Tensor",
+    item: (asset) => "https://www.tensor.trade/item/" + asset,
+    collection: (address) => "https://www.tensor.trade/trade/" + encodeURIComponent(address),
+  },
+  magiceden: {
+    label: "Magic Eden",
+    item: (asset) => "https://magiceden.io/item-details/" + asset,
+    collection: (address) => "https://magiceden.io/marketplace/" + encodeURIComponent(address),
+  },
 };
 const SOURCE_MARKET = { TCOMP: "tensor", TENSORSWAP: "tensor", MAGICEDEN_V2: "magiceden", MEV2: "magiceden" };
 export const nftMarkets = Object.values(NFT_MARKETS);
