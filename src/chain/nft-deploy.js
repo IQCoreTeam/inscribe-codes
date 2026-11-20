@@ -11,7 +11,7 @@ import { writer } from "@iqlabs-official/solana-sdk";
 import { estimateCost, getAccountRent, topUp, sweep, confirmOrCheck } from "./burner.js";
 import { writeFeedRow } from "./feed.js";
 import { bytesToBase64, base64ToBytes } from "./nft.js";
-import { call } from "../services/nft-backend.js";
+import { call, collection as getCollection } from "../services/nft-backend.js";
 import { notify } from "../services/gateway.js";
 import { compressImage } from "../ui/image.js";
 
@@ -25,11 +25,23 @@ const STAGE_BATCH = 40;
 // page stays responsive (the squoosh encode otherwise pegs the main thread).
 const tick = () => new Promise((r) => setTimeout(r, 0));
 
-const RKEY = (slug) => "ic_nft_deploy_" + slug;
+const PREFIX = "ic_nft_deploy_";
+const RKEY = (slug) => PREFIX + slug;
 const loadProgress = (slug) => { try { return JSON.parse(localStorage.getItem(RKEY(slug)) || "null"); } catch (e) { return null; } };
 const saveProgress = (slug, p) => { try { localStorage.setItem(RKEY(slug), JSON.stringify(p)); } catch (e) {} };
 const clearProgress = (slug) => { try { localStorage.removeItem(RKEY(slug)); } catch (e) {} };
-export const pendingDeploy = (slug) => loadProgress(slug);
+export function pendingFinalizations(wallet) {
+  if (!wallet) return [];
+  try {
+    return Object.keys(localStorage).filter(key => key.startsWith(PREFIX)).flatMap(key => {
+      const slug = key.slice(PREFIX.length);
+      const checkpoint = loadProgress(slug);
+      return checkpoint?.deploySig && checkpoint.wallet === wallet
+        ? [{ slug, name: checkpoint.name || slug }]
+        : [];
+    });
+  } catch (e) { return []; }
+}
 
 // One funding transfer covers: manifest inscription (the first write carries
 // the burner's init rent), collection.json, and the deploy tx. Generous on
@@ -54,7 +66,8 @@ export async function deploy({ connection, wallet, burner, spec, items, onStage 
 
   let p = loadProgress(slug);
   if (p && (p.wallet !== who || p.burner !== burnerPk)) p = null;
-  p = p || { wallet: who, burner: burnerPk };
+  if (!items?.length && !p?.deploySig) throw new Error("No confirmed deployment to finalize for this wallet.");
+  p = p || { wallet: who, burner: burnerPk, name: spec.name };
 
   // 1. Compress + stage in batches (begin -> batch* -> finish); the backend
   //    uploads each batch to Arweave and keeps the shuffle seed server-side.
@@ -148,22 +161,36 @@ export async function deploy({ connection, wallet, burner, spec, items, onStage 
   else { col = Keypair.generate(); p.collectionSecret = Array.from(col.secretKey); saveProgress(slug, p); }
 
   // 6. Build the deploy tx (backend), sign (burner payer + collection), land.
-  stage("deploy");
-  const d = await call("/creator/deploy", { stagingId: p.stagingId, creator: who, collection: col.publicKey.toBase58(), payer: burnerPk, manifestSig: p.manifestSig, metaSig: p.metaSig });
-  if (d.status === 404) { clearProgress(slug); throw new Error("the staged deploy expired; run it again"); }
-  if (d.status !== 200) throw new Error((d.json && d.json.error) || "deploy build failed (" + d.status + ")");
-  const tx = Transaction.from(base64ToBytes(d.json.transaction));
-  tx.partialSign(burner, col);
-  const deploySig = await connection.sendRawTransaction(tx.serialize());
-  if (!(await confirmOrCheck(connection, deploySig, tx.recentBlockhash, d.json.lastValidBlockHeight))) throw new Error("deploy tx was not confirmed");
+  if (!p.deploySig) {
+    stage("deploy");
+    const d = await call("/creator/deploy", { stagingId: p.stagingId, creator: who, collection: col.publicKey.toBase58(), payer: burnerPk, manifestSig: p.manifestSig, metaSig: p.metaSig });
+    if (d.status === 404) { clearProgress(slug); throw new Error("the staged deploy expired; run it again"); }
+    if (d.status !== 200) throw new Error((d.json && d.json.error) || "deploy build failed (" + d.status + ")");
+    const tx = Transaction.from(base64ToBytes(d.json.transaction));
+    tx.partialSign(burner, col);
+    const deploySig = await connection.sendRawTransaction(tx.serialize());
+    if (!(await confirmOrCheck(connection, deploySig, tx.recentBlockhash, d.json.lastValidBlockHeight))) throw new Error("deploy tx was not confirmed");
+    p.deploySig = deploySig;
+    p.registry = d.json.registry;
+    saveProgress(slug, p);
+  }
 
   // 7. Finalize (DB rows once the registry is on chain), sweep, report.
   stage("finalize");
-  const f = await call("/creator/finalize", { stagingId: p.stagingId });
-  if (f.status !== 200) throw new Error((f.json && f.json.error) || "finalize failed (" + f.status + ")");
-  await sweep(connection, burner, wallet.publicKey).catch(() => {});
+  const f = await call("/creator/finalize", { stagingId: p.stagingId, deploySig: p.deploySig });
+  const collection = col.publicKey.toBase58();
+  if (f.status !== 200) {
+    // A completed request can lose its response after the server records the
+    // collection and removes the staged upload.
+    const recorded = f.status === 404 ? await getCollection(encodeURIComponent(slug)).catch(() => null) : null;
+    if (recorded?.collection !== collection || recorded.registry !== p.registry ||
+        recorded.creator !== who || recorded.metaSig !== p.metaSig || recorded.manifestSig !== p.manifestSig) {
+      throw new Error((f.json && f.json.error) || "finalize failed (" + f.status + ")");
+    }
+  }
+  const refundLamports = await sweep(connection, burner, wallet.publicKey).catch(() => null);
   clearProgress(slug);
-  const result = { slug, collection: col.publicKey.toBase58(), registry: d.json.registry, deploySig, itemCount: p.itemCount };
+  const result = { slug, name: p.name || spec.name || slug, collection, registry: p.registry, deploySig: p.deploySig, itemCount: p.itemCount, refundLamports };
   stage("done", result);
   return result;
 }
