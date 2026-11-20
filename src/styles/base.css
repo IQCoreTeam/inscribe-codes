@@ -412,13 +412,16 @@ a.tk_link:hover > span:last-child { color: var(--acc); }
 .nf-btnrow { display: flex; gap: 8px; flex-wrap: wrap; justify-content: center; }
 
 /* ── asset viewer ── */
-.nf-viewer { width: 920px; max-width: 100%; margin: 0 auto; align-self: flex-start; background: rgba(0, 0, 0, 0.97); --rc: var(--acc); }
+.nf-view-page { height: auto; min-height: 100vh; overflow: visible; }
+.nf-viewer { width: 920px; max-width: 100%; box-sizing: border-box; margin: 0 auto; align-self: flex-start; background: rgba(0, 0, 0, 0.97); --rc: var(--acc); }
 .nf-viewer.rare { --rc: #1f5fbf; }
 .nf-viewer.epic { --rc: #6a3fb5; }
 .nf-viewer.legendary { --rc: #b07a1a; border-color: #b07a1a; animation: legend 2.6s ease-in-out infinite; }
-.nf-vchip { border: 1px solid var(--rc); color: var(--rc); padding: 1px 7px; font: 400 16px "Jersey 15", monospace; margin-left: 10px; }
-.nf-vgrid { display: grid; grid-template-columns: minmax(0, 0.9fr) minmax(0, 1.15fr) minmax(0, 1fr); font-family: "Jersey 15", monospace; }
-.nf-vleft { padding: 18px 18px 16px; border-right: 1px solid var(--line); display: flex; flex-direction: column; gap: 14px; }
+.nf-vtitle { min-width: 0; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
+.nf-vchip { flex: none; border: 1px solid var(--rc); color: var(--rc); padding: 1px 7px; font: 400 16px "Jersey 15", monospace; }
+.nf-vback { flex: none; white-space: nowrap; }
+.nf-vgrid { display: grid; grid-template-areas: "info art chain"; grid-template-columns: minmax(0, 0.9fr) minmax(0, 1.15fr) minmax(0, 1fr); font-family: "Jersey 15", monospace; overflow-wrap: anywhere; }
+.nf-vleft { grid-area: info; padding: 18px 18px 16px; border-right: 1px solid var(--line); display: flex; flex-direction: column; gap: 14px; }
 .nf-vsec { border-top: 1px solid var(--line); padding-top: 12px; }
 .nf-vlab { letter-spacing: 0.2em; }
 .nf-vname { font: 400 16px "Jersey 15", monospace; margin-top: 6px; word-break: break-word; color: var(--ink); }
@@ -427,11 +430,11 @@ a.tk_link:hover > span:last-child { color: var(--acc); }
 .nf-vpips i { width: 18px; height: 5px; background: rgba(63, 210, 79, 0.15); }
 .nf-vpips i.on { background: var(--rc); }
 .nf-vowner { font: 400 16px/1.5 "Jersey 15", monospace; color: #8dffa0; margin-top: 6px; }
-.nf-vkv { display: grid; grid-template-columns: auto 1fr; gap: 4px 10px; font: 400 16px/1.7 "Jersey 15", monospace; margin-top: 6px; color: var(--mut); }
+.nf-vkv { display: grid; grid-template-columns: fit-content(42%) minmax(0, 1fr); gap: 4px 10px; font: 400 16px/1.7 "Jersey 15", monospace; margin-top: 6px; color: var(--mut); }
 .nf-vkv b { font-weight: 400; color: var(--ink2); }
-.nf-vcenter { padding: 18px 16px; display: flex; flex-direction: column; align-items: center; justify-content: center; background: radial-gradient(ellipse at 50% 45%, rgba(63, 210, 79, 0.06), transparent 70%); }
-.nf-vframe { position: relative; width: 100%; max-width: 300px; aspect-ratio: 1; background: var(--panel); color: rgba(63, 210, 79, 0.7); border: 1px solid rgba(63, 210, 79, 0.3); display: grid; place-items: center; }
-.nf-vframe img { width: 100%; height: 100%; object-fit: cover; image-rendering: pixelated; }
+.nf-vcenter { grid-area: art; padding: 18px 16px; display: flex; flex-direction: column; align-items: center; justify-content: center; background: radial-gradient(ellipse at 50% 45%, rgba(63, 210, 79, 0.06), transparent 70%); }
+.nf-vframe { position: relative; box-sizing: border-box; width: 100%; max-width: 300px; aspect-ratio: 1; background: var(--panel); color: rgba(63, 210, 79, 0.7); border: 1px solid rgba(63, 210, 79, 0.3); display: grid; grid-template: minmax(0, 1fr) / minmax(0, 1fr); place-items: center; }
+.nf-vframe img { width: 100%; height: 100%; object-fit: contain; image-rendering: pixelated; }
 .nf-vframe .c { width: 12px; height: 12px; border-width: 0; }
 .nf-vframe .c.tl { left: -1px; top: -1px; border-left-width: 2px; border-top-width: 2px; }
 .nf-vframe .c.tr { right: -1px; top: -1px; border-right-width: 2px; border-top-width: 2px; }
@@ -441,15 +444,16 @@ a.tk_link:hover > span:last-child { color: var(--acc); }
 .nf-vframe.epic { color: #6a3fb5; border-color: #6a3fb5; box-shadow: 0 0 0 1px rgba(106, 63, 181, 0.4), 0 0 14px rgba(106, 63, 181, 0.3); }
 .nf-vframe.legendary { color: #b07a1a; border-color: #b07a1a; box-shadow: 0 0 0 1px rgba(176, 122, 26, 0.45), 0 0 16px rgba(176, 122, 26, 0.35); animation: legend 2.6s ease-in-out infinite; }
 .nf-vcap { display: flex; justify-content: space-between; width: 100%; max-width: 300px; font: 400 16px/1.5 "Jersey 15", monospace; margin-top: 8px; color: var(--mut); }
-.nf-vright { padding: 18px 18px 16px; border-left: 1px solid var(--line); display: flex; flex-direction: column; gap: 12px; }
+.nf-vright { grid-area: chain; padding: 18px 18px 16px; border-left: 1px solid var(--line); display: flex; flex-direction: column; gap: 12px; }
 .nf-vsteps { font: 400 16px/1.8 "Jersey 15", monospace; margin-top: 6px; color: var(--mut); }
-.nf-vbtns { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; margin-top: auto; padding-top: 6px; }
+.nf-vbtns { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 6px; margin-top: auto; padding-top: 6px; }
 .nf-vbtns .btn2 { padding: 7px 10px; font-size: 16px; }
+.nf-vbtns .btn2, .nf-vbuy, .nf-vmk .btn2 { white-space: normal; }
 .nf-vbuy { display: block; margin-top: 8px; padding: 8px 12px; font-size: 18px; text-align: center; }
-.nf-vmk { display: flex; gap: 6px; margin-top: 8px; }
+.nf-vmk { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
 .nf-vmk .btn2 { flex: 1; padding: 6px 8px; font-size: 16px; }
 .nf-jsonwin { width: 100%; max-width: 560px; }
-.nf-json { margin: 0; padding: 14px 16px; font: 400 15px/1.65 "Jersey 15", monospace; color: var(--ink2); overflow: auto; max-height: 72vh; white-space: pre; tab-size: 2; }
+.nf-json { margin: 0; padding: 14px 16px; font: 400 15px/1.65 "Jersey 15", monospace; color: var(--ink2); white-space: pre-wrap; overflow-wrap: anywhere; tab-size: 2; }
 
 /* viewer + single: stacked windows, centered */
 .nf-stack { display: flex; flex-direction: column; gap: 14px; flex: 1; min-width: 0; align-items: center; }
@@ -458,9 +462,15 @@ a.tk_link:hover > span:last-child { color: var(--acc); }
 .nf-single { width: 720px; max-width: 100%; margin: 0 auto; align-self: flex-start; }
 .nf-singlegrid { display: grid; grid-template-columns: 240px minmax(0, 1fr); gap: 18px; align-items: start; }
 
-/* ── launch wizard ── */
-.nf-overlay { position: fixed; inset: 0; z-index: 30; background: rgba(0, 0, 0, 0.88); display: flex; align-items: flex-start; justify-content: center; padding: 26px 16px; overflow: auto; font: 400 16px/1.6 "Jersey 15", monospace; color: var(--ink2); }
-.nf-proveov { z-index: 40; align-items: center; }
+/* ── NFT overlays ── */
+.nf-overlay, .nf-view-dialog[open] { position: fixed; inset: 0; z-index: 30; background: rgba(0, 0, 0, 0.88); display: flex; align-items: flex-start; justify-content: center; padding: 26px 16px; overflow: auto; font: 400 16px/1.6 "Jersey 15", monospace; color: var(--ink2); }
+.nf-view-dialog[open] { width: 100%; height: 100dvh; max-width: none; max-height: none; box-sizing: border-box; margin: 0; border: 0; background: transparent; overflow: hidden; overflow-wrap: anywhere; }
+.nf-view-dialog::backdrop { background: rgba(0, 0, 0, 0.88); }
+.nf-view-dialog > .nf-win { max-height: 100%; box-sizing: border-box; }
+.nf-view-dialog .wh { flex: none; }
+.nf-view-dialog :is(.nf-vgrid, .nf-note, .nf-json, .nf-provebody) { min-height: 0; overflow: auto; overscroll-behavior: contain; }
+.nf-view-dialog .nf-vclose { flex: none; min-width: 36px; min-height: 36px; color: var(--ink2); background: var(--bg); font-size: 16px; opacity: 1; }
+.nf-view-dialog :focus-visible { outline: 1px solid var(--acc); outline-offset: -2px; }
 .nf-provewin { width: 100%; max-width: 420px; }
 .nf-provebody { display: flex; flex-direction: column; gap: 10px; padding: 14px; }
 .nf-prpc { display: flex; flex-direction: column; gap: 5px; }
@@ -469,6 +479,7 @@ a.tk_link:hover > span:last-child { color: var(--acc); }
 .nf-pstat { min-height: 1.2em; }
 .nf-pimg:empty { display: none; }
 .nf-pimg img { display: block; width: 100%; max-width: 220px; margin: 2px auto 0; image-rendering: pixelated; border: 1px solid var(--line); }
+/* ── launch wizard ── */
 .nf-wiz { width: 720px; max-width: 100%; display: flex; flex-direction: column; }
 .nf-wiz.wide { width: 1040px; }
 .nf-stepper { display: flex; gap: 8px; margin-bottom: 12px; font: 400 16px "Jersey 15", monospace; color: var(--mut); }
@@ -569,7 +580,7 @@ a.tk_link:hover > span:last-child { color: var(--acc); }
   .nf-colleft { border-right: none; }
   .nf-itemgrid { grid-template-columns: repeat(4, 1fr); }
   .nf-itemscroll { max-height: none; }
-  .nf-vgrid { grid-template-columns: 1fr; }
+  .nf-vgrid { grid-template-areas: "art" "info" "chain"; grid-template-columns: minmax(0, 1fr); }
   .nf-vleft, .nf-vright { border: none; }
   .nf-stepper { display: none; }
   .nf-choice, .ah-gw, .ah-hand, .ah-pw, .nf-form3, .nf-opts, .nf-done3, .ah-rep, .nf-singlegrid { grid-template-columns: 1fr; }
@@ -627,9 +638,9 @@ a.tk_link:hover > span:last-child { color: var(--acc); }
   .nf-pricenum { font-size: 52px; }
 
   /* popups: use the full width */
-  .nf-overlay { padding: 12px 6px; }
+  .nf-overlay, .nf-view-dialog[open] { padding: 12px 6px; }
   .nf-vleft, .nf-vright, .nf-vcenter { padding: 14px 12px; }
-  .nf-vbtns { grid-template-columns: 1fr 1fr; }
+  .nf-view-dialog .nf-vclose { min-width: 44px; min-height: 44px; }
   .nf-wizbody { padding: 16px 12px 18px; }
   .nf-form2, .nf-form3 { grid-template-columns: 1fr; }
   .nf-brand { flex-direction: column; }
