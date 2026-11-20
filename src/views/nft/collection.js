@@ -78,14 +78,6 @@ export async function render(root, slug) {
   </div>
 </div>`;
 
-  const banner = body.querySelector(".nf-colbanner");
-  if (banner) {
-    const fitBanner = () => {
-      if (banner.naturalWidth && banner.naturalWidth === banner.naturalHeight) banner.classList.add("square");
-    };
-    if (banner.complete) fitBanner();
-    else banner.addEventListener("load", fitBanner, { once: true });
-  }
 
   const desc = body.querySelector("#nc_desc"), dmore = body.querySelector("#nc_descmore");
   if (desc.scrollHeight > desc.clientHeight + 2) {
