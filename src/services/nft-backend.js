@@ -40,8 +40,20 @@ export const held = async (wallet) => (await read("/owner/" + wallet)).items || 
 export const assetInfo = (address) => read("/asset/" + address);
 
 // The stock-token currencies this visitor may price and pay in. The backend
-// decides by region and returns an empty list where they are not offered, so
-// every currency control is drawn from this alone. Fetched once per page.
+// decides by region and returns an empty list where they are not offered. This
+// is the page's only region signal: no view asks "which country", each one
+// draws its stock controls from this list, and the backend withholds the rest.
+//
+//   place                      stocks offered              not offered
+//   desk, PAY WITH row         shown, tickers = this list  absent
+//   wizard, "Minters pay in"   SOL + this list             absent (SOL only)
+//   stock collections          in /c, pages open           missing from /c, page 404
+//   My NFTs, viewer            stock items included        stock items left out
+//   market list / buy          the collection's currency   stock collections 404
+//
+// A collection's currency is fixed at deploy and is the only one it mints,
+// lists and sells in here, so trade menus show it and never offer a choice.
+// Fetched once per page.
 let offered = null;
 export const currencies = () => (offered ||= read("/creator/currencies").then((j) => j.currencies || [], () => []));
 
