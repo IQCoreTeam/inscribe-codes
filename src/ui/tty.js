@@ -24,3 +24,9 @@ export function typeLabels(container) {
     if (full.trim()) type(el, full);
   }
 }
+
+export function paintProgress(el, pct) {
+  const value = Math.round(pct);
+  el.querySelector("progress").value = value;
+  el.querySelector("span").textContent = value + "%";
+}

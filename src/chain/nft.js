@@ -16,23 +16,22 @@ import { estimateCost, getAccountRent, topUp, sweep, confirmOrCheck } from "./bu
 import { writeFeedRow } from "./feed.js";
 import { call, collection as getCollection } from "../services/nft-backend.js";
 import { notify, imgUrl } from "../services/gateway.js";
+import { mintPlatformFee } from "./nft-fees.js";
 
 // One popup funds the whole mint, so the budget is generous and the remainder
-// sweeps back: deposit + price + the program's platform fee + register-time
+// sweeps back: price (including any deposit) + platform fee + register-time
 // rents + both inscriptions at their caps.
-const PLATFORM_FEE_BPS = 500; // must track the program constant
 const ASSET_OVERHEAD = 12_000_000; // Core asset + record rent + register fee, swept back
 const IMAGE_CAP_BYTES = 256 * 1024;
 const META_CAP_BYTES = 4096;
 
 export function mintBudget(col, accountRent) {
   const price = Number(col.priceLamports || 0);
-  const deposit = Number(col.depositLamports || 0);
-  const fee = Math.ceil((price * PLATFORM_FEE_BPS) / 10000);
+  const fee = mintPlatformFee(price);
   const imageRowBytes = Math.ceil((IMAGE_CAP_BYTES * 4) / 3) + 128; // base64 + row wrapper
   const img = estimateCost(imageRowBytes, accountRent === undefined ? {} : { accountRent }).total;
   const meta = estimateCost(META_CAP_BYTES, { accountRent: 0 }).total; // accounts exist after C
-  return deposit + price + fee + ASSET_OVERHEAD + img + meta;
+  return price + fee + ASSET_OVERHEAD + img + meta;
 }
 
 // ── Resume checkpoints ──────────────────────────────────────────────────────
@@ -132,9 +131,8 @@ export async function mint({ connection, wallet, burner, slug, collection, onSta
 
   // 1. Fund once for the whole mint.
   if (!p.funded) {
-    stage("funding");
     const accountRent = await getAccountRent(connection, burner.publicKey);
-    await topUp(connection, wallet, burner.publicKey, mintBudget(col, accountRent));
+    await topUp(connection, wallet, burner.publicKey, mintBudget(col, accountRent), (lamports) => stage("funding", { lamports }));
     p.funded = true; saveProgress(slug, p);
   }
 
@@ -208,9 +206,9 @@ export async function mint({ connection, wallet, burner, slug, collection, onSta
 
   // 6. Report the landing, sweep, clear the checkpoint, report.
   if (p.reservationId) await reportLanded(slug, p.reservationId);
-  await sweep(connection, burner, wallet.publicKey).catch(() => {});
+  const refundLamports = await sweep(connection, burner, wallet.publicKey).catch(() => null);
   clearProgress(slug);
-  const result = { slug, index: p.index, name: p.name, C: p.C, M: p.M, asset: asset.publicKey.toBase58(), mintSig };
+  const result = { slug, refundLamports, index: p.index, name: p.name, C: p.C, M: p.M, asset: asset.publicKey.toBase58(), mintSig };
   stage("done", result);
   return result;
 }
