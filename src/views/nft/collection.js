@@ -1,32 +1,29 @@
 // Collection page (design/NFT Launchpad Flow v5): header + item grid on the
 // left, the mint panel on the right. Unminted items are SEALED (no art before
 // mint; a sealed cell's rarity would leak the next sequential item). The mint
-// runs inline in the panel: approve -> confirming (tty bar + log) -> Minted.
-import { esc, fmtSol, shortAddr } from "../../ui/fmt.js";
+// panel is its own module (mintpanel.js), shared with the market.
+import { esc, shortAddr } from "../../ui/fmt.js";
 import * as nft from "../../services/nft-backend.js";
 import { imgUrl } from "../../services/gateway.js";
-import { nftMarkets } from "../../services/markets.js";
 import { skeleton } from "../../ui/skeleton.js";
-import { connect as rpcConnect, explorerTx } from "../../chain/rpc.js";
-import { frame, statusOf, chainOf, coverOf, priceOf, tcls, segsHtml } from "./launchpad.js";
-import { session, addr, connectWallet, ensureBurner, paintWalletPill } from "./session.js";
+import { frame, statusOf, chainOf, coverOf } from "./launchpad.js";
+import { mountMintPanel } from "./mintpanel.js";
+import { paintWalletPill } from "./session.js";
 
 const PAGE = 500;
-const MINT_OVERHEAD = "~0.0135 SOL"; // image + metadata inscription + asset rent, measured on mainnet
 const TIER_LABEL = { legendary: "Legendary", epic: "EPIC", rare: "RARE" };
-const st = { col: null, items: [], total: 0, hasRarity: false, filter: "all", mint: "idle", pct: 0, log: [], result: null, error: null, busy: false };
+const st = { col: null, items: [], total: 0, hasRarity: false, filter: "all" };
 
 export async function render(root, slug) {
   const body = frame(root, `<div class="win nf-win nf-colwin"><div class="wh"><span>Collection · ${esc(slug)}</span><a class="wh-right wh-x" href="?view=nft">← all collections</a></div><div class="nf-note">loading...</div></div>`);
-  paintWalletPill(root.querySelector("#nav_wallet"), () => paintMint(root));
+  paintWalletPill(root.querySelector("#nav_wallet"));
   let col;
   try { col = await nft.collection(slug); }
   catch (e) { body.querySelector(".nf-note").textContent = 'could not load "' + slug + '": ' + e.message; return; }
-  Object.assign(st, { col, items: [], total: 0, hasRarity: false, filter: "all", mint: "idle", pct: 0, log: [], result: null, error: null, busy: false });
+  Object.assign(st, { col, items: [], total: 0, hasRarity: false, filter: "all" });
 
   const ch = chainOf(col);
   const status = statusOf(col);
-  const cur = nft.curOf(col);
   const logo = col.logo || (col.coverSig ? imgUrl(col.coverSig) : "");
   body.innerHTML = `
 <div class="win nf-win nf-colwin">
@@ -43,7 +40,7 @@ export async function render(root, slug) {
           <button type="button" class="nf-descmore" id="nc_descmore" hidden>see more</button>
           <div class="nf-collinks lab">
             <a class="btn2" href="https://solscan.io/account/${esc(col.collection)}" target="_blank" rel="noopener">Collection on chain</a>
-            <a class="btn2" href="https://magiceden.io/marketplace/${esc(col.collection)}" target="_blank" rel="noopener">Magic eden</a>
+            <a class="btn2" href="?view=nft&market=${esc(col.slug)}">Market</a>
           </div>
         </div>
       </div>
@@ -55,28 +52,7 @@ export async function render(root, slug) {
       <div class="nf-itemscroll"><div class="nf-itemgrid" id="nc_grid">${skeleton(18, "cell")}</div><div class="nf-note" id="nc_gridnote"></div></div>
       <p class="cm" style="margin:14px 0 0">Bright = minted, with its owner. ? = still available.</p>
     </div>
-    <div class="nf-colright">
-      <div class="lab" style="letter-spacing:.2em;opacity:.7">Mint</div>
-      <div class="nf-pricebox">
-        <div class="nf-price"><span class="c tl"></span><span class="c tr"></span><span class="c bl"></span><span class="c br"></span>
-          <span class="nf-pricenum ${tcls(col)}">${!col.priceLamports ? "FREE" : cur ? esc(priceOf(col).split(" ")[0]) : String(+(col.priceLamports / 1e9).toFixed(4))}</span>${col.priceLamports ? `<span class="nf-priceunit ${tcls(col)}">${cur ? esc(cur.symbol) : ch.unit}</span>` : ""}</div>
-        <div class="cm" style="margin-top:10px">+ ${MINT_OVERHEAD} to put your item on chain. Nothing hidden.</div>
-      </div>
-      <div>
-        <div class="cc-segs" style="height:14px;margin:0" id="nc_segs">${segsHtml(col.minted, col.maxSupply)}</div>
-        <div class="nf-mintedline"><span style="color:var(--acc)" id="nc_mintedlabel">${col.minted.toLocaleString("en-US")} / ${col.maxSupply.toLocaleString("en-US")}</span><span>Minted</span></div>
-      </div>
-      <details class="nf-details"><summary>details ▸</summary><div>
-        <div class="kv"><span>phase</span><span class="${status === "LIVE" ? "mint" : status === "Upcoming" ? "amber" : ""}">${col.allowlistOnly ? "ALLOWLIST" : "PUBLIC"} · ${status}</span></div>
-        <div class="kv"><span>per wallet</span><span>${col.maxPerWallet ? col.maxPerWallet + " per wallet" : "no limit"}</span></div>
-        <div class="kv"><span>starts / ends</span><span>${when(col.startAt) || "open"} → ${when(col.endAt) || "open"}</span></div>
-        <div class="kv"><span>order</span><span>${col.sequential ? "sequential" : "random"}</span></div>
-        ${cur ? `<div class="kv"><span>pay with</span><span>${esc(cur.symbol)}${cur.issuer ? " · " + esc(cur.issuer) : ""}, from your wallet, plus 5% platform fee</span></div>` : ""}
-        ${col.depositLamports ? `<div class="kv"><span>deposit</span><span>${fmtSol(col.depositLamports)} at reservation, counts toward the price</span></div>` : ""}
-        <div class="kv"><span>you</span><span id="nc_you">${addr() ? "connected" : "not connected"}</span></div>
-      </div></details>
-      <div id="nc_mint"></div>
-    </div>
+    <div class="nf-colright" id="nc_panel"></div>
   </div>
 </div>`;
 
@@ -92,11 +68,11 @@ export async function render(root, slug) {
     for (const x of body.querySelectorAll(".nf-tabs .tab")) x.classList.toggle("on", x === t);
     paintGrid(root);
   };
-  paintMint(root);
+  // The grid cell lights up and the counts move once a mint lands.
+  const panel = mountMintPanel(body.querySelector("#nc_panel"), col, { onMinted: (c) => { st.col = c; st.items = []; loadItems(root); } });
+  paintWalletPill(root.querySelector("#nav_wallet"), panel.repaint);
   loadItems(root);
 }
-
-const when = (unix) => (unix ? new Date(unix * 1000).toLocaleString("en-US", { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" }) : "");
 
 // Items arrive 500 at a time and are drawn as they land; minted indexes are
 // scattered (random assignment), so the Minted filter needs the whole set.
@@ -139,112 +115,4 @@ function cellHtml(it) {
   return `<a class="icell minted ${tier}" href="?view=nft&asset=${esc(it.asset)}">
     <div class="icell-img"><img src="${esc(imgUrl(it.inscriptionSig))}" alt="" loading="lazy">${tier ? `<span class="icell-tag">${TIER_LABEL[tier] || tier}</span>` : ""}<span class="icell-th">#${it.index}</span></div>
     <div class="icell-foot"><span>${esc(shortAddr(it.owner))}</span><span class="icell-st">${tier ? TIER_LABEL[tier] : "minted"}</span></div></a>`;
-}
-
-// ── mint panel ──────────────────────────────────────────────────────────────
-const BAR_W = 28;
-const bar = (p) => { const n = Math.max(0, Math.min(BAR_W, Math.round((BAR_W * p) / 100))); return "[" + "█".repeat(n) + "░".repeat(BAR_W - n) + "] " + Math.round(p) + "%"; };
-
-async function paintMint(root) {
-  const el = root.querySelector("#nc_mint");
-  if (!el || !st.col) return;
-  const col = st.col;
-  const you = root.querySelector("#nc_you");
-  if (you) you.textContent = addr() ? "connected · " + shortAddr(addr()) : "not connected";
-  if (st.mint === "approve") {
-    el.innerHTML = '<div class="ttyspin nf-approve">Approve in your wallet…</div><div class="cm">One transfer funds the whole mint; whatever is left comes back to you.</div>';
-    return;
-  }
-  if (st.mint === "confirm") {
-    el.innerHTML = `<div class="ttybar" id="nc_bar">${bar(st.pct)}</div><div class="ttyspin cm" style="margin-top:6px" id="nc_phase">${esc(st.log[st.log.length - 1] || "working…")}</div>
-      <div class="nf-log" id="nc_log">${st.log.map((l) => "<div>&gt; " + esc(l) + "</div>").join("")}</div>
-      <div class="cm">Keep this tab open. If it stops, come back and press Resume: every step is checkpointed, nothing is paid twice.</div>`;
-    return;
-  }
-  if (st.mint === "done") {
-    const r = st.result;
-    el.innerHTML = `
-      <div style="text-align:center;padding:6px 0 2px"><div data-tty class="nf-minted">Minted.</div><div class="cm" style="margin-top:10px">${esc(r.name || col.name + " #" + r.index)} · owner ${esc(shortAddr(addr()))}</div></div>
-      <div>
-        <div class="kv"><span>image on chain</span><span class="mint">${esc(shortAddr(r.C))}</span></div>
-        <div class="kv"><span>details on chain</span><span class="mint">${esc(shortAddr(r.M))}</span></div>
-        <div class="kv"><span>link</span><span>gateway.iqlabs.dev/token-meta/${esc(shortAddr(r.M))}</span></div>
-      </div>
-      <div class="nf-btnrow lab">
-        <a class="btng" href="?view=nft&asset=${esc(r.asset)}">View NFT →</a>
-        ${nftMarkets.map((m) => `<a class="btn2" href="${esc(m.item(r.asset))}" target="_blank" rel="noopener">${esc(m.label)}</a>`).join("")}
-        <a class="btn2" href="${esc(explorerTx(r.C))}" target="_blank" rel="noopener">Solscan</a>
-        <button class="btn2" id="nc_again">Mint another</button>
-      </div>`;
-    el.querySelector("#nc_again").onclick = () => { st.mint = "idle"; st.result = null; paintMint(root); };
-    return;
-  }
-  // idle (or paused with an error)
-  const status = statusOf(col);
-  const { pendingMint } = await import("../../chain/nft.js");
-  const resume = pendingMint(col.slug);
-  const cannot = status === "Upcoming" ? "Not started yet" : status === "Sold out" ? "Sold out · see magic eden" : status === "Ended" ? "Mint ended" : null;
-  el.innerHTML = `
-    ${st.error ? `<div class="cm" style="color:var(--bad)">${esc(st.error)}</div>` : ""}
-    ${!addr() ? '<div class="nf-connectmint" id="nc_connect">Connect wallet to mint</div>'
-      : cannot ? `<div class="btn2 nf-cannot">${cannot}</div>`
-      : `<button class="btn nf-mintbtn" id="nc_mintbtn">${resume || st.error ? "Resume mint" : "Mint one"}</button>`}
-    ${resume && !st.error ? '<div class="cm" style="color:#8dffa0">An unfinished mint was found; only the missing steps are redone.</div>' : ""}
-    <div class="cm"><div>One signature. You pay, you own it.</div><div>The NFT points at its image and details stored on chain.</div></div>`;
-  const c = el.querySelector("#nc_connect");
-  if (c) c.onclick = () => connectWallet().then(() => { paintWalletPill(root.querySelector("#nav_wallet"), () => paintMint(root)); paintMint(root); }).catch((e) => alert(e.message));
-  const b = el.querySelector("#nc_mintbtn");
-  if (b) b.onclick = () => runMint(root);
-}
-
-const STAGE_PCT = { funding: 5, deposit: 15, reserve: 20, image: 25, metadata: 80, register: 90, confirming: 95 };
-const STAGE_LINE = {
-  deposit: () => "deposit paid",
-  reserve: () => "reserving your item",
-  image: (x) => "item " + (x && x.index != null ? "#" + x.index : "") + ": inscribing the image",
-  metadata: () => "inscribing the details",
-  register: () => "registering the NFT (co-sign)",
-  confirming: () => "waiting for confirmation",
-};
-
-async function runMint(root) {
-  if (st.busy) return;
-  st.busy = true; st.error = null; st.log = []; st.pct = 0;
-  st.mint = "approve"; paintMint(root);
-  const live = () => {
-    const b = root.querySelector("#nc_bar"), ph = root.querySelector("#nc_phase"), lg = root.querySelector("#nc_log");
-    if (b) b.textContent = bar(st.pct);
-    if (ph) ph.textContent = st.log[st.log.length - 1] || "";
-    if (lg) lg.innerHTML = st.log.map((l) => "<div>&gt; " + esc(l) + "</div>").join("");
-  };
-  try {
-    const connection = rpcConnect();
-    const burner = await ensureBurner();
-    const { mint } = await import("../../chain/nft.js");
-    st.result = await mint({
-      connection, wallet: session.wallet, burner, slug: st.col.slug, collection: st.col,
-      onStage: (s, x) => {
-        if (s === "funding") { st.mint = "approve"; paintMint(root); return; }
-        if (st.mint !== "confirm") { st.mint = "confirm"; paintMint(root); }
-        if (STAGE_PCT[s]) st.pct = Math.max(st.pct, STAGE_PCT[s]);
-        if (STAGE_LINE[s]) { st.log.push(STAGE_LINE[s](x)); live(); }
-      },
-      onProgress: (p) => { st.pct = Math.max(st.pct, 25 + Math.round(p * 0.55)); live(); },
-    });
-    st.mint = "done";
-    paintMint(root);
-    // the grid cell lights up and the counts move
-    nft.collection(st.col.slug).then((c) => {
-      st.col = c;
-      const s = root.querySelector("#nc_segs"), m = root.querySelector("#nc_mintedlabel");
-      if (s) s.innerHTML = segsHtml(c.minted, c.maxSupply);
-      if (m) m.textContent = c.minted.toLocaleString("en-US") + " / " + c.maxSupply.toLocaleString("en-US");
-      st.items = []; loadItems(root);
-    }).catch(() => {});
-  } catch (e) {
-    st.error = String((e && e.message) || e) + " · Resume picks up where it stopped.";
-    st.mint = "idle";
-    paintMint(root);
-  }
-  st.busy = false;
 }

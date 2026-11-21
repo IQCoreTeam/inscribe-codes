@@ -327,7 +327,7 @@ function settingsHtml() {
       <div class="nf-opt"><div class="fl">Reveal</div><div class="cm">Instant. Each item is revealed the moment it is minted; delayed reveal is not offered here.</div></div>
     </div>
     <div class="cm" style="margin-top:10px">Platform fee is 5% of the price, paid by the minter on top. Minters also pay their own inscription (~0.0135 SOL). Nothing up front from you except the deploy fee.</div>
-    ${st.currency ? `<div class="cm" style="margin-top:6px">Minters need ${esc(st.currency.symbol)} (${esc(st.currency.issuer)}) in their wallet and pay the price in it, straight to your wallet's ${esc(st.currency.symbol)} account. The currency cannot be changed after deploy.</div>` : ""}
+    ${st.currency ? `<div class="cm" style="margin-top:6px">Minted, listed and sold in ${esc(st.currency.symbol)} only · fixed at deploy. Minters need ${esc(st.currency.symbol)} (${esc(st.currency.issuer)}) in their wallet; the price goes straight to your wallet's ${esc(st.currency.symbol)} account.</div>` : ""}
     ${err()}
     ${nav(true, true)}`;
 }
