@@ -577,32 +577,120 @@ a.tk_link:hover > span:last-child { color: var(--acc); }
   .ah-edit { border-left: none; padding-left: 0; }
 }
 
-/* ── v6 stock-token launch: ticker colours, currency chip, PAY WITH filter.
-   --tc is the per-ticker accent; the chip, the mint price and the activity
-   amount all read it. SOL collections carry no t-* class, so nothing changes
-   for them. ── */
+/* ── v6: stock currencies and the in-site market (design/NFT Launchpad Flow v6).
+   --tc is the per-ticker accent; the chip, prices and amounts read it. SOL
+   collections carry no t-* class, so nothing changes for them. ── */
 .t-NVDAx, .t-NVDA { --tc: #8fd400; }
 .t-BLK { --tc: #e9eee8; }
 .t-SPY { --tc: #6ea8ff; }
-.cur { position: absolute; top: 8px; left: 8px; z-index: 2; display: inline-flex; align-items: center; gap: 5px; font: 400 9px/1.6 "Silkscreen", monospace; padding: 3px 7px; background: rgba(0, 0, 0, 0.72); border: 1px solid var(--tc, #ffb347); color: var(--tc, #ffb347); white-space: nowrap; }
-.cur::before { content: ""; width: 9px; height: 9px; border-radius: 50%; background: var(--tc, #ffb347); flex: none; }
-.cur em { margin-left: 2px; color: var(--mut); font-style: normal; }
-.band-price.t-NVDAx, .band-price.t-NVDA, .band-price.t-BLK, .band-price.t-SPY,
-.act-amt.t-NVDAx, .act-amt.t-NVDA, .act-amt.t-BLK, .act-amt.t-SPY,
-.nf-pricenum[class*=" t-"], .nf-priceunit[class*=" t-"] { color: var(--tc, #ffb347); }
+[class*="t-"].u, [class*="t-"].lab, [class*="t-"].mk-big, [class*="t-"].mk-trades, span[class^="t-"],
+.band-price[class*=" t-"], .act-amt[class*=" t-"], .nf-pricenum[class*=" t-"], .nf-priceunit[class*=" t-"] { color: var(--tc, #ffb347); }
 .act-amt { margin-left: 2px; }
-.nf-payrow { display: flex; align-items: center; gap: 10px; margin-top: 12px; }
-.nf-payrow[hidden] { display: none; }
-.nf-paylab { font: 400 10px/1.6 "Silkscreen", monospace; text-transform: uppercase; letter-spacing: 0.08em; color: var(--mut); }
-.nf-payseg { display: inline-flex; border: 1px solid var(--line); }
-.payb { font: 400 14px/1.2 "Jersey 15", monospace; padding: 6px 15px; color: var(--ink2); cursor: pointer; }
-.payb + .payb { border-left: 1px solid var(--line); }
-.payb.on { background: var(--acc); color: var(--bg); }
-.nf-stats.three { grid-template-columns: repeat(3, 1fr); }
+.approx { color: var(--mut); }
+/* Ticker chip: dot + ticker, the issuer on hover. */
+.cur { position: relative; display: inline-flex; align-items: center; gap: 5px; font: 400 13px/1.4 "Jersey 15", monospace; letter-spacing: 0.08em; color: var(--tc, #ffb347); white-space: nowrap; cursor: default; }
+.cur::before { content: ""; flex: 0 0 auto; width: 9px; height: 9px; border-radius: 50%; background: var(--tc, #ffb347); }
+.cur i { display: none; position: absolute; left: 0; bottom: calc(100% + 6px); z-index: 6; font: 400 9px/1.6 "Silkscreen", monospace; font-style: normal; letter-spacing: 0; color: var(--ink2); background: var(--bg); border: 1px solid var(--tc, #ffb347); padding: 2px 7px; white-space: nowrap; }
+.cur:hover i { display: block; }
+.cur.tr i { left: auto; right: 0; }
+.cur.dn i { bottom: auto; top: calc(100% + 6px); }
+.wh > span.cur { color: var(--tc, #ffb347); }
+.cc-tags { display: inline-flex; align-items: center; gap: 10px; }
+/* Tabs live in the window's header band; the active one is a green fill. */
+.wh > span.wtab { cursor: pointer; padding: 4px 12px; font-size: 13px; letter-spacing: 0.06em; color: var(--ink2); }
+.wh > span.wtab:hover { color: #8dffa0; }
+.wh > span.wtab.on, .wh > span.wtab.on:hover { background: var(--acc); color: #041006; }
+.nf-filters { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; min-height: 36px; }
+.nf-filters[hidden], .csel[hidden] { display: none; }
+.csel { appearance: none; -webkit-appearance: none; box-sizing: border-box; background-color: #031005; color: var(--acc); border: 1px solid var(--acc); border-radius: 0; font: 400 16px "Jersey 15", monospace; padding: 6px 32px 6px 10px; outline: none; cursor: pointer; background-image: linear-gradient(45deg, transparent 50%, var(--acc) 50%), linear-gradient(135deg, var(--acc) 50%, transparent 50%); background-position: calc(100% - 17px) 50%, calc(100% - 12px) 50%; background-size: 5px 5px, 5px 5px; background-repeat: no-repeat; }
+.csel option { color: var(--ink2); background: var(--bg); }
+.nf-tabbody { margin-top: 14px; }
+.nf-stats.three { grid-template-columns: repeat(3, 1fr); margin-top: 0; }
+/* Market: one row per collection. */
+.mkrow, .mkhead { display: grid; grid-template-columns: 44px minmax(0, 1.6fr) minmax(0, 1.2fr) 64px 90px 14px; gap: 12px; align-items: center; padding: 9px 10px; }
+.mkhead { margin-top: 14px; padding-top: 0; padding-bottom: 6px; border-bottom: 1px solid var(--line); font: 400 10px/1.6 "Silkscreen", monospace; color: var(--mut); letter-spacing: 0.1em; text-transform: uppercase; }
+.mkrow { border-bottom: 1px solid var(--line); cursor: pointer; font: 400 16px "Jersey 15", monospace; color: var(--ink2); }
+.mkrow:hover { background: rgba(63, 210, 79, 0.06); }
+.mkrow.bump { animation: mkbump 1.8s ease-out 1; }
+@keyframes mkbump { 0% { background: rgba(141, 255, 160, 0.3); } 100% { background: transparent; } }
+.mkrow > img { width: 44px; height: 44px; object-fit: cover; display: block; border: 1px solid var(--line); }
+.mkrow .u { font-size: 13px; color: var(--mut); }
+.mk-name { min-width: 0; }
+.mk-name > div:first-child { display: flex; align-items: center; gap: 8px; min-width: 0; }
+.mk-name > div:first-child > span:first-child, .mk-n { color: var(--ink); }
+.mk-name > div:first-child > span:first-child { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0; }
+.mk-sub { font: 400 13px/1.5 "Jersey 15", monospace; color: var(--mut); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.mk-floor { min-width: 0; white-space: nowrap; }
+.mk-arrow { color: var(--mut); }
+.mk-chg { color: var(--mut); }
+.mk-chg.up { color: #8dffa0; }
+.mk-chg.down { color: #ff7a7a; }
+.mk-scroll { max-height: calc(100vh - 372px); }
+.mk-scroll2 { max-height: calc(100vh - 380px); margin-top: 12px; }
+/* Market: inside one collection. */
+.mk-colhead { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; padding-bottom: 12px; border-bottom: 1px solid var(--line); font: 400 16px "Jersey 15", monospace; color: var(--mut); }
+.mk-colhead > img { width: 40px; height: 40px; object-fit: cover; display: block; border: 1px solid var(--line); }
+.mk-back { padding: 6px 10px; }
+.mk-coltitle { min-width: 0; }
+.mk-coltitle .t { font: 400 22px "Jersey 15", monospace; color: var(--ink); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.mk-colstats { margin-left: auto; display: flex; gap: 18px; white-space: nowrap; color: var(--ink2); }
+.mk-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); gap: 10px; }
+.mkcard { border: 1px solid var(--line); background: var(--bg); cursor: pointer; overflow: hidden; --fc: var(--acc); }
+.mk-img { position: relative; aspect-ratio: 1; overflow: hidden; background: var(--panel); }
+.mk-img img { width: 100%; height: 100%; object-fit: cover; display: block; image-rendering: pixelated; transition: transform 0.6s cubic-bezier(0.2, 0.7, 0.2, 1); }
+.mkcard:hover .mk-img img { transform: scale(1.04); }
+.mk-img .chip { position: absolute; left: 6px; top: 6px; background: rgba(0, 0, 0, 0.85); }
+.mk-img .chip.mk-tier { left: auto; right: 6px; }
+.mk-tier.rare { border-color: #5aa9ff; color: #5aa9ff; }
+.mk-tier.epic { border-color: #b07cff; color: #b07cff; }
+.mk-tier.legendary { border-color: #b07a1a; color: #b07a1a; }
+.mk-body { padding: 9px 10px 10px; font: 400 16px "Jersey 15", monospace; }
+.mk-item { color: var(--ink); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.mk-price { margin-top: 6px; display: flex; justify-content: space-between; align-items: baseline; gap: 6px; white-space: nowrap; }
+.mk-big { font-size: 20px; color: var(--ink); }
+.mk-foot { margin-top: 6px; display: flex; align-items: center; justify-content: space-between; gap: 6px; white-space: nowrap; overflow: hidden; text-transform: uppercase; }
+.mk-act { border: 1px solid var(--cta); color: var(--cta); padding: 1px 6px; }
+.mk-act.mine { border-color: var(--mut); color: var(--ink2); }
+/* Item popup and the "list yours" picker. */
+.mk-pop { width: 800px; max-width: 100%; overflow: hidden; }
+.mk-pick { width: 640px; }
+.mk-pickbody { padding: 18px 20px 20px; }
+.wh > span.mk-hl { color: #8dffa0; }
+.wh > .wh-x.mk-x { margin-left: 12px; }
+.mk-popgrid { display: grid; grid-template-columns: 260px minmax(0, 1fr); gap: 18px; padding: 18px 20px 20px; }
+.mk-popimg { aspect-ratio: 1; width: 100%; max-width: 260px; border: 1px solid var(--line); overflow: hidden; background: var(--panel); }
+.mk-popimg img { width: 100%; height: 100%; object-fit: cover; display: block; image-rendering: pixelated; }
+.mk-popright { display: flex; flex-direction: column; gap: 12px; font: 400 16px "Jersey 15", monospace; color: var(--mut); min-width: 0; }
+.mk-cost { border: 1px solid var(--line); padding: 4px 0; }
+.mk-cost .mk-total { border-top: 1px solid var(--line); margin-top: 4px; padding-top: 10px; }
+.mk-cost .mk-total > :first-child { color: var(--ink); }
+.mk-fine { font-size: 13px; }
+.mk-wide { display: block; padding: 13px 0; white-space: normal; }
+.mk-buy { font-size: 22px; }
+.mk-off { color: var(--mut); cursor: not-allowed; }
+.mk-off:hover { border-color: var(--mut); color: var(--mut); }
+.mk-you { color: #8dffa0; font-size: 16px; }
+.mk-askrow { display: flex; gap: 12px; align-items: flex-end; flex-wrap: wrap; }
+.mk-askrow > div:first-child { flex: 0 0 130px; }
+.mk-askrow > .cm { flex: 1 1 220px; min-width: 0; padding-bottom: 9px; }
+.mk-done { border: 1px solid rgba(125, 255, 127, 0.55); background: rgba(125, 255, 127, 0.07); text-align: center; padding: 12px 0; color: #8dffa0; }
+.mk-links { display: flex; gap: 8px; flex-wrap: wrap; margin-top: auto; }
+.mk-links .btn2 { padding: 8px 12px; font-size: 16px; }
+.rc-foot a { color: inherit; }
+/* Mint panel: the price scales with the panel so a long amount never clips. */
+.nf-pricebox { container-type: inline-size; }
+.nf-price { flex-wrap: wrap; justify-content: center; max-width: 100%; }
+.nf-pricenum { font-size: clamp(34px, 19cqw, 64px); }
+.nf-disclose { font-size: 13px; border-top: 1px solid var(--line); padding-top: 10px; }
 
 /* ── phones (<= 640px): stack what sits side by side, one card per row. Every
    rule lives in this block so wider viewports render exactly as before. ── */
 @media (max-width: 640px) {
+  .mk-popgrid { grid-template-columns: 1fr; }
+  .mkrow, .mkhead { grid-template-columns: 36px minmax(0, 1.4fr) minmax(0, 1fr) 40px 64px; }
+  .mkrow > img { width: 36px; height: 36px; }
+  .mk-arrow, .mkhead > span:last-child { display: none; }
+  .mk-colstats { margin-left: 0; }
   .navwrap { padding: 8px 8px 0; }
   .navbar, .navgrp { gap: 4px; min-width: 0; }
   .navgrp { flex: 1; }

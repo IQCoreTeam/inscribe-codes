@@ -1,18 +1,19 @@
-// NFT side (design/NFT Launchpad Flow v5). This module is the sub-router and
-// the launchpad desk (COLLECTIONS / MARKET / MY NFTS + the activity column);
-// the collection page, the asset viewer, the single mint and the launch wizard
-// are their own modules, dispatched on the query params:
-//   ?view=nft            -> this desk
-//   ?view=nft&c=<slug>   -> collection page
+// NFT side (design/NFT Launchpad Flow v6). This module is the sub-router and
+// the desk (LAUNCHPAD / MARKET / MY NFTS + the side window); the market, the
+// collection page, the asset viewer, the single mint and the launch wizard are
+// their own modules, dispatched on the query params:
+//   ?view=nft                 -> this desk
+//   ?view=nft&market=<slug>   -> this desk, on that collection's market
+//   ?view=nft&c=<slug>        -> collection page
 //   ?view=nft&asset=<a>  -> asset viewer
 //   ?view=nft&single=<C> -> single 1/1 mint
 import { nav } from "../../ui/nav.js";
 import { skeleton } from "../../ui/skeleton.js";
 import { typeLabels } from "../../ui/tty.js";
-import { esc, fmtSol, fmtWhen, shortAddr } from "../../ui/fmt.js";
+import { esc, fmtSol, fmtUsd, fmtWhen, shortAddr } from "../../ui/fmt.js";
 import * as nft from "../../services/nft-backend.js";
 import { imgUrl } from "../../services/gateway.js";
-import { nftMarketOf } from "../../services/markets.js";
+import { usdPrice } from "../../services/markets.js";
 import { addr, paintWalletPill } from "./session.js";
 
 export async function mount(root) {
@@ -20,7 +21,8 @@ export async function mount(root) {
   if (q.get("c")) return (await import("./collection.js")).render(root, q.get("c"));
   if (q.get("asset")) return (await import("./viewer.js")).render(root, q.get("asset"));
   if (q.get("single")) return (await import("./single.js")).render(root, q.get("single"));
-  return desk(root);
+  if (q.get("market")) st.tab = "market";
+  return desk(root, q.get("market"));
 }
 
 // Shared page frame: nav + the viewport-high page column every NFT screen
@@ -63,10 +65,28 @@ const fmtAmount = (raw, decimals) => {
   const n = raw / 10 ** decimals;
   return (n >= 1 ? n.toFixed(2) : n.toFixed(n >= 0.01 ? 3 : 4)).replace(/\.?0+$/, "");
 };
-export const priceOf = (c) => {
-  if (!c.priceLamports) return "FREE";
+// A raw amount in the collection's own currency: "0.2 NVDAx", "0.40 SOL".
+export const amountOf = (raw, c) => {
   const u = nft.curOf(c);
-  return u ? fmtAmount(c.priceLamports, u.decimals) + " " + u.symbol : fmtSol(c.priceLamports);
+  return u ? fmtAmount(raw, u.decimals) + " " + u.symbol : fmtSol(raw);
+};
+export const priceOf = (c) => (c.priceLamports ? amountOf(c.priceLamports, c) : "FREE");
+// "≈ $32.26" beside an amount. The slot is drawn empty and fillUsd writes the
+// figure once the price arrives; it stays empty when there is none (and for
+// Robinhood collections, whose currency this price source does not carry).
+export const usdSlot = (raw, c) => {
+  if ((c.chain || "solana") !== "solana" || !raw) return "";
+  const u = nft.curOf(c);
+  return `<span class="approx" data-usd="${raw / 10 ** (u ? u.decimals : 9)}" data-mint="${u ? esc(u.mint) : ""}"></span>`;
+};
+export function fillUsd(el) {
+  for (const n of el.querySelectorAll("[data-usd]")) usdPrice(n.dataset.mint || undefined).then((p) => { if (p) n.textContent = "≈ " + fmtUsd(Number(n.dataset.usd) * p); });
+}
+// The ticker chip of a stock-priced collection (dot + ticker in the ticker
+// colour, issuer on hover); nothing for SOL. `side` flips the hover label.
+export const curChip = (c, side = "dn") => {
+  const u = nft.curOf(c);
+  return u ? `<span class="cur ${side} t-${esc(u.symbol)}">${esc(u.symbol)}${u.issuer ? `<i>${esc(u.issuer)}</i>` : ""}</span>` : "";
 };
 export const coverOf = (c) => c.banner || c.logo || (c.coverSig ? imgUrl(c.coverSig) : "");
 export const segsHtml = (minted, supply) => {
@@ -78,91 +98,77 @@ export const segsHtml = (minted, supply) => {
 
 // ── desk ───────────────────────────────────────────────────────────────────
 const PER = 6;
-const st = { tab: "cols", chain: "all", cur: "all", page: 1, cols: null, listings: null };
+const st = { tab: "cols", chain: "all", cur: "any", page: 1, cols: null };
 
-// The PAY WITH filter: "all" shows every collection; "stocks" only stock-priced
-// ones; a ticker symbol only that currency. SOL collections drop from any stock
-// view.
-const curMatch = (c) => {
-  if (st.cur === "all") return true;
+// The currency filter: "any" shows every collection, "stocks" the stock-priced
+// ones, "SOL" the SOL-priced ones, a ticker only that currency.
+export const curMatch = (c) => {
   const u = nft.curOf(c);
-  if (!u) return false;
-  return st.cur === "stocks" || u.symbol === st.cur;
+  return st.cur === "any" || (st.cur === "stocks" ? !!u : st.cur === "SOL" ? !u : !!u && u.symbol === st.cur);
 };
+export const chainMatch = (c) => st.chain === "all" || (c.chain || "solana") === st.chain;
 
-async function desk(root) {
+async function desk(root, marketSlug) {
   frame(root, `
 <div class="win nf-win nf-lp">
   <div class="wh">
-    <span data-tty>Collections</span>
-    <span class="wh-right wh-plain"><select id="nf_chain" class="nf-select">
-      <option value="all">All chains</option><option value="solana">◎ Solana</option><option value="robinhood">▲ Robinhood</option>
-    </select></span>
+    <span class="wtab" data-tab="cols">Launchpad</span><span class="wtab" data-tab="market">Market</span><span class="wtab" data-tab="mine">My nfts</span>
   </div>
   <div class="nf-lpbody">
     <div class="nf-tabrow">
-      <div class="nf-tabs lab">
-        <div class="tab" data-tab="cols">Collections</div>
-        <div class="tab" data-tab="market">Market</div>
-        <div class="tab" data-tab="mine">My nfts</div>
+      <div class="nf-filters">
+        <div id="nf_filters" class="nf-filters">
+          <select id="nf_cur" class="csel" hidden><option value="any">Any currency</option><option value="stocks">Priced in stocks</option><option value="SOL">SOL</option></select>
+          <select id="nf_chain" class="csel"><option value="all">All chains</option><option value="solana">◎ Solana</option><option value="robinhood">▲ Robinhood</option></select>
+        </div>
+        <div id="nf_sortrow" class="nf-filters" hidden><span class="lab" style="letter-spacing:.1em">Sort</span><select id="nf_sort" class="csel">
+          <option value="price">price (low to high)</option><option value="pricehi">price (high to low)</option>
+          <option value="rare">rarity (rare to common)</option><option value="common">rarity (common to rare)</option>
+          <option value="last">last sale (low to high)</option><option value="lasthi">last sale (high to low)</option>
+          <option value="recent">recently listed</option>
+        </select></div>
       </div>
-      <button class="btn" id="nf_launch">+ Launch a collection</button>
-    </div>
-    <div class="nf-payrow" id="nf_payrow" hidden>
-      <span class="nf-paylab">Pay with</span>
-      <div class="nf-payseg">
-        <div class="payb on" data-cur="all">All</div>
-        <div class="payb" data-cur="stocks">Stocks</div>
-      </div>
-      <select id="nf_ticker" class="nf-select" hidden><option value="stocks">All stocks</option></select>
+      <button class="btn" id="nf_action"></button>
     </div>
     <div id="nf_tabbody" class="nf-tabbody"></div>
   </div>
 </div>
-<div class="win nf-win nf-act">
-  <div class="wh"><span data-tty>Activity</span></div>
-  <div class="nf-actbody ttyrows" id="nf_activity"><div class="nf-acthead"><span>Recent activity</span></div></div>
-</div>`);
+<div class="win nf-win nf-act" id="nf_side"></div>`);
 
-  paintWalletPill(root.querySelector("#nav_wallet"), () => { if (st.tab === "mine") paintTab(root); });
-  const chain = root.querySelector("#nf_chain");
+  paintWalletPill(root.querySelector("#nav_wallet"), () => { if (st.tab !== "cols") paintTab(root); });
+  const again = () => { st.page = 1; paintTab(root); };
+  const chain = root.querySelector("#nf_chain"), cur = root.querySelector("#nf_cur");
   chain.value = st.chain;
-  chain.onchange = () => { st.chain = chain.value; st.page = 1; paintTab(root); };
-  for (const t of root.querySelectorAll(".tab")) t.onclick = () => { st.tab = t.dataset.tab; st.page = 1; paintTab(root); };
-  const ticker = root.querySelector("#nf_ticker");
-  const setPay = (mode) => {
-    st.cur = mode === "stocks" ? ticker.value : "all";
-    ticker.hidden = mode !== "stocks";
-    for (const b of root.querySelectorAll(".payb")) b.classList.toggle("on", b.dataset.cur === mode);
-    st.page = 1; paintTab(root);
-  };
-  for (const b of root.querySelectorAll(".payb")) b.onclick = () => setPay(b.dataset.cur);
-  ticker.onchange = () => { st.cur = ticker.value; st.page = 1; paintTab(root); };
-  // The row exists only where stock currencies are offered to this visitor;
-  // elsewhere the list is empty and the desk is the SOL-only one.
-  st.cur = "all";
+  chain.onchange = () => { st.chain = chain.value; again(); };
+  cur.onchange = () => { st.cur = cur.value; again(); };
+  for (const t of root.querySelectorAll(".wtab")) t.onclick = () => { st.tab = t.dataset.tab; again(); };
+  // The currency filter exists only where stock currencies are offered to this
+  // visitor; elsewhere the list is empty and every collection is in SOL.
+  st.cur = "any";
   nft.currencies().then((list) => {
     if (!list.length) return;
-    for (const c of list) ticker.add(new Option(c.symbol, c.symbol));
-    root.querySelector("#nf_payrow").hidden = false;
+    for (const c of list) cur.add(new Option(c.symbol + " · " + c.issuer, c.symbol));
+    cur.hidden = false;
   });
-  root.querySelector("#nf_launch").onclick = async () => (await import("./studio.js")).open(root);
+  root.querySelector("#nf_action").onclick = async () =>
+    st.tab === "cols" ? (await import("./studio.js")).open(root) : (await import("./market.js")).openPicker(root);
 
+  if (marketSlug) (await import("./market.js")).select(marketSlug);
+  paintActivity(root);
   paintTab(root);
-  loadActivity(root).catch(() => {
-    const el = root.querySelector("#nf_activity");
-    if (el) el.insertAdjacentHTML("beforeend", '<div class="nf-note">activity unavailable right now</div>');
-  });
 }
 
-async function paintTab(root) {
-  for (const t of root.querySelectorAll(".tab")) t.classList.toggle("on", t.dataset.tab === st.tab);
+export async function paintTab(root) {
+  for (const t of root.querySelectorAll(".wtab")) t.classList.toggle("on", t.dataset.tab === st.tab);
   const el = root.querySelector("#nf_tabbody");
   if (!el) return;
+  root.querySelector("#nf_action").textContent = st.tab === "cols" ? "+ Launch a collection" : "+ List yours";
+  root.querySelector("#nf_filters").hidden = st.tab === "mine";
+  root.querySelector("#nf_sortrow").hidden = true;
   try {
     if (st.tab === "cols") await paintCollections(el);
-    else if (st.tab === "market") paintMarket(el);
-    else await paintMine(el);
+    else if (st.tab === "market") await (await import("./market.js")).paintMarket(root, el);
+    else await paintMine(root, el);
   } catch (e) { el.innerHTML = '<div class="nf-note">could not load: ' + esc(e.message) + "</div>"; }
 }
 
@@ -172,8 +178,7 @@ async function paintCollections(el) {
     st.cols = await nft.collections();
     if (!el.isConnected || st.tab !== "cols") return;
   }
-  const byChain = st.chain === "all" ? st.cols : st.cols.filter((c) => (c.chain || "solana") === st.chain);
-  const all = byChain.filter(curMatch);
+  const all = st.cols.filter((c) => chainMatch(c) && curMatch(c));
   const shown = Math.min(st.page * PER, all.length);
   const pages = Math.max(1, Math.ceil(all.length / PER));
   const where = st.chain === "all" ? "all chains" : st.chain === "solana" ? "on solana" : "on robinhood chain";
@@ -198,10 +203,8 @@ function cardHtml(c) {
   const vol = !(c.minted && c.priceLamports) ? "-" : cu ? fmtAmount(c.minted * c.priceLamports, cu.decimals) + " " + cu.symbol : ((c.minted * c.priceLamports) / 1e9).toFixed(2) + " " + ch.unit;
   const cls = status === "Sold out" || status === "Ended" ? "colcard soldout dim" : live ? "colcard flick" : "colcard dim";
   const cover = coverOf(c);
-  const u = nft.curOf(c);
-  const chip = u ? `<span class="cur t-${esc(u.symbol)}">${esc(u.symbol)}${u.issuer ? `<em>${esc(u.issuer)}</em>` : ""}</span>` : "";
   return `<a class="${cls}" href="?view=nft&c=${esc(c.slug)}">
-  <div class="cc-cover">${chip}${cover ? `<img src="${esc(cover)}" alt="" loading="lazy">` : ""}</div>
+  <div class="cc-cover">${cover ? `<img src="${esc(cover)}" alt="" loading="lazy">` : ""}</div>
   <div class="cc-name">${esc(c.name)}</div>
   <div class="cc-segs">${segsHtml(c.minted, c.maxSupply)}</div>
   <div class="cc-mintrow"><span class="${live ? "amber" : ""}">${c.minted.toLocaleString("en-US")} / ${c.maxSupply.toLocaleString("en-US")}</span></div>
@@ -210,7 +213,7 @@ function cardHtml(c) {
     <div class="cc-stat"><div class="cc-k">OWNERS</div><div class="cc-v"><span>${c.owners ?? "-"}</span></div></div>
     <div class="cc-stat"><div class="cc-k">VOLUME</div><div class="cc-v"><span>${vol}</span></div></div>
   </div>
-  <div class="cc-meta"><span>${ch.icon} ${ch.name} · ${ch.std} · ${esc(shortAddr(c.collection))}</span>${hot ? '<span class="cc-hot">▲ HOT</span>' : ""}</div>
+  <div class="cc-meta"><span>${ch.icon} ${ch.name} · ${ch.std} · ${esc(shortAddr(c.collection))}</span><span class="cc-tags">${curChip(c, "tr")}${hot ? '<span class="cc-hot">▲ HOT</span>' : ""}</span></div>
   <div class="band">
     <div class="bandfill ${live ? "live" : ""}" ${status === "Sold out" ? "hidden" : ""}></div>
     <div class="bandtext">
@@ -221,51 +224,12 @@ function cardHtml(c) {
 </a>`;
 }
 
-// Listings are read-only here: we aggregate what sellers posted on Tensor and
-// Magic Eden, and Buy deep-links to the marketplace that holds the ask.
-// Active listings across every Solana collection, cheapest first, cached per
-// desk mount. Robinhood has no Tensor feed, so it is skipped.
-async function allListings() {
-  if (st.listings) return st.listings;
-  if (!st.cols) st.cols = await nft.collections();
-  const sol = st.cols.filter((c) => (c.chain || "solana") === "solana" && c.maxSupply > 0);
-  const packs = await Promise.all(sol.map(async (c) => {
-    try { return ((await nft.listings(c.slug)).listings || []).map((l) => ({ ...l, col: c })); } catch (e) { return []; }
-  }));
-  st.listings = packs.flat().sort((a, b) => a.price - b.price);
-  return st.listings;
-}
-
-function listCardHtml(l) {
-  const src = nftMarketOf(l.source);
-  const mine = addr() && l.seller === addr();
-  return `<div class="rc listed">
-    <a class="rc-img" href="?view=nft&asset=${esc(l.asset)}">${l.inscriptionSig ? `<img src="${esc(imgUrl(l.inscriptionSig))}" alt="" loading="lazy">` : ""}<span class="rc-tag">${esc(src.label)}</span></a>
-    <div class="rc-name">${esc(l.col.name)} #${l.index ?? "?"}</div>
-    <div class="rc-sub">${fmtSol(l.price)}</div>
-    <a class="rc-foot amber" href="${esc(src.item(l.asset))}" target="_blank" rel="noopener"><span>${mine ? "Manage on" : "Buy on"} ${esc(src.label)}</span><span style="margin-left:auto">↗</span></a>
-  </div>`;
-}
-
-async function paintMarket(el) {
-  el.innerHTML = `<div class="nf-scroll"><div class="nf-minegrid">${skeleton(6, "nftitem")}</div></div>`;
-  const all = (await allListings()).filter((l) => curMatch(l.col));
-  if (!el.isConnected || st.tab !== "market") return;
-  const inStocks = all.filter((l) => nft.curOf(l.col)).length;
-  el.innerHTML = `
-  <div class="nf-stats three">
-    <div><div class="k">Listed</div><div class="v">${all.length || "-"}</div></div>
-    <div><div class="k">Collections</div><div class="v">${new Set(all.map((l) => l.col.slug)).size || "-"}</div></div>
-    <div><div class="k">In stocks</div><div class="v">${inStocks || "-"}</div></div>
-  </div>
-  ${all.length
-    ? `<div class="nf-scroll"><div class="nf-minegrid ttyrows">${all.map(listCardHtml).join("")}</div></div>`
-    : `<div class="nf-empty"><div class="t">No active listings right now.</div><div class="cm">Minted items trade on Magic Eden and Tensor. Anything listed there shows up here within a couple of minutes, from any marketplace.</div></div>`}`;
-}
-
 const TIER = { legendary: "Legendary", epic: "EPIC", rare: "RARE" };
 
-async function paintMine(el) {
+// What the wallet holds, plus what it has listed (a listed item may sit in the
+// marketplace's escrow, so it is merged in by asset). A card opens the item's
+// market popup: the list form, or the listing if it is already for sale.
+async function paintMine(root, el) {
   if (!addr()) {
     el.innerHTML = `<div class="nf-empty">
       <div class="t">Connect to see yours.</div>
@@ -276,48 +240,54 @@ async function paintMine(el) {
     return;
   }
   el.innerHTML = `<div class="nf-scroll"><div class="nf-minegrid">${skeleton(6, "nftitem")}</div></div>`;
-  const [items, all] = await Promise.all([nft.held(addr()), allListings()]);
+  const market = await import("./market.js");
+  const items = await market.owned(addr());
   if (!el.isConnected || st.tab !== "mine") return;
-  const listed = all.filter((l) => l.seller === addr());
-  const strong = items.filter((it) => it.rarity && it.rarity.tier).length;
-  const sub = (t) => `<div class="sm" style="padding:12px 2px 4px;letter-spacing:.1em">${t}</div>`;
+  const count = (tier) => items.filter((it) => ((it.rarity && it.rarity.tier) || "common") === tier).length;
+  const tiers = ["legendary", "epic", "rare", "common"].filter(count).map((t) => count(t) + " " + (TIER[t] || "Common")).join(" · ");
   el.innerHTML = `
-  <div class="nf-minehead"><span><b>${items.length}</b>held by ${esc(shortAddr(addr()))}</span><span>${strong ? strong + " rare or better" : ""}</span></div>
-  ${listed.length ? sub("Listed by you · " + listed.length) + `<div class="nf-scroll"><div class="nf-minegrid ttyrows">${listed.map(listCardHtml).join("")}</div></div>` + sub("Held · " + items.length) : ""}
-  <div class="nf-scroll"><div class="nf-minegrid ttyrows">${items.length ? items.map(mineCardHtml).join("") : ""}</div>
-  ${items.length || listed.length ? "" : '<div class="nf-empty"><div class="t">Nothing here yet.</div><div class="cm">Mint from a collection and it lands here.</div></div>'}</div>`;
+  <div class="nf-minehead"><span><b>${items.length} NFTS</b>held by ${esc(shortAddr(addr()))}</span><span>${tiers}</span></div>
+  <div class="nf-scroll"><div class="nf-minegrid ttyrows">${items.map(mineCardHtml).join("")}</div>
+  ${items.length ? "" : '<div class="nf-empty"><div class="t">Nothing here yet.</div><div class="cm">Mint from a collection and it lands here.</div></div>'}</div>`;
+  el.querySelectorAll(".rc").forEach((card, i) => { card.onclick = (e) => { if (!e.target.closest("a")) market.openItem(root, items[i]); }; });
 }
 
-export function mineCardHtml(it) {
+function mineCardHtml(it) {
   const tier = it.rarity && it.rarity.tier;
-  const label = TIER[tier] || "Common";
-  return `<a class="rc ${tier || "common"} ${tier ? "strong" : ""}" href="?view=nft&asset=${esc(it.asset)}">
-    <div class="rc-img">${it.inscriptionSig ? `<img src="${esc(imgUrl(it.inscriptionSig))}" alt="" loading="lazy">` : ""}<span class="rc-tag">${label}</span></div>
+  return `<div class="rc ${tier || "common"} ${tier && tier !== "common" ? "strong" : ""}">
+    <div class="rc-img">${it.inscriptionSig ? `<img src="${esc(imgUrl(it.inscriptionSig))}" alt="" loading="lazy">` : ""}<span class="rc-tag">${TIER[tier] || "Common"}</span></div>
     <div class="rc-name">${esc(it.name || it.collectionName + " #" + it.index)}</div>
     <div class="rc-sub">${esc(it.collectionName || it.slug || "")} · ${fmtWhen(it.registeredAt) || "#" + it.index}</div>
-    <div class="rc-foot"><span>View</span><span style="margin-left:auto">#${it.index}</span></div>
-  </a>`;
+    <div class="rc-foot"><a href="?view=nft&asset=${esc(it.asset)}">View</a><span style="margin-left:auto">${it.listing ? "Manage" : "List"} →</span></div>
+  </div>`;
 }
 
-// Activity column: the latest mints across the newest collections.
-async function loadActivity(root) {
-  const el = root.querySelector("#nf_activity");
-  const cols = st.cols || (st.cols = await nft.collections());
-  const recents = (await Promise.all(cols.slice(0, 6).map(async (c) => {
-    try { return (await nft.recent(c.slug, 6)).map((r) => ({ ...r, col: c })); } catch (e) { return []; }
-  }))).flat().sort((a, b) => (b.registeredAt || 0) - (a.registeredAt || 0)).slice(0, 12);
-  if (!el || !root.isConnected) return;
-  if (!recents.length) { el.insertAdjacentHTML("beforeend", '<div class="nf-note">no mints yet</div>'); return; }
+// The side window's default content: the latest mints, sales and listings
+// across the newest collections. The market swaps a mint panel in here while a
+// collection is open and calls this to put the activity back.
+export async function paintActivity(root) {
+  const side = root.querySelector("#nf_side");
+  side.innerHTML = '<div class="wh"><span data-tty>Activity</span></div><div class="nf-actbody ttyrows" id="nf_activity"><div class="nf-acthead"><span>Recent activity</span></div></div>';
+  typeLabels(side);
+  const el = side.querySelector("#nf_activity");
+  const note = (t) => el.isConnected && el.insertAdjacentHTML("beforeend", '<div class="nf-note">' + t + "</div>");
+  let recents;
+  try {
+    const cols = st.cols || (st.cols = await nft.collections());
+    recents = (await Promise.all(cols.slice(0, 6).map(async (c) => {
+      try { return (await nft.recent(c.slug, 6)).map((r) => ({ ...r, col: c })); } catch (e) { return []; }
+    }))).flat().sort((a, b) => (b.registeredAt || 0) - (a.registeredAt || 0)).slice(0, 12);
+  } catch (e) { return note("activity unavailable right now"); }
+  if (!el.isConnected) return;
+  if (!recents.length) return note("no mints yet");
   const evOf = (k) => (k === "sale" ? "SOLD" : k === "list" ? "LISTED" : "MINT");
-  const actPrice = (r) => (r.kind === "mint" ? priceOf(r.col) : r.price ? fmtSol(r.price) : priceOf(r.col));
-  // A mint is paid in its collection's currency, so a stock mint is coloured; a
-  // sale/list carries a SOL price from Tensor, so it stays default.
-  const amtCls = (r) => (r.kind === "mint" ? tcls(r.col) : "");
+  // Every amount is in its collection's currency: a mint at the mint price, a
+  // sale or listing at its own.
   el.insertAdjacentHTML("beforeend", recents.map((r) => `
     <a class="actrow flickrow" href="?view=nft&asset=${esc(r.asset)}">
       <div class="act-l"><img src="${esc(imgUrl(r.inscriptionSig))}" alt="" loading="lazy">
         <div style="min-width:0"><div class="act-name">${esc(r.col.name)} #${r.index}</div>
-        <div class="act-sub"><span class="act-ev ${r.kind}">${evOf(r.kind)}</span><span class="act-amt ${amtCls(r)}">${esc(actPrice(r))}</span></div></div></div>
+        <div class="act-sub"><span class="act-ev ${r.kind}">${evOf(r.kind)}</span><span class="act-amt ${tcls(r.col)}">${esc(r.kind !== "mint" && r.price ? amountOf(r.price, r.col) : priceOf(r.col))}</span></div></div></div>
       <span class="act-time">${fmtWhen(r.registeredAt)}</span>
     </a>`).join(""));
 }

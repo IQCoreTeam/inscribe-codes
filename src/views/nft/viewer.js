@@ -3,9 +3,8 @@
 // whatever screen the item was clicked from (openModal); a direct ?asset= URL
 // renders it as a full page (render). Gateway-first for speed; "run it from
 // chain" re-reads everything from the chain alone and swaps in the bytes.
-import { esc, shortAddr, fmtSol } from "../../ui/fmt.js";
+import { esc, shortAddr } from "../../ui/fmt.js";
 import * as nft from "../../services/nft-backend.js";
-import { nftMarkets, nftMarketOf } from "../../services/markets.js";
 import { connect as rpcConnect, setRpc, hasOwnRpc, explorerTx } from "../../chain/rpc.js";
 import { frame } from "./launchpad.js";
 import { addr, paintWalletPill } from "./session.js";
@@ -26,18 +25,12 @@ async function load(assetAddress) {
   return { a, info, listing, readAsset };
 }
 
-// Listed: one Buy button to the venue that holds the ask (Manage if it is
-// yours). Not listed: plain links to each marketplace.
-function marketHtml(a, listing) {
-  if (listing) {
-    const m = nftMarketOf(listing.source);
-    const mine = addr() && listing.seller === addr();
-    return `<div class="nf-vsec"><div class="lab nf-vlab">Market</div>
-      <div class="nf-vkv"><span>ask</span><b>${fmtSol(listing.price)} on ${esc(m.label)}</b><span>seller</span><b>${esc(shortAddr(listing.seller))}</b></div>
-      <a class="btn nf-vbuy" href="${esc(m.item(a.asset))}" target="_blank" rel="noopener">${mine ? "Manage on" : "Buy on"} ${esc(m.label)} ↗</a></div>`;
-  }
-  return `<div class="nf-vsec"><div class="lab nf-vlab">Market</div><div class="cm">not listed right now</div>
-    <div class="nf-vmk">${nftMarkets.map((m) => `<a class="btn2" href="${esc(m.item(a.asset))}" target="_blank" rel="noopener">${esc(m.label)}</a>`).join("")}</div></div>`;
+// The item's place on the market. Buying, listing and cancelling happen in the
+// site's own market, so this links there instead of to a marketplace.
+function marketHtml(info, listing) {
+  const to = info && info.slug ? `<a class="btn nf-vbuy" href="?view=nft&market=${esc(info.slug)}">${listing ? (addr() && listing.seller === addr() ? "Manage" : "Buy") + " in Market" : "Open its Market"} →</a>` : "";
+  return `<div class="nf-vsec"><div class="lab nf-vlab">Market</div>
+    ${listing ? `<div class="nf-vkv"><span>seller</span><b>${esc(shortAddr(listing.seller))}</b></div>` : '<div class="cm">not listed right now</div>'}${to}</div>`;
 }
 
 // One window: header (with headerRight = close X or back link), the 3-column
@@ -58,7 +51,7 @@ function viewerHtml(a, info, listing, headerRight) {
       <div><div class="lab nf-vlab">Name</div><div class="nf-vname">${esc(a.name)}</div><div class="cm" style="margin-top:2px">${esc(colName)}</div></div>
       ${tier ? `<div class="nf-vsec"><div class="lab nf-vlab">Rarity</div><div class="nf-vrar">${esc(tier)}${rarity.rank ? ` · rank ${rarity.rank} / ${rarity.total}` : ""}</div><div class="nf-vpips">${pips}</div></div>` : ""}
       <div class="nf-vsec"><div class="lab nf-vlab">Owner</div><div class="nf-vowner">${esc(shortAddr(a.owner))}</div></div>
-      ${marketHtml(a, listing)}
+      ${marketHtml(info, listing)}
       ${extra.length ? `<div class="nf-vsec"><div class="lab nf-vlab">Traits</div><div class="nf-vkv">${extra.map((x) => `<span>${esc(x.trait_type)}</span><b>${esc(String(x.value))}</b>`).join("")}</div></div>` : ""}
       <div class="nf-vsec" style="margin-top:auto"><div class="lab nf-vlab">Status</div>
         <div class="nf-vkv"><span>chain</span><b>solana</b><span>std</span><b>${esc(std)}</b><span>storage</span><b class="mint">inscribed</b><span>mutable</span><b>no</b></div></div>

@@ -90,20 +90,14 @@ export const tradeUrl = (chain, mint) =>
   chain === "robinhood" ? "https://www.ponsfamily.com/launchpad/" + mint : "https://pump.fun/coin/" + mint;
 export const tradeLabel = (chain) => (chain === "robinhood" ? "TRADE ON PONS" : "TRADE ON PUMP.FUN");
 
-// Secondary NFT marketplaces (Solana). A listing's `source` is the venue name
-// Tensor's tx_history reports; Buy must open the venue that holds the ask.
-const NFT_MARKETS = {
-  tensor: {
-    label: "Tensor",
-    item: (asset) => "https://www.tensor.trade/item/" + asset,
-    collection: (address) => "https://www.tensor.trade/trade/" + encodeURIComponent(address),
-  },
-  magiceden: {
-    label: "Magic Eden",
-    item: (asset) => "https://magiceden.io/item-details/" + asset,
-    collection: (address) => "https://magiceden.io/marketplace/" + encodeURIComponent(address),
-  },
-};
-const SOURCE_MARKET = { TCOMP: "tensor", TENSORSWAP: "tensor", MAGICEDEN_V2: "magiceden", MEV2: "magiceden" };
-export const nftMarkets = Object.values(NFT_MARKETS);
-export const nftMarketOf = (source) => NFT_MARKETS[SOURCE_MARKET[source]] || { label: (source || "market").toLowerCase(), item: NFT_MARKETS.tensor.item };
+// USD per whole unit of a Solana mint (native SOL by default), from Jupiter's
+// keyless price API. One request per mint per page; null when it has no price.
+const WSOL = "So11111111111111111111111111111111111111112";
+const usd = new Map();
+export function usdPrice(mint = WSOL) {
+  if (!usd.has(mint)) usd.set(mint, fetch("https://lite-api.jup.ag/price/v3?ids=" + mint).then((r) => r.json()).then((j) => (j[mint] && j[mint].usdPrice) || null, () => null));
+  return usd.get(mint);
+}
+
+// An item's page on Tensor, the marketplace the site's own market settles on.
+export const tensorItem = (asset) => "https://www.tensor.trade/item/" + asset;
