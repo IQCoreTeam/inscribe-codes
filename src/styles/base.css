@@ -638,6 +638,7 @@ a.tk_link:hover > span:last-child { color: var(--acc); }
 .mk-img { position: relative; aspect-ratio: 1; overflow: hidden; background: var(--panel); }
 .mk-img img { width: 100%; height: 100%; object-fit: cover; display: block; image-rendering: pixelated; transition: transform 0.6s cubic-bezier(0.2, 0.7, 0.2, 1); }
 .mkcard:hover .mk-img img { transform: scale(1.04); }
+.chip.tk { border-color: var(--tc, #ffb347); color: var(--tc, #ffb347); }
 .mk-img .chip { position: absolute; left: 6px; top: 6px; background: rgba(0, 0, 0, 0.85); }
 .mk-img .chip.mk-tier { left: auto; right: 6px; }
 .mk-tier.rare { border-color: #5aa9ff; color: #5aa9ff; }
@@ -680,6 +681,10 @@ a.tk_link:hover > span:last-child { color: var(--acc); }
 .nf-pricebox { container-type: inline-size; }
 .nf-price { flex-wrap: wrap; justify-content: center; max-width: 100%; }
 .nf-pricenum { font-size: clamp(34px, 19cqw, 64px); }
+/* The progress bar is a fixed run of characters; size it to the panel so the
+   percentage at its end is never cut off. */
+#mp_act { container-type: inline-size; }
+#mp_act .ttybar { font-size: min(24px, 3cqw); }
 .nf-disclose { font-size: 13px; border-top: 1px solid var(--line); padding-top: 10px; }
 
 /* ── phones (<= 640px): stack what sits side by side, one card per row. Every

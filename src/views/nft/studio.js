@@ -312,7 +312,7 @@ function settingsHtml() {
   const n = (items() || []).length;
   return `
     <div class="nf-form2">
-      ${st.stocks.length ? `<div class="span2"><div class="fl">Minters pay in</div><div class="seg lab">${[null, ...st.stocks].map((c) => `<div class="${st.currency === c ? "on" : ""} ns_cur" data-mint="${c ? esc(c.mint) : ""}" title="${c ? esc(c.issuer) : ""}">${c ? esc(c.symbol) : "SOL"}</div>`).join("")}</div></div>` : ""}
+      ${st.stocks.length ? `<div class="span2"><div class="fl">Token</div><div class="seg lab">${[null, ...st.stocks].map((c) => `<div class="${st.currency === c ? "on" : ""} ns_cur" data-mint="${c ? esc(c.mint) : ""}" title="${c ? esc(c.issuer) : ""}">${c ? esc(c.symbol) : "SOL"}</div>`).join("")}</div></div>` : ""}
       <div><div class="fl">Price (${st.currency ? esc(st.currency.symbol) : "SOL"})</div><input class="inp" id="ns_price" value="${esc(st.priceSol)}"></div>
       <div><div class="fl">Supply</div><input class="inp" value="${n}" readonly></div>
       ${st.currency

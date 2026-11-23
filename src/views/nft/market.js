@@ -13,7 +13,7 @@ import { imgUrl } from "../../services/gateway.js";
 import { skeleton } from "../../ui/skeleton.js";
 import { typeLabels } from "../../ui/tty.js";
 import { connect as rpcConnect } from "../../chain/rpc.js";
-import { paintTab, paintActivity, curMatch, chainMatch, chainOf, statusOf, coverOf, amountOf, tcls, curChip, usdSlot, fillUsd } from "./launchpad.js";
+import { paintTab, paintActivity, curMatch, chainMatch, chainOf, statusOf, coverOf, amountOf, tcls, curChip, unitChip, usdSlot, fillUsd } from "./launchpad.js";
 import { mountMintPanel } from "./mintpanel.js";
 import { session, addr, connectWallet, paintWalletPill } from "./session.js";
 
@@ -134,7 +134,7 @@ async function paintCollection(root, el, col) {
   grid.innerHTML = list.map((l) => {
     const mine = addr() && l.seller === addr();
     return `<div class="mkcard flick" data-asset="${esc(l.asset)}">
-      <div class="mk-img">${l.inscriptionSig ? `<img src="${esc(imgUrl(l.inscriptionSig))}" alt="" loading="lazy">` : ""}<span class="chip">${ch.name}</span>${l.rarity ? `<span class="chip mk-tier ${l.rarity}">${l.rarity.toUpperCase()}</span>` : ""}</div>
+      <div class="mk-img">${l.inscriptionSig ? `<img src="${esc(imgUrl(l.inscriptionSig))}" alt="" loading="lazy">` : ""}${unitChip(col)}${l.rarity ? `<span class="chip mk-tier ${l.rarity}">${l.rarity.toUpperCase()}</span>` : ""}</div>
       <div class="mk-body">
         <div class="mk-item">#${l.index ?? "?"}</div>
         <div class="mk-sub">${mine ? "your listing" : "seller " + esc(shortAddr(l.seller))}</div>
@@ -193,7 +193,7 @@ export async function openPicker(root) {
   if (!body.isConnected) return;
   if (!mine.length) { body.innerHTML = '<div class="nf-empty"><div class="t">Nothing left to list.</div><div class="cm">Everything you own is already for sale.</div></div>'; return; }
   body.innerHTML = `<div class="mk-grid">${mine.map((it, i) => `<div class="mkcard flick" data-i="${i}">
-    <div class="mk-img">${it.inscriptionSig ? `<img src="${esc(imgUrl(it.inscriptionSig))}" alt="">` : ""}<span class="chip">SOLANA</span></div>
+    <div class="mk-img">${it.inscriptionSig ? `<img src="${esc(imgUrl(it.inscriptionSig))}" alt="">` : ""}${unitChip(mk.rows.find((r) => r.slug === it.slug) || it)}</div>
     <div class="mk-body"><div class="mk-item">${esc(it.name || it.collectionName + " #" + it.index)}</div><div class="mk-sub">${esc(it.collectionName || "")}</div></div></div>`).join("")}</div>`;
   for (const card of body.querySelectorAll(".mkcard")) card.onclick = () => openItem(root, mine[Number(card.dataset.i)]);
 }
@@ -229,7 +229,7 @@ export async function openItem(root, it) {
     else if (mine) block = listHtml();
     else block = '<div class="cm">Not listed right now.</div>';
     ov.innerHTML = `<div class="win mk-pop">
-      <div class="wh"><span data-tty>Item</span><span class="mk-hl">${esc(name)}</span>${curChip(col)}<span class="wh-right">${chainOf(col).name} · ${esc(shortAddr(it.asset))}</span><span class="wh-x mk-x">x</span></div>
+      <div class="wh"><span data-tty>Item</span><span class="mk-hl">${esc(name)}</span>${curChip(col)}<span class="wh-right">${esc(cur ? cur.symbol : chainOf(col).name)} · ${esc(shortAddr(it.asset))}</span><span class="wh-x mk-x">x</span></div>
       <div class="mk-popgrid">
         <div><div class="mk-popimg">${it.inscriptionSig ? `<img src="${esc(imgUrl(it.inscriptionSig))}" alt="">` : ""}</div><div class="cm" style="margin-top:8px">${esc(col.name)} · owner ${owner === me && me ? "you" : esc(shortAddr(owner || ""))}</div></div>
         <div class="mk-popright">

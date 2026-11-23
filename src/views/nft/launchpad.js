@@ -88,6 +88,12 @@ export const curChip = (c, side = "dn") => {
   const u = nft.curOf(c);
   return u ? `<span class="cur ${side} t-${esc(u.symbol)}">${esc(u.symbol)}${u.issuer ? `<i>${esc(u.issuer)}</i>` : ""}</span>` : "";
 };
+// The small tag on an item or collection: its token when it is priced in one
+// (in the ticker colour), otherwise its chain.
+export const unitChip = (c, cls = "") => {
+  const u = nft.curOf(c);
+  return `<span class="chip ${cls} ${u ? "tk t-" + esc(u.symbol) : ""}">${u ? esc(u.symbol) : chainOf(c).icon + " " + chainOf(c).name}</span>`;
+};
 export const coverOf = (c) => c.banner || c.logo || (c.coverSig ? imgUrl(c.coverSig) : "");
 export const segsHtml = (minted, supply) => {
   const on = supply ? Math.round((SEGS * minted) / supply) : 0;

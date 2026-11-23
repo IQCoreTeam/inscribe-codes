@@ -6,7 +6,7 @@ import { esc, shortAddr } from "../../ui/fmt.js";
 import * as nft from "../../services/nft-backend.js";
 import { imgUrl } from "../../services/gateway.js";
 import { skeleton } from "../../ui/skeleton.js";
-import { frame, statusOf, chainOf, coverOf } from "./launchpad.js";
+import { frame, statusOf, coverOf, unitChip } from "./launchpad.js";
 import { mountMintPanel } from "./mintpanel.js";
 import { paintWalletPill } from "./session.js";
 
@@ -22,7 +22,6 @@ export async function render(root, slug) {
   catch (e) { body.querySelector(".nf-note").textContent = 'could not load "' + slug + '": ' + e.message; return; }
   Object.assign(st, { col, items: [], total: 0, hasRarity: false, filter: "all" });
 
-  const ch = chainOf(col);
   const status = statusOf(col);
   const logo = col.logo || (col.coverSig ? imgUrl(col.coverSig) : "");
   body.innerHTML = `
@@ -34,7 +33,7 @@ export async function render(root, slug) {
       <div class="nf-colhead">
         ${logo ? `<div class="nf-collogo"><img src="${esc(logo)}" alt=""></div>` : ""}
         <div class="nf-colinfo">
-          <div class="nf-coltitle"><div class="nf-colname">${esc(col.name)}</div><span class="chip ${status === "LIVE" ? "live" : status === "Upcoming" ? "soon" : "out"}">${status}</span><span class="chip">${ch.icon} ${esc(ch.name)}</span></div>
+          <div class="nf-coltitle"><div class="nf-colname">${esc(col.name)}</div><span class="chip ${status === "LIVE" ? "live" : status === "Upcoming" ? "soon" : "out"}">${status}</span>${unitChip(col)}</div>
           <div class="cm" style="margin-top:6px">by ${esc(shortAddr(col.creator))} · ${col.maxSupply.toLocaleString("en-US")} items${col.symbol ? " · $" + esc(col.symbol) : ""}</div>
           <p class="nf-coldesc clamp" id="nc_desc">${esc(col.description || "")}</p>
           <button type="button" class="nf-descmore" id="nc_descmore" hidden>see more</button>
