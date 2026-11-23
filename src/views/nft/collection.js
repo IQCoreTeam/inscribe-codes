@@ -15,7 +15,7 @@ const TIER_LABEL = { legendary: "Legendary", epic: "EPIC", rare: "RARE" };
 const st = { col: null, items: [], total: 0, hasRarity: false, filter: "all" };
 
 export async function render(root, slug) {
-  const body = frame(root, `<div class="win nf-win nf-colwin"><div class="wh"><span>Collection · ${esc(slug)}</span><a class="wh-right wh-x" href="?view=nft">← all collections</a></div><div class="nf-note">loading...</div></div>`);
+  const body = frame(root, `<div class="win nf-win nf-colwin"><div class="wh"><span>Collection · ${esc(slug)}</span><a class="wh-right wh-x" href="?view=nft" data-back>← back</a></div><div class="nf-note">loading...</div></div>`, { label: "Back", href: "?view=nft" });
   paintWalletPill(root.querySelector("#nav_wallet"));
   let col;
   try { col = await nft.collection(slug); }
@@ -26,7 +26,7 @@ export async function render(root, slug) {
   const logo = col.logo || (col.coverSig ? imgUrl(col.coverSig) : "");
   body.innerHTML = `
 <div class="win nf-win nf-colwin">
-  <div class="wh"><span>Collection · ${esc(col.slug)}</span><a class="wh-right wh-x" href="?view=nft">← all collections</a></div>
+  <div class="wh"><span>Collection · ${esc(col.slug)}</span><a class="wh-right wh-x" href="?view=nft" data-back>← back</a></div>
   ${col.banner ? `<img class="nf-colbanner" src="${esc(col.banner)}" alt="">` : ""}
   <div class="nf-colpage">
     <div class="nf-colleft">

@@ -95,7 +95,8 @@ export async function topUp(connection, wallet, burnerPubkey, target, token) {
     const have = await tokenBalance(connection, wallet.publicKey, mint);
     if (have < first.tok) {
       const units = (raw) => String(raw / 10 ** token.decimals);
-      throw new Error("insufficient " + token.symbol + " in your wallet: need " + units(first.tok) + ", have " + units(have) + ". this mint is paid in " + token.symbol + ".");
+      // shortToken lets the page offer a swap instead of showing this as an error.
+      throw Object.assign(new Error("insufficient " + token.symbol + " in your wallet: need " + units(first.tok) + ", have " + units(have) + ". this mint is paid in " + token.symbol + "."), { shortToken: { need: first.tok, have } });
     }
   }
   const expiredTwice = () => new Error("funding transfer expired twice (slow wallet approval or congested RPC). nothing was spent; retry, or add your own RPC.");
