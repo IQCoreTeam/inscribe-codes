@@ -21,14 +21,17 @@ export async function mount(root) {
   if (q.get("c")) return (await import("./collection.js")).render(root, q.get("c"));
   if (q.get("asset")) return (await import("./viewer.js")).render(root, q.get("asset"));
   if (q.get("single")) return (await import("./single.js")).render(root, q.get("single"));
-  if (q.get("market")) st.tab = "market";
-  return desk(root, q.get("market"));
+  // The desk's tab and the open market collection live in the URL, so Back
+  // and a shared link land on the same screen.
+  st.tab = q.get("market") ? "market" : ["market", "mine"].includes(q.get("tab")) ? q.get("tab") : "cols";
+  return desk(root);
 }
 
 // Shared page frame: nav + the viewport-high page column every NFT screen
 // sits in. Returns the body element.
-export function frame(root, bodyHtml) {
-  root.innerHTML = `<div class="nf-page">${nav("nft")}<div id="nf_body" class="nf-desk">${bodyHtml}</div></div><div id="nf_modal"></div>`;
+// `back` (see nav) is set by every screen below the desk.
+export function frame(root, bodyHtml, back) {
+  root.innerHTML = `<div class="nf-page">${nav("nft", back)}<div id="nf_body" class="nf-desk">${bodyHtml}</div></div><div id="nf_modal"></div>`;
   // Item links open the asset in a popup over the current screen instead of
   // routing away. Stop here (below document) so the global ?view= router does
   // not navigate; a direct ?asset= URL still renders the full page.
@@ -114,7 +117,7 @@ export const curMatch = (c) => {
 };
 export const chainMatch = (c) => st.chain === "all" || (c.chain || "solana") === st.chain;
 
-async function desk(root, marketSlug) {
+async function desk(root) {
   frame(root, `
 <div class="win nf-win nf-lp">
   <div class="wh">
@@ -147,7 +150,11 @@ async function desk(root, marketSlug) {
   chain.value = st.chain;
   chain.onchange = () => { st.chain = chain.value; again(); };
   cur.onchange = () => { st.cur = cur.value; again(); };
-  for (const t of root.querySelectorAll(".wtab")) t.onclick = () => { st.tab = t.dataset.tab; again(); };
+  for (const t of root.querySelectorAll(".wtab")) t.onclick = () => {
+    st.tab = t.dataset.tab;
+    history.replaceState(history.state, "", st.tab === "cols" ? "?view=nft" : "?view=nft&tab=" + st.tab);
+    again();
+  };
   // The currency filter exists only where stock currencies are offered to this
   // visitor; elsewhere the list is empty and every collection is in SOL.
   st.cur = "any";
@@ -159,7 +166,6 @@ async function desk(root, marketSlug) {
   root.querySelector("#nf_action").onclick = async () =>
     st.tab === "cols" ? (await import("./studio.js")).open(root) : (await import("./market.js")).openPicker(root);
 
-  if (marketSlug) (await import("./market.js")).select(marketSlug);
   paintActivity(root);
   paintTab(root);
 }

@@ -8,7 +8,7 @@ import { frame } from "./launchpad.js";
 import { session, addr, connectWallet, ensureBurner, paintWalletPill } from "./session.js";
 
 export async function render(root, C) {
-  const body = frame(root, '<div class="nf-note">reading the inscription...</div>');
+  const body = frame(root, '<div class="nf-note">reading the inscription...</div>', { label: "Back", href: "?view=nft" });
   paintWalletPill(root.querySelector("#nav_wallet"), () => paint(root, body, C));
   st.row = await readRow(C).catch(() => null);
   paint(root, body, C);
@@ -19,7 +19,7 @@ const st = { row: null, name: "", busy: false };
 function paint(root, body, C) {
   if (!body.isConnected) return;
   const row = st.row;
-  const win = (inner) => `<div class="win nf-win nf-single"><div class="wh"><span>Single 1 / 1</span><a class="wh-right wh-x" href="?view=nft">← launchpad</a></div><div class="nf-wizbody">${inner}</div></div>`;
+  const win = (inner) => `<div class="win nf-win nf-single"><div class="wh"><span>Single 1 / 1</span><a class="wh-right wh-x" href="?view=nft" data-back>← back</a></div><div class="nf-wizbody">${inner}</div></div>`;
   if (!row || !row.kind) {
     body.innerHTML = win(`<div class="cm">No inscription found for <span style="word-break:break-all;color:var(--ink2)">${esc(C)}</span>. It may still be indexing; retry in a minute, or check the tx on <a href="${esc(explorerTx(C))}" target="_blank" rel="noopener" style="color:var(--acc)">solscan</a>.</div>`);
     return;

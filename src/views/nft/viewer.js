@@ -151,12 +151,12 @@ function openProve(assetAddress, readAsset) {
 
 // Full page, for a direct ?view=nft&asset= URL.
 export async function render(root, assetAddress) {
-  const body = frame(root, '<div class="nf-note">reading the asset from chain...</div>');
+  const body = frame(root, '<div class="nf-note">reading the asset from chain...</div>', { label: "Back", href: "?view=nft" });
   paintWalletPill(root.querySelector("#nav_wallet"));
   const { a, info, listing, readAsset } = await load(assetAddress);
   if (!body.isConnected) return;
   if (a.error) { body.innerHTML = '<div class="nf-note">could not read ' + esc(assetAddress) + ": " + esc(a.error.message) + "</div>"; return; }
-  const back = `<a class="wh-right wh-x" href="${info && info.slug ? "?view=nft&c=" + esc(info.slug) : "?view=nft"}">${info && info.slug ? "← collection" : "← launchpad"}</a>`;
+  const back = `<a class="wh-right wh-x" href="${info && info.slug ? "?view=nft&c=" + esc(info.slug) : "?view=nft"}" data-back>${info && info.slug ? "← collection" : "← launchpad"}</a>`;
   body.innerHTML = `<div class="nf-stack">${viewerHtml(a, info, listing, back)}</div>`;
   wire(body, a, readAsset);
 }

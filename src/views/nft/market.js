@@ -17,12 +17,11 @@ import { paintTab, paintActivity, curMatch, chainMatch, chainOf, statusOf, cover
 import { mountMintPanel } from "./mintpanel.js";
 import { session, addr, connectWallet, paintWalletPill } from "./session.js";
 
-// rows: the collection list. sel: the open collection's slug. listings: active
+// rows: the collection list. sel: the open collection's slug, which is the
+// URL's ?market= (so Back and a shared link agree with it). listings: active
 // listings per slug, kept for the page so a popup's result can be patched in
 // before the backend's next marketplace poll sees it.
 const mk = { rows: null, sel: null, listings: new Map(), seen: new Map() };
-
-export const select = (slug) => { mk.sel = slug; };
 
 async function listingsOf(slug) {
   if (!mk.listings.has(slug)) mk.listings.set(slug, (await nft.listings(slug)).listings || []);
@@ -56,9 +55,9 @@ export async function paintMarket(root, el) {
   const bumped = new Set(fresh.filter((r) => mk.seen.has(r.slug) && r.lastSaleAt > mk.seen.get(r.slug)).map((r) => r.slug));
   for (const r of fresh) mk.seen.set(r.slug, r.lastSaleAt);
   mk.rows = fresh;
+  mk.sel = new URLSearchParams(location.search).get("market");
   const col = mk.sel && fresh.find((r) => r.slug === mk.sel);
   if (col) return paintCollection(root, el, col);
-  mk.sel = null;
   paintActivityOnce(root);
 
   const rows = fresh.filter((r) => chainMatch(r) && curMatch(r));
@@ -86,7 +85,20 @@ export async function paintMarket(root, el) {
   </div>
   <div class="nf-pager"><span>// ${rows.length} collection${rows.length === 1 ? "" : "s"} · latest sale first</span></div>`;
   fillUsd(el);
-  for (const row of el.querySelectorAll(".mkrow")) row.onclick = () => { mk.sel = row.dataset.slug; paintTab(root); };
+  // Opening a collection is its own history entry, so Back returns to this list.
+  for (const row of el.querySelectorAll(".mkrow")) row.onclick = () => {
+    history.pushState({ inApp: true }, "", "?view=nft&market=" + row.dataset.slug);
+    paintTab(root);
+  };
+  navBack(root, null);
+}
+
+// The nav's first button: Home on the desk, Market while a collection is open.
+function navBack(root, slug) {
+  const b = root.querySelector("#nav_back");
+  b.textContent = slug ? "← Market" : "← Home";
+  b.setAttribute("href", slug ? "?view=nft&tab=market" : "?view=home");
+  b.toggleAttribute("data-back", !!slug);
 }
 
 // The side window shows the activity feed unless a mint panel replaced it.
@@ -112,7 +124,8 @@ async function paintCollection(root, el, col) {
     </div>
   </div>`;
   el.innerHTML = head + `<div class="nf-scroll mk-scroll2"><div class="mk-grid">${skeleton(6, "nftitem")}</div></div>`;
-  el.querySelector("#mk_back").onclick = () => { mk.sel = null; paintTab(root); };
+  navBack(root, col.slug);
+  el.querySelector("#mk_back").onclick = () => root.querySelector("#nav_back").click();
 
   // Its mint panel takes the side window while it can still be minted.
   const side = root.querySelector("#nf_side");
@@ -247,6 +260,8 @@ export async function openItem(root, it) {
     on("#mk_share", (e) => { navigator.clipboard?.writeText(location.origin + location.pathname + "?view=nft&asset=" + it.asset); e.target.textContent = "Link copied"; });
     on("#mk_conn", () => connectThen(root, () => openItem(root, it)));
     on("#mk_buy", buy);
+    // The swap takes the modal; closing it reopens this item with a fresh quote.
+    on("#mk_get", async () => (await import("./swap.js")).openSwap({ cur, want: (st.quote.cap ?? st.listing.price) - st.quote.have, purpose: "buy", onClose: () => openItem(root, it) }));
     on("#mk_list", listIt);
     on("#mk_cancel", cancel);
     const ask = ov.querySelector("#mk_ask");
@@ -269,7 +284,7 @@ export async function openItem(root, it) {
       ${!addr() ? '<div class="btn mk-wide" id="mk_conn">Connect wallet to buy</div>'
         : st.phase === "waiting" ? waiting
         : st.phase === "confirming" ? confirming(q && q.total != null ? " paying " + esc(amountOf(q.total, col)) : "")
-        : short ? `<div class="btn2 mk-wide mk-off">${cta}</div><div class="cm" style="color:var(--cta)">Not enough ${esc(unit)} in your wallet.</div><div class="cm mk-fine">You need ${esc(amountOf(q.total ?? l.price, col))}. You have ${esc(amountOf(q.have, col))}.</div>`
+        : short ? `<div class="btn2 mk-wide mk-off">${cta}</div><div class="cm" style="color:var(--cta)">Not enough ${esc(unit)} in your wallet.</div><div class="cm mk-fine">You need ${esc(amountOf(q.total ?? l.price, col))}. You have ${esc(amountOf(q.have, col))}.</div>${cur ? `<div class="btn mk-wide" id="mk_get">Get ${esc(unit)} with SOL</div>` : ""}`
         : !q ? '<div class="ttyspin cm">getting the marketplace quote…</div>'
         : `<div class="btn mk-wide mk-buy" id="mk_buy">${cta}</div>${cur ? `<div class="cm mk-fine">Paid in ${esc(unit)} from your wallet.</div>` : ""}`}`;
   }

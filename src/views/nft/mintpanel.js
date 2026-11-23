@@ -7,7 +7,7 @@ import { esc, fmtSol, shortAddr } from "../../ui/fmt.js";
 import * as nft from "../../services/nft-backend.js";
 import { tensorItem } from "../../services/markets.js";
 import { connect as rpcConnect, explorerTx } from "../../chain/rpc.js";
-import { statusOf, chainOf, priceOf, tcls, segsHtml, usdSlot, fillUsd } from "./launchpad.js";
+import { statusOf, chainOf, priceOf, amountOf, tcls, segsHtml, usdSlot, fillUsd } from "./launchpad.js";
 import { session, addr, connectWallet, ensureBurner } from "./session.js";
 
 const MINT_OVERHEAD = "~0.0135 SOL"; // image + metadata inscription + asset rent, measured on mainnet
@@ -28,7 +28,9 @@ const STAGE_LINE = {
 // onMinted(collection) fires with the refreshed collection after a mint lands.
 // Returns { repaint } for the page to call when the wallet changes.
 export function mountMintPanel(el, col, { onMinted } = {}) {
-  const st = { col, mint: "idle", pct: 0, log: [], result: null, error: null, busy: false };
+  // short: { need, have } raw token units, set when a mint stopped because the
+  // wallet does not hold enough of the collection's token.
+  const st = { col, mint: "idle", pct: 0, log: [], result: null, error: null, short: null, busy: false };
   const q = (sel) => el.querySelector(sel);
 
   function topHtml() {
@@ -102,14 +104,27 @@ export function mountMintPanel(el, col, { onMinted } = {}) {
       ${st.error ? `<div class="cm" style="color:var(--bad)">${esc(st.error)}</div>` : ""}
       ${cannot ? `<div class="btn2 nf-cannot">${cannot}</div>`
         : !addr() ? '<div class="nf-connectmint" id="mp_connect">Connect wallet to mint</div>'
+        : st.short ? `<div class="btn2 nf-cannot">Mint one · ${esc(priceOf(c))}</div><div class="cm" style="color:var(--cta)">Not enough ${esc(cur.symbol)} in your wallet.</div><div class="cm nf-disclose" style="border:0;padding:0">You need ${esc(amountOf(st.short.need, c))}. You have ${esc(amountOf(st.short.have, c))}.</div><div class="btn nf-mintbtn" id="mp_swap">Get ${esc(cur.symbol)} with SOL</div>`
         : `<button class="btn nf-mintbtn" id="mp_mint">${resume || st.error ? "Resume mint" : "Mint one · " + esc(priceOf(c))}</button>`}
       ${resume && !st.error ? '<div class="cm" style="color:#8dffa0">An unfinished mint was found; only the missing steps are redone.</div>' : ""}
-      <div class="cm"><div>One signature. You pay${cur ? " in " + esc(cur.symbol) : ""}, you own it.</div><div>The NFT points at its image and details stored on chain.</div></div>
+      <div class="cm">${cur && !cannot ? `<div class="nf-need" id="mp_need">Need ${esc(cur.symbol)}? Get it with SOL →</div>` : ""}<div>One signature. You pay${cur ? " in " + esc(cur.symbol) : ""}, you own it.</div><div>The NFT points at its image and details stored on chain.</div></div>
       ${cur ? '<div class="cm nf-disclose">Not issued or custodied by inscribe.codes. Eligibility follows the issuer\'s terms.</div>' : ""}`;
     const connect = q("#mp_connect");
     if (connect) connect.onclick = () => document.querySelector("#nav_wallet .navconnect")?.click();
     const mintBtn = q("#mp_mint");
     if (mintBtn) mintBtn.onclick = run;
+    for (const id of ["#mp_need", "#mp_swap"]) { const n = q(id); if (n) n.onclick = getToken; }
+  }
+
+  // The swap window, prefilled with what one mint still needs: the price plus
+  // the 5% platform fee, less what the wallet already holds. A completed swap
+  // clears the shortfall so the mint button is back.
+  async function getToken() {
+    const cur = nft.curOf(st.col), due = st.col.priceLamports + Math.floor(st.col.priceLamports * 0.05);
+    (await import("./swap.js")).openSwap({
+      cur, want: st.short ? st.short.need - st.short.have : due, purpose: "mint",
+      onClose: (got) => { if (got) { st.short = null; st.error = null; } paint(); },
+    });
   }
 
   async function run() {
@@ -139,8 +154,11 @@ export function mountMintPanel(el, col, { onMinted } = {}) {
       paint();
       nft.collection(st.col.slug).then((c) => { st.col = c; if (onMinted) onMinted(c); }).catch(() => {});
     } catch (e) {
-      st.error = String((e && e.message) || e) + " · Resume picks up where it stopped.";
       st.mint = "idle";
+      // Holding too little of the token is not an error to read: go straight
+      // to the swap, and keep the shortfall on the panel behind it.
+      if (e && e.shortToken) { st.short = e.shortToken; st.busy = false; paint(); return getToken(); }
+      st.error = String((e && e.message) || e) + " · Resume picks up where it stopped.";
       paint();
     }
     st.busy = false;

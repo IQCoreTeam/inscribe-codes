@@ -23,13 +23,16 @@ async function render() {
   document.title = name === "home" ? "inscribe.codes" : "inscribe.codes · " + name;
 }
 
-// In-app navigation: any ?view= link routes without a reload.
+// In-app navigation: any ?view= link routes without a reload. Entries pushed
+// here are marked, so a back link (a[data-back]) can return to the screen the
+// visitor actually came from; opened cold (a shared link), it follows its href.
 document.addEventListener("click", (e) => {
   const a = e.target.closest('a[href^="?view="]');
   if (!a || a.target === "_blank" || e.metaKey || e.ctrlKey) return;
   e.preventDefault();
+  if (a.dataset.back !== undefined && history.state && history.state.inApp) return history.back();
   const href = a.getAttribute("href");
-  history.pushState(null, "", href === "?view=home" ? location.pathname : href);
+  history.pushState({ inApp: true }, "", href === "?view=home" ? location.pathname : href);
   render();
 });
 window.addEventListener("popstate", render);

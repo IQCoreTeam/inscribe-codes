@@ -387,6 +387,9 @@ a.tk_link:hover > span:last-child { color: var(--acc); }
 /* The item grid scrolls inside its own box, so a collection of thousands does
    not stretch the page. */
 .nf-page:has(.nf-colwin) .nf-itemscroll { flex: none; max-height: 72vh; }
+/* A scrolling box clips whatever leaves it. Room on every side lets a hovered
+   cell lift and glow without being cut at the box's edge. */
+.nf-itemscroll { padding: 10px 12px 28px 10px; margin-left: -10px; margin-right: -6px; }
 .nf-pricebox { text-align: center; padding: 10px 0 4px; }
 .nf-price { position: relative; display: inline-flex; align-items: baseline; gap: 8px; padding: 12px 24px; }
 .nf-price .c, .nf-vframe .c { position: absolute; width: 12px; height: 12px; border: 0 solid currentColor; }
@@ -677,6 +680,14 @@ a.tk_link:hover > span:last-child { color: var(--acc); }
 .mk-links { display: flex; gap: 8px; flex-wrap: wrap; margin-top: auto; }
 .mk-links .btn2 { padding: 8px 12px; font-size: 16px; }
 .rc-foot a { color: inherit; }
+/* "Get <token> with SOL" window. */
+.sw-pop { width: 440px; }
+.sw-body { padding: 18px 20px 20px; display: flex; flex-direction: column; gap: 12px; font: 400 16px "Jersey 15", monospace; color: var(--mut); }
+.sw-amt { display: flex; gap: 10px; align-items: center; }
+.sw-amt .inp { flex: 1; min-width: 0; }
+.wh > span.sw-sym { color: var(--tc, #ffb347); }
+.sw-foot { border-top: 1px dotted var(--line); padding-top: 10px; }
+.nf-need { cursor: pointer; color: var(--cta); text-decoration: underline; text-underline-offset: 4px; margin-bottom: 6px; }
 /* Mint panel: the price scales with the panel so a long amount never clips. */
 .nf-pricebox { container-type: inline-size; }
 .nf-price { flex-wrap: wrap; justify-content: center; max-width: 100%; }

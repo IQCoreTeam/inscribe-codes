@@ -6,7 +6,9 @@ import { esc, shortAddr } from "./fmt.js";
 
 const MID = { nft: "Every item lives on chain" };
 
-export function nav(active) {
+// `back` replaces the Home button on a screen that sits below another one:
+// { label, href }, where href is the fallback when there is no in-app history.
+export function nav(active, back) {
   const cross = active === "token"
     ? '<a class="navbtn2" href="?view=nft" aria-label="NFT Launchpad">NFT Launchpad &rarr;</a>'
     : '<a class="navbtn2" href="?view=token" aria-label="Token markets">Token markets &rarr;</a>';
@@ -14,7 +16,7 @@ export function nav(active) {
 <div class="navwrap">
   <div class="navbar">
     <div class="navgrp">
-      <a class="navbtn" href="?view=home">&larr; Home</a>
+      ${back ? `<a class="navbtn" id="nav_back" href="${esc(back.href)}" data-back>&larr; ${esc(back.label)}</a>` : '<a class="navbtn" id="nav_back" href="?view=home">&larr; Home</a>'}
       <a class="navbrand" href="https://iqlabs.dev" target="_blank" rel="noopener"><img class="navlogo" src="public/img/text_logo.webp" alt="IQLabs"></a>
       <span id="nav_chain"></span>
       ${active === "home" ? "" : cross}
