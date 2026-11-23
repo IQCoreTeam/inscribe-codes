@@ -18,8 +18,8 @@ const st = {
   handItems: [], selItem: 0,
   folderItems: null, folderReport: null,
   priceSol: "0.01", depositSol: "0", royaltyPct: "5", sequential: false,
-  // Stock currencies offered to this visitor (empty = SOL only) and the chosen
-  // one: null prices the collection in SOL.
+  // Stock tokens offered to this visitor, each with its issuer (empty = SOL
+  // only), and the chosen one: null prices the collection in SOL.
   stocks: [], currency: null,
   deploying: false, pct: 0, phase: "", log: [], error: null, result: null,
 };
@@ -312,7 +312,11 @@ function settingsHtml() {
   const n = (items() || []).length;
   return `
     <div class="nf-form2">
-      ${st.stocks.length ? `<div class="span2"><div class="fl">Token</div><div class="seg lab">${[null, ...st.stocks].map((c) => `<div class="${st.currency === c ? "on" : ""} ns_cur" data-mint="${c ? esc(c.mint) : ""}" title="${c ? esc(c.issuer) : ""}">${c ? esc(c.symbol) : "SOL"}</div>`).join("")}</div></div>` : ""}
+      ${st.stocks.length ? `
+      <div><div class="fl">Token provider</div><select class="csel ns-sel" id="ns_provider"><option value="">Solana (SOL)</option>${[...new Set(st.stocks.map((c) => c.issuer))].map((p) => `<option ${st.currency && st.currency.issuer === p ? "selected" : ""}>${esc(p)}</option>`).join("")}</select></div>
+      <div><div class="fl">Token</div><select class="csel ns-sel" id="ns_token" ${st.currency ? "" : "disabled"}>${st.currency
+        ? st.stocks.filter((c) => c.issuer === st.currency.issuer).map((c) => `<option value="${esc(c.mint)}" ${c === st.currency ? "selected" : ""}>${esc(c.symbol)} · ${esc(c.name || c.symbol)}</option>`).join("")
+        : "<option>SOL</option>"}</select></div>` : ""}
       <div><div class="fl">Price (${st.currency ? esc(st.currency.symbol) : "SOL"})</div><input class="inp" id="ns_price" value="${esc(st.priceSol)}"></div>
       <div><div class="fl">Supply</div><input class="inp" value="${n}" readonly></div>
       ${st.currency
@@ -494,7 +498,9 @@ function wire(root, modal) {
   all(".ns_fclear", (el) => { el.onclick = () => { st.folderItems = null; st.folderReport = null; paint(root); }; });
 
   // step 4
-  all(".ns_cur", (el) => { el.onclick = () => { st.currency = st.stocks.find((c) => c.mint === el.dataset.mint) || null; paint(root); }; });
+  // A provider's first token is its most liquid one (the list arrives in that order).
+  on("#ns_provider", (el) => { el.onchange = () => { st.currency = st.stocks.find((c) => c.issuer === el.value) || null; paint(root); }; });
+  on("#ns_token", (el) => { el.onchange = () => { st.currency = st.stocks.find((c) => c.mint === el.value); paint(root); }; });
   on("#ns_price", (el) => { el.oninput = () => { st.priceSol = el.value; }; });
   on("#ns_deposit", (el) => { el.oninput = () => { st.depositSol = el.value; }; });
   on("#ns_royalty", (el) => { el.oninput = () => { st.royaltyPct = el.value; }; });

@@ -158,9 +158,12 @@ async function desk(root) {
   // The currency filter exists only where stock currencies are offered to this
   // visitor; elsewhere the list is empty and every collection is in SOL.
   st.cur = "any";
-  nft.currencies().then((list) => {
-    if (!list.length) return;
-    for (const c of list) cur.add(new Option(c.symbol + " · " + c.issuer, c.symbol));
+  // Its tickers are the ones collections here are actually priced in, not the
+  // whole offered list.
+  Promise.all([nft.currencies(), st.cols || nft.collections()]).then(([list, cols]) => {
+    st.cols = cols;
+    if (!list.length || !cur.isConnected) return;
+    for (const u of new Map(cols.map(nft.curOf).filter(Boolean).map((u) => [u.symbol, u])).values()) cur.add(new Option(u.symbol + " · " + u.issuer, u.symbol));
     cur.hidden = false;
   });
   root.querySelector("#nf_action").onclick = async () =>
