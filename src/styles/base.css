@@ -607,6 +607,8 @@ a.tk_link:hover > span:last-child { color: var(--acc); }
 .nf-filters[hidden], .csel[hidden] { display: none; }
 .csel { appearance: none; -webkit-appearance: none; box-sizing: border-box; background-color: #031005; color: var(--acc); border: 1px solid var(--acc); border-radius: 0; font: 400 16px "Jersey 15", monospace; padding: 6px 32px 6px 10px; outline: none; cursor: pointer; background-image: linear-gradient(45deg, transparent 50%, var(--acc) 50%), linear-gradient(135deg, var(--acc) 50%, transparent 50%); background-position: calc(100% - 17px) 50%, calc(100% - 12px) 50%; background-size: 5px 5px, 5px 5px; background-repeat: no-repeat; }
 .csel option { color: var(--ink2); background: var(--bg); }
+.ns-sel { width: 100%; padding: 9px 34px 9px 12px; }
+.csel:disabled { opacity: 0.45; cursor: not-allowed; }
 .nf-tabbody { margin-top: 14px; }
 .nf-stats.three { grid-template-columns: repeat(3, 1fr); margin-top: 0; }
 /* Market: one row per collection. */
