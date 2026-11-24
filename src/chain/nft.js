@@ -28,8 +28,8 @@ const ASSET_OVERHEAD = 12_000_000; // Core asset + record rent + register fee, s
 const IMAGE_CAP_BYTES = 256 * 1024;
 const META_CAP_BYTES = 4096;
 
-const feeOf = (price) => Math.floor((price * PLATFORM_FEE_BPS) / 10000); // the program's integer division
-const tokenDue = (col) => Number(col.priceLamports || 0) + feeOf(Number(col.priceLamports || 0));
+export const feeOf = (price) => Math.floor((price * PLATFORM_FEE_BPS) / 10000); // the program's integer division
+export const tokenDue = (col) => Number(col.priceLamports || 0) + feeOf(Number(col.priceLamports || 0));
 
 export function mintBudget(col, accountRent) {
   const price = Number(col.priceLamports || 0);
@@ -230,9 +230,9 @@ export async function mint({ connection, wallet, burner, slug, collection, onSta
     const left = await tokenBalance(connection, burner.publicKey, mint).catch(() => 0);
     if (left) await burnerSend(connection, burner, [transferIx(burner.publicKey, wallet.publicKey, mint, left, decimals)], "token refund").catch(() => {});
   }
-  await sweep(connection, burner, wallet.publicKey).catch(() => {});
+  const refundLamports = await sweep(connection, burner, wallet.publicKey).catch(() => null);
   clearProgress(slug);
-  const result = { slug, index: p.index, name: p.name, C: p.C, M: p.M, asset: asset.publicKey.toBase58(), mintSig };
+  const result = { slug, refundLamports, index: p.index, name: p.name, C: p.C, M: p.M, asset: asset.publicKey.toBase58(), mintSig };
   stage("done", result);
   return result;
 }
