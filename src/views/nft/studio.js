@@ -74,11 +74,11 @@ function choiceHtml() {
       <button class="nf-connectbig dotbox" id="ns_connect">Connect wallet</button>
     </div>`;
   const pending = pendingFinalizations(addr());
-  const resumes = pending.map(({ slug, name }) => `
-    <div class="kv"><span>${esc(name)}</span><button class="btn2 ns_resume" data-slug="${esc(slug)}">Retry finalization</button></div>`).join("");
+  const resumes = pending.map(({ slug, name, confirmed }) => `
+    <div class="kv"><span>${esc(name)}</span><button class="btn2 ns_resume" data-slug="${esc(slug)}">${confirmed ? "Retry finalization" : "Check deployment"}</button></div>`).join("");
   const card = (p, img, t, s) => `<div class="nf-card ns_pick" data-p="${p}"><div class="nf-cardimg"><img src="${img}" alt=""></div><div class="nf-cardtxt"><span class="t">${t}</span><span class="s">${s}</span></div></div>`;
   return `
-    ${resumes ? `<div class="fl">Confirmed deployments awaiting finalization</div>${resumes}` : ""}
+    ${resumes ? `<div class="fl">Deployments awaiting finalization</div>${resumes}` : ""}
     <div data-tty class="nf-h">What are you launching?</div>
     <div class="cm" style="margin-top:6px">Pick how the art comes in. Name and mint settings come next. Everything ends up fully on chain either way.</div>
     <div class="nf-choice">
@@ -330,12 +330,15 @@ function settingsHtml() {
 
 // ── step 5: deploy ──────────────────────────────────────────────────────────
 function deployHtml() {
-  if (st.resumeSlug) return `
-    <div class="nf-h">Deployment confirmed</div>
-    <div class="cm" style="margin-top:10px">Retry uses the confirmed transaction without funding or deploying again. Your wallet may ask you to unlock the burner.</div>
+  if (st.resumeSlug) {
+    const resume = pendingFinalizations(addr()).find(({ slug }) => slug === st.resumeSlug);
+    return `
+    <div class="nf-h">${resume?.confirmed ? "Deployment confirmed" : "Check deployment status"}</div>
+    <div class="cm" style="margin-top:10px">Studio checks the original transaction without funding or deploying again. Your wallet may ask you to unlock the burner.</div>
     ${err()}
-    <button class="btn ns_deploy" style="margin-top:14px;width:100%">Retry finalization</button>
+    <button class="btn ns_deploy" style="margin-top:14px;width:100%">${resume?.confirmed ? "Retry finalization" : "Check deployment"}</button>
     <button class="btn2 ns_method" style="margin-top:12px">← Back</button>`;
+  }
   const n = (items() || []).length;
   const fee = DEPLOY_FEE(n);
   const est = fee + 20_000_000;
@@ -593,7 +596,8 @@ const STAGES = {
   logo: () => [66, "logo inscribed", true],
   banner: () => [70, "banner inscribed", true],
   collection: () => [74, "collection.json inscribed", true],
-  deploy: () => [85, "collection + registry created in one transaction", true],
+  deploy: () => [85, "submitting collection + registry transaction", true],
+  confirm: () => [90, "checking deployment confirmation", false],
   finalize: () => [95, "finalizing collection", true],
 };
 
