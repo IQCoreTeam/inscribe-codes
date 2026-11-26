@@ -42,7 +42,8 @@ export async function render(root, slug) {
           <button type="button" class="nf-descmore" id="nc_descmore" hidden>see more</button>
           <div class="nf-collinks lab">
             <a class="btn2" href="https://solscan.io/account/${esc(col.collection)}" target="_blank" rel="noopener">Collection on chain</a>
-            <a class="btn2" href="https://magiceden.io/marketplace/${esc(col.collection)}" target="_blank" rel="noopener">Magic eden</a>
+            ${ch.unit === "SOL" && col.collection ? nftMarkets.map((m) =>
+              `<a class="btn2" href="${esc(m.collection(col.collection))}" target="_blank" rel="noopener">${esc(m.label)}</a>`).join("") : ""}
           </div>
         </div>
       </div>
@@ -181,7 +182,7 @@ async function paintMint(root) {
   const status = statusOf(col);
   const { pendingMint } = await import("../../chain/nft.js");
   const resume = pendingMint(col.slug);
-  const cannot = status === "Upcoming" ? "Not started yet" : status === "Sold out" ? "Sold out · see magic eden" : status === "Ended" ? "Mint ended" : null;
+  const cannot = status === "Upcoming" ? "Not started yet" : status === "Sold out" ? "Sold out" : status === "Ended" ? "Mint ended" : null;
   el.innerHTML = `
     ${st.error ? `<div class="cm" style="color:var(--bad)">${esc(st.error)}</div>` : ""}
     ${!addr() ? '<div class="nf-connectmint" id="nc_connect">Connect wallet to mint</div>'
