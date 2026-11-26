@@ -9,8 +9,9 @@ import { tensorItem } from "../../services/markets.js";
 import { connect as rpcConnect, explorerTx } from "../../chain/rpc.js";
 import { statusOf, chainOf, priceOf, amountOf, tcls, segsHtml, usdSlot, fillUsd } from "./launchpad.js";
 import { session, addr, connectWallet, ensureBurner } from "./session.js";
+import { feeOf, tokenDue, mint, pendingMint } from "../../chain/nft.js";
 
-const MINT_OVERHEAD = "~0.0135 SOL"; // image + metadata inscription + asset rent, measured on mainnet
+const formatAmount = (raw, decimals) => (raw / 10 ** decimals).toLocaleString("en-US", { maximumFractionDigits: decimals });
 const BAR_W = 28;
 const bar = (p) => { const n = Math.max(0, Math.min(BAR_W, Math.round((BAR_W * p) / 100))); return "[" + "█".repeat(n) + "░".repeat(BAR_W - n) + "] " + Math.round(p) + "%"; };
 const when = (unix) => (unix ? new Date(unix * 1000).toLocaleString("en-US", { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" }) : "");
@@ -35,15 +36,21 @@ export function mountMintPanel(el, col, { onMinted } = {}) {
 
   function topHtml() {
     const c = st.col, ch = chainOf(c), status = statusOf(c), cur = nft.curOf(c);
-    const [num, unit] = c.priceLamports ? [cur ? priceOf(c).split(" ")[0] : String(+(c.priceLamports / 1e9).toFixed(4)), cur ? cur.symbol : ch.unit] : ["FREE", ""];
+    const price = Number(c.priceLamports || 0);
+    const decimals = cur?.decimals ?? 9;
+    const unit = cur?.symbol ?? ch.unit;
+    const num = price ? formatAmount(price, decimals) : "FREE";
+    const fee = ch.unit === "SOL" ? feeOf(price) : 0;
     return `
       <div class="lab" style="letter-spacing:.2em;opacity:.7">Mint</div>
       <div class="nf-pricebox">
         <div class="nf-price"><span class="c tl"></span><span class="c tr"></span><span class="c bl"></span><span class="c br"></span>
-          <span class="nf-pricenum ${tcls(c)}">${esc(num)}</span>${unit ? `<span class="nf-priceunit ${tcls(c)}">${esc(unit)}</span>` : ""}</div>
+          <span class="nf-pricenum ${tcls(c)}">${esc(num)}</span>${price ? `<span class="nf-priceunit ${tcls(c)}">${esc(unit)}</span>` : ""}</div>
         ${c.priceLamports ? `<div class="cm" style="margin-top:10px">${usdSlot(c.priceLamports, c)}</div>` : ""}
         ${cur ? `<div class="cm">${esc(cur.symbol)}${cur.issuer ? " · issued by " + esc(cur.issuer) : ""}</div>` : ""}
-        <div class="cm">+ ${MINT_OVERHEAD} to put your item on chain. Nothing hidden.</div>
+        ${fee ? `<div class="kv"><span>Platform fee (5%)</span><span>${formatAmount(fee, decimals)} ${esc(unit)}</span></div>
+        <div class="kv"><span>Subtotal</span><span>${formatAmount(tokenDue(c), decimals)} ${esc(unit)}</span></div>` : ""}
+        <div class="cm">${ch.unit === "SOL" ? "Variable SOL covers inscriptions, account rent and network fees. Unused funding is returned after minting." : "Network costs are additional."}</div>
       </div>
       <div>
         <div class="cc-segs" style="height:14px;margin:0">${segsHtml(c.minted, c.maxSupply)}</div>
@@ -54,14 +61,14 @@ export function mountMintPanel(el, col, { onMinted } = {}) {
         <div class="kv"><span>per wallet</span><span>${c.maxPerWallet ? c.maxPerWallet + " per wallet" : "no limit"}</span></div>
         <div class="kv"><span>starts / ends</span><span>${when(c.startAt) || "open"} → ${when(c.endAt) || "open"}</span></div>
         <div class="kv"><span>order</span><span>${c.sequential ? "sequential" : "random"}</span></div>
-        ${cur ? `<div class="kv"><span>pay with</span><span>${esc(cur.symbol)} from your wallet, plus 5% platform fee</span></div>` : ""}
+        ${cur ? `<div class="kv"><span>pay with</span><span>${esc(cur.symbol)} from your wallet</span></div>` : ""}
         ${c.depositLamports ? `<div class="kv"><span>deposit</span><span>${fmtSol(c.depositLamports)} at reservation, counts toward the price</span></div>` : ""}
         <div class="kv"><span>you</span><span>${addr() ? "connected · " + esc(shortAddr(addr())) : "not connected"}</span></div>
       </div></details>
       <div id="mp_act"></div>`;
   }
 
-  async function paint() {
+  function paint() {
     if (!el.isConnected) return;
     const c = st.col, cur = nft.curOf(c);
     if (st.mint === "done") {
@@ -69,6 +76,8 @@ export function mountMintPanel(el, col, { onMinted } = {}) {
       el.innerHTML = `
         <div style="text-align:center;padding:6px 0 2px"><div data-tty class="nf-minted">Minted.</div><div class="cm" style="margin-top:10px">${esc(r.name || c.name + " #" + r.index)} · owner ${esc(shortAddr(addr()))}</div></div>
         <div>
+          ${r.refundLamports > 0 ? `<div class="kv"><span>unused SOL returned</span><span>${formatAmount(r.refundLamports, 9)} SOL</span></div>`
+            : r.refundLamports === null ? '<div class="cm">We could not confirm the SOL refund.</div>' : ""}
           <div class="kv"><span>image on chain</span><span class="mint">${esc(shortAddr(r.C))}</span></div>
           <div class="kv"><span>details on chain</span><span class="mint">${esc(shortAddr(r.M))}</span></div>
           <div class="kv"><span>link</span><span>gateway.iqlabs.dev/token-meta/${esc(shortAddr(r.M))}</span></div>
@@ -98,7 +107,6 @@ export function mountMintPanel(el, col, { onMinted } = {}) {
     // idle (or paused with an error). A mint that cannot happen says so before
     // asking for a wallet.
     const cannot = CANNOT[statusOf(c)];
-    const { pendingMint } = await import("../../chain/nft.js");
     const resume = pendingMint(c.slug);
     act.innerHTML = `
       ${st.error ? `<div class="cm" style="color:var(--bad)">${esc(st.error)}</div>` : ""}
@@ -120,7 +128,7 @@ export function mountMintPanel(el, col, { onMinted } = {}) {
   // the 5% platform fee, less what the wallet already holds. A completed swap
   // clears the shortfall so the mint button is back.
   async function getToken() {
-    const cur = nft.curOf(st.col), due = st.col.priceLamports + Math.floor(st.col.priceLamports * 0.05);
+    const cur = nft.curOf(st.col), due = tokenDue(st.col);
     const wallet = session.wallet;
     try {
       const [{ buyerBalance }, { openSwap }] = await Promise.all([
@@ -151,7 +159,6 @@ export function mountMintPanel(el, col, { onMinted } = {}) {
     };
     try {
       const burner = await ensureBurner();
-      const { mint } = await import("../../chain/nft.js");
       st.result = await mint({
         connection: rpcConnect(), wallet: session.wallet, burner, slug: st.col.slug, collection: st.col,
         onStage: (s, x) => {
