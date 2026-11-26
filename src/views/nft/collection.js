@@ -5,6 +5,7 @@
 import { esc, shortAddr } from "../../ui/fmt.js";
 import * as nft from "../../services/nft-backend.js";
 import { imgUrl } from "../../services/gateway.js";
+import { tensorCollection } from "../../services/markets.js";
 import { skeleton } from "../../ui/skeleton.js";
 import { frame, statusOf, coverOf, unitChip } from "./launchpad.js";
 import { mountMintPanel } from "./mintpanel.js";
@@ -40,6 +41,7 @@ export async function render(root, slug) {
           <div class="nf-collinks lab">
             <a class="btn2" href="https://solscan.io/account/${esc(col.collection)}" target="_blank" rel="noopener">Collection on chain</a>
             <a class="btn2" href="?view=nft&market=${esc(col.slug)}">Market</a>
+            ${(col.chain || "solana") === "solana" ? `<a class="btn2" href="${esc(tensorCollection(col.collection))}" target="_blank" rel="noopener">Tensor</a>` : ""}
           </div>
         </div>
       </div>

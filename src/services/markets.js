@@ -101,3 +101,5 @@ export function usdPrice(mint = WSOL) {
 
 // An item's page on Tensor, the marketplace the site's own market settles on.
 export const tensorItem = (asset) => "https://www.tensor.trade/item/" + asset;
+// A collection's page there, by its on-chain address.
+export const tensorCollection = (address) => "https://www.tensor.trade/trade/" + encodeURIComponent(address);
