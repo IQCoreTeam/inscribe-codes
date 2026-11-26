@@ -1,92 +1,216 @@
-// pump.fun launcher. PumpPortal trade-local returns the UNSIGNED create tx;
-// the platform fee transfer is appended into that SAME message (atomic: the
-// fee is only ever paid if the create lands), the fresh mint keypair signs,
-// then the user's wallet signs and sends. Returns { mint, sig }.
-import { Keypair, PublicKey, SystemProgram, TransactionMessage, VersionedTransaction } from "@solana/web3.js";
+// Build the selected launch locally with Pump's SDK. No transaction-builder
+// service supplies instructions for the connected wallet to sign.
+import { AddressLookupTableAccount, AddressLookupTableProgram, ComputeBudgetProgram, Keypair, PublicKey, SystemProgram, TransactionMessage, VersionedTransaction } from "@solana/web3.js";
+import { OnlinePumpSdk, PUMP_SDK, creatorVaultPda, feeSharingConfigPda, getBuyV3TokenAmountFromQuoteAmount, newBondingCurve } from "@pump-fun/pump-sdk";
+import { PumpAgentOffline } from "@pump-fun/agent-payments-sdk";
+import BN from "bn.js";
+import { createAssociatedTokenAccountIdempotentInstruction, getAssociatedTokenAddressSync } from "@solana/spl-token";
+import { IQ_LAUNCH_FEE_SOL, SOL_MINT, USDC_MINT, canSetHolderRewardRate } from "./options.js";
 
-const PORTAL_URL = "https://pumpportal.fun/api/trade-local";
 const FEE_WALLET = new PublicKey("5eCDJGbuS1k5ELso8h6fnMVEJpjmrCHoX1sS92Txa9Rh");
-export const FEE_SOL = 0.069;
-const PUMP_ID = new PublicKey("6EF8rrecthR5Dkzon8Nwu78hRvfCKubJ14M5uBEwF6P");
-const CREATE_V2_DISC = [0xd6, 0x90, 0x4c, 0xec, 0x5f, 0x8b, 0x31, 0xb4];
+// Shared frozen Pump Family table. It only compresses public account keys
+// already selected by the SDK; the launch never takes instructions from it.
+const LAUNCH_LOOKUP_TABLE = new PublicKey("6rZuW7Kh9C5dGENPChACcyDd6vJ1KdT5XeFVEPvYb2uW");
+const SOL = new PublicKey(SOL_MINT);
 
-export async function launchOnPump({ connection, wallet, name, symbol, uri, devBuySol = 0, onStep = () => {} }) {
-  if (!wallet || !wallet.publicKey) throw new Error("connect your Solana wallet before launching the token");
-  const owner = wallet.publicKey;
-
-  onStep("building the create transaction");
-  const mintKp = Keypair.generate();
-  const res = await fetch(PORTAL_URL, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({
-      publicKey: owner.toBase58(),
-      action: "create",
-      tokenMetadata: { name, symbol, uri },
-      mint: mintKp.publicKey.toBase58(),
-      denominatedInSol: "true",
-      amount: devBuySol,
-      slippage: 10,
-      priorityFee: 0.0005,
-      pool: "pump",
-    }),
-  });
-  if (!res.ok) throw new Error("pumpportal rejected the create (" + res.status + "): " + (await res.text()).slice(0, 200));
-  const tx = VersionedTransaction.deserialize(new Uint8Array(await res.arrayBuffer()));
-
-  // The create tx uses an address lookup table, so decompiling needs the
-  // resolved table accounts, and the recompile passes them back so the message
-  // stays within size.
-  const lookups = [];
-  for (const l of tx.message.addressTableLookups) {
-    const info = await connection.getAddressLookupTable(l.accountKey);
-    if (!info || !info.value) throw new Error("could not resolve the create tx lookup table " + l.accountKey.toBase58());
-    lookups.push(info.value);
+export async function preparePump(connection, { pair, initialBuy, mode, creatorFee, feeShares, agentBuyback, creator }) {
+  const online = new OnlinePumpSdk(connection);
+  const selectedMint = pair ? new PublicKey(pair) : SOL;
+  if (selectedMint.equals(SOL) || selectedMint.equals(PublicKey.default)) pair = "";
+  const quoteMint = pair ? selectedMint : SOL;
+  const [global, quote] = await Promise.all([
+    online.fetchGlobal(), pair ? online.resolveQuoteMint(quoteMint) : null,
+  ]);
+  if (mode === "holders" && !global.isHolderRewardEnabled) throw new Error("Pump has disabled holder rewards.");
+  if (mode === "mayhem" && (!global.mayhemModeEnabled || (quote && pair !== USDC_MINT))) {
+    throw new Error("Mayhem is unavailable for this pair.");
   }
-  const msg = TransactionMessage.decompile(tx.message, { addressLookupTableAccounts: lookups });
-
-  // Holder rewards: pump's create_v2 takes trailing optional args PumpPortal
-  // omits; appending is_cashback=false + creator_fee_bps=0 + is_holder_reward=
-  // true flips the coin so fees stream to holders, permanently. The dev-buy
-  // then needs the holder creator vault: bonding_curve.creator becomes
-  // PDA("holder-rewards", mint), so the buy's creator_vault PDA derives from
-  // that instead of the wallet. (Both verified by mainnet simulation.)
-  const seed = (s) => new TextEncoder().encode(s);
-  const holderCreator = PublicKey.findProgramAddressSync([seed("holder-rewards"), mintKp.publicKey.toBuffer()], PUMP_ID)[0];
-  const holderVault = PublicKey.findProgramAddressSync([seed("creator-vault"), holderCreator.toBuffer()], PUMP_ID)[0];
-  const walletVault = PublicKey.findProgramAddressSync([seed("creator-vault"), owner.toBuffer()], PUMP_ID)[0];
-  let patched = false;
-  for (const ix of msg.instructions) {
-    const d = ix.data;
-    if (ix.programId.equals(PUMP_ID) && d.length >= 8 && CREATE_V2_DISC.every((b, i) => d[i] === b)) {
-      const d2 = new Uint8Array(d.length + 10); // +[0] +u64(0) +[1]
-      d2.set(d);
-      d2[d.length + 9] = 1;
-      ix.data = d2;
-      patched = true;
+  if (creatorFee && !/^\d{1,5}$/.test(creatorFee)) {
+    throw new Error("Enter the Holder Rewards rate in whole basis points.");
+  }
+  const creatorFeeBps = new BN(creatorFee || "0", 10);
+  if (!creatorFeeBps.isZero()) {
+    if (!canSetHolderRewardRate(mode, pair) || !global.creatorFeeConfigurable) {
+      throw new Error("A custom Holder Rewards rate is unavailable for this mode or pair.");
     }
-    for (const k of ix.keys) if (k.pubkey.equals(walletVault)) k.pubkey = holderVault;
+    if (creatorFeeBps.gt(global.maxConfigurableCreatorFeeBps)) {
+      throw new Error(`Enter a Holder Rewards rate up to ${global.maxConfigurableCreatorFeeBps.toString()} bps.`);
+    }
   }
-  if (!patched) throw new Error("could not enable holder rewards: the create instruction did not match create_v2. launch aborted before any signature; retry.");
+  let shareholders;
+  if (mode === "sharing") {
+    const rows = (feeShares || "").trim().split(/\r?\n/).filter((row) => row.trim());
+    shareholders = rows.map((row) => {
+      const [address, bps, ...extra] = row.trim().split(/\s+/);
+      if (!/^\d{1,5}$/.test(bps || "") || extra.length) throw new Error("Enter one wallet address and whole basis-point share per line.");
+      const key = new PublicKey(address);
+      const shareBps = Number(bps);
+      if (key.equals(PublicKey.default) || shareBps <= 0) throw new Error("Enter a valid wallet and a positive share.");
+      return { address: key, shareBps };
+    });
+    if (!shareholders.length || shareholders.length > 10 ||
+        shareholders.reduce((total, share) => total + share.shareBps, 0) !== 10_000 ||
+        new Set(shareholders.map(({ address }) => address.toBase58())).size !== shareholders.length) {
+      throw new Error("Use 1–10 distinct wallets with shares totaling 10,000 basis points.");
+    }
+  }
+  let buybackBps;
+  if (mode === "agent") {
+    if (!/^\d{1,5}$/.test(agentBuyback || "") || Number(agentBuyback) > 10_000) {
+      throw new Error("Enter an agent buyback rate from 0 to 10,000 basis points.");
+    }
+    buybackBps = Number(agentBuyback);
+  }
+  const decimals = quote?.decimals ?? 9;
+  const [whole, fraction = ""] = (initialBuy || "0").split(".");
+  if (fraction.length > decimals) throw new Error("The initial buy has too many decimal places for this pair.");
+  const quoteAmount = new BN(whole + fraction.padEnd(decimals, "0"), 10);
+  if (quoteAmount.bitLength() > 64) throw new Error("The initial buy is too large.");
+  const quoteControl = quote && !quoteAmount.isZero() ? await online.fetchQuoteControl() : undefined;
+  const feeConfig = !quoteAmount.isZero() ? await online.fetchFeeConfig() : null;
+  let bondingCurve, amount;
+  if (feeConfig) {
+    bondingCurve = newBondingCurve(global, quoteMint, quoteControl, creatorFeeBps, mode === "holders", quote?.pumpQuote?.curve);
+    bondingCurve.creator = creator;
+    bondingCurve.isMayhemMode = mode === "mayhem";
+    amount = getBuyV3TokenAmountFromQuoteAmount({
+      global, feeConfig, mintSupply: global.tokenTotalSupply, bondingCurve,
+      amount: quoteAmount, curveBaseTokenBalance: global.tokenTotalSupply,
+    });
+  }
+  if (!quoteAmount.isZero() && amount.lten(0)) throw new Error("The initial buy is too small for this pair.");
+  return {
+    bondingCurve, creatorFeeBps, quoteAmount, quoteMint, quoteTokenProgram: quote?.quoteTokenProgram,
+    pumpQuote: quote?.pumpQuote?.accounts, holderReward: mode === "holders", mayhemMode: mode === "mayhem",
+    amount, shareholders, buybackBps,
+  };
+}
 
-  msg.instructions.push(SystemProgram.transfer({ fromPubkey: owner, toPubkey: FEE_WALLET, lamports: Math.round(FEE_SOL * 1e9) }));
-  const withFee = new VersionedTransaction(msg.compileToV0Message(lookups));
-  withFee.sign([mintKp]);
+const PACKET_BYTES = 1232;
+
+function packetFits(message) {
+  try { return new VersionedTransaction(message).serialize().length <= PACKET_BYTES; }
+  catch (error) {
+    if (error instanceof RangeError) return false;
+    throw error;
+  }
+}
+
+async function prepareLaunchLookupTable(connection, wallet, message, tables, draft, onStep) {
+  const user = wallet.publicKey;
+  if (!draft.lookup) {
+    const uncompressed = message.compileToV0Message(tables);
+    const programs = new Set(message.instructions.map(({ programId }) => programId.toBase58()));
+    const addresses = uncompressed.staticAccountKeys
+      .slice(uncompressed.header.numRequiredSignatures)
+      .filter((key) => !programs.has(key.toBase58()))
+      .slice(0, 24);
+    const recentSlot = await connection.getSlot("confirmed");
+    const [create, key] = AddressLookupTableProgram.createLookupTable({ authority: user, payer: user, recentSlot });
+    const preview = new AddressLookupTableAccount({
+      key, state: { authority: user, addresses, deactivationSlot: (1n << 64n) - 1n, lastExtendedSlot: recentSlot, lastExtendedSlotStartIndex: 0 },
+    });
+    if (!packetFits(message.compileToV0Message([...tables, preview]))) {
+      throw new Error("This launch is too large even with an extra lookup table. Reduce the number of settings or fee recipients.");
+    }
+    const extend = AddressLookupTableProgram.extendLookupTable({ lookupTable: key, authority: user, payer: user, addresses });
+    const block = await connection.getLatestBlockhash();
+    const setup = new VersionedTransaction(new TransactionMessage({
+      payerKey: user, recentBlockhash: block.blockhash, instructions: [create, extend],
+    }).compileToV0Message());
+    if (!packetFits(setup.message)) throw new Error("The lookup table setup exceeds Solana's transaction limit.");
+    const { value } = await connection.simulateTransaction(setup);
+    if (value.err) throw new Error("Lookup table setup simulation failed: " + JSON.stringify(value.err));
+    const rent = await connection.getMinimumBalanceForRentExemption(56 + addresses.length * 32);
+    onStep("approve lookup table setup · " + (rent / 1e9).toFixed(5) + " SOL rent plus fees");
+    const sent = await wallet.signAndSendTransaction(setup);
+    draft.lookup = { key, block, signature: sent?.signature || sent, addresses };
+  }
+  const { key, block, signature, addresses } = draft.lookup;
+  try {
+    const { value } = await connection.confirmTransaction({ ...block, signature }, "confirmed");
+    if (value.err) {
+      draft.lookup = null;
+      throw new Error(JSON.stringify(value.err));
+    }
+    for (let attempt = 0; attempt < 20; attempt++) {
+      const { value: table } = await connection.getAddressLookupTable(key, { commitment: "confirmed" });
+      if (table?.isActive() && table.state.authority?.equals(user) && table.state.addresses.length === addresses.length &&
+          addresses.every((address, i) => address.equals(table.state.addresses[i])) &&
+          await connection.getSlot("confirmed") > table.state.lastExtendedSlot) return table;
+      await new Promise((resolve) => setTimeout(resolve, 400));
+    }
+    throw new Error("Lookup table is not ready yet.");
+  } catch (error) {
+    throw new Error("Lookup table " + key.toBase58() + " · transaction " + signature + ": " + error.message);
+  }
+}
+
+export async function launchOnPump({ connection, wallet, name, symbol, uri, terms, draft = {}, onStep }) {
+  const user = wallet.publicKey;
+  const mint = draft.mint ??= Keypair.generate();
+  const params = { ...terms, name, symbol, uri, mint: mint.publicKey, creator: user, user };
+  const instructions = [await PUMP_SDK.createV2Instruction(params)];
+
+  if (terms.shareholders) {
+    instructions.push(await PUMP_SDK.createFeeSharingConfig({ creator: user, mint: mint.publicKey, pool: null }));
+    if (!terms.quoteMint.equals(SOL)) {
+      const vault = creatorVaultPda(feeSharingConfigPda(mint.publicKey));
+      const ata = getAssociatedTokenAddressSync(terms.quoteMint, vault, true, terms.quoteTokenProgram);
+      instructions.push(createAssociatedTokenAccountIdempotentInstruction(user, ata, vault, terms.quoteMint, terms.quoteTokenProgram));
+    }
+    instructions.push(await PUMP_SDK.updateFeeSharesV2({
+        authority: user, mint: mint.publicKey, currentShareholders: [user],
+        newShareholders: terms.shareholders, quoteMint: terms.quoteMint,
+        quoteTokenProgram: terms.quoteTokenProgram, bondingCurveComplete: false,
+      }),
+    );
+  }
+  if (terms.buybackBps !== undefined) {
+    instructions.push(await PumpAgentOffline.load(mint.publicKey).create({
+      authority: user, mint: mint.publicKey, agentAuthority: user, buybackBps: terms.buybackBps,
+    }));
+  }
+
+  if (!terms.quoteAmount.isZero()) {
+    instructions.push(...await PUMP_SDK.buyExactQuoteInV3Instructions({
+      ...params, associatedUserAccountInfo: null, slippage: 0,
+    }));
+  }
+
+  instructions.unshift(ComputeBudgetProgram.setComputeUnitLimit({ units: 650_000 }));
+  instructions.push(SystemProgram.transfer({ fromPubkey: user, toPubkey: FEE_WALLET, lamports: Math.round(IQ_LAUNCH_FEE_SOL * 1e9) }));
+  const [recent, lookup] = await Promise.all([
+    connection.getLatestBlockhash(),
+    (terms.quoteAmount.isZero() && !terms.shareholders && terms.buybackBps === undefined) ? null : connection.getAddressLookupTable(LAUNCH_LOOKUP_TABLE),
+  ]);
+  let block = recent;
+  const table = lookup?.value;
+  const tables = table?.isActive() && !table.state.authority ? [table] : [];
+  const message = new TransactionMessage({ payerKey: user, recentBlockhash: block.blockhash, instructions });
+  let compiled = message.compileToV0Message(tables);
+  if (!packetFits(compiled)) {
+    tables.push(await prepareLaunchLookupTable(connection, wallet, message, tables, draft, onStep));
+    block = await connection.getLatestBlockhash();
+    message.recentBlockhash = block.blockhash;
+    compiled = message.compileToV0Message(tables);
+  }
+  if (!packetFits(compiled)) throw new Error("The selected launch options do not fit in one Solana transaction.");
+  const tx = new VersionedTransaction(compiled);
+  tx.sign([mint]);
+  onStep("checking the launch before wallet approval");
+  const { value } = await connection.simulateTransaction(tx);
+  if (value.err) throw new Error("Pump launch simulation failed: " + (value.logs?.findLast((line) => line.includes("Error Message")) || JSON.stringify(value.err)));
 
   onStep("approve the transaction in your wallet");
-  const sent = await wallet.signAndSendTransaction(withFee);
-  const sig = (sent && sent.signature) || sent;
-
+  const sent = await wallet.signAndSendTransaction(tx);
+  const sig = sent?.signature || sent;
   onStep("confirming on solana");
-  // Poll instead of confirmTransaction: PumpPortal picked the blockhash, and
-  // polling survives RPC websocket hiccups.
-  for (let i = 0; i < 40; i++) {
-    const st = (await connection.getSignatureStatuses([sig])).value[0];
-    if (st && (st.confirmationStatus === "confirmed" || st.confirmationStatus === "finalized")) {
-      if (st.err) throw new Error("transaction failed on chain: " + JSON.stringify(st.err));
-      return { mint: mintKp.publicKey.toBase58(), sig };
-    }
-    await new Promise((r) => setTimeout(r, 1500));
+  try {
+    const { value: confirmed } = await connection.confirmTransaction({ signature: sig, ...block }, "confirmed");
+    if (confirmed.err) throw new Error(JSON.stringify(confirmed.err));
+  } catch (error) {
+    throw new Error("Check transaction " + sig + " before retrying: " + error.message);
   }
-  throw new Error("the launch transaction did not confirm in time; check " + sig + " on an explorer before retrying");
+  return { mint: mint.publicKey.toBase58(), sig, lookupTable: draft.lookup?.key.toBase58() };
 }
