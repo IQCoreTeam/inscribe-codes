@@ -121,10 +121,22 @@ export function mountMintPanel(el, col, { onMinted } = {}) {
   // clears the shortfall so the mint button is back.
   async function getToken() {
     const cur = nft.curOf(st.col), due = st.col.priceLamports + Math.floor(st.col.priceLamports * 0.05);
-    (await import("./swap.js")).openSwap({
-      cur, want: st.short ? st.short.need - st.short.have : due, purpose: "mint",
-      onClose: (got) => { if (got) { st.short = null; st.error = null; } paint(); },
-    });
+    const wallet = session.wallet;
+    try {
+      const [{ buyerBalance }, { openSwap }] = await Promise.all([
+        import("../../chain/trade.js"), import("./swap.js"),
+      ]);
+      const need = st.short?.need ?? due;
+      const have = wallet ? await buyerBalance(rpcConnect(), wallet.publicKey, cur.mint) : 0;
+      if (!el.isConnected || session.wallet !== wallet) return;
+      openSwap({
+        cur, want: Math.max(0, need - have), purpose: "mint",
+        onClose: (got) => { if (got) { st.short = null; st.error = null; } paint(); },
+      });
+    } catch (e) {
+      st.error = String((e && e.message) || e);
+      paint();
+    }
   }
 
   async function run() {

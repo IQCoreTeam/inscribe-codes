@@ -261,7 +261,10 @@ export async function openItem(root, it) {
     on("#mk_conn", () => connectThen(root, () => openItem(root, it)));
     on("#mk_buy", buy);
     // The swap takes the modal; closing it reopens this item with a fresh quote.
-    on("#mk_get", async () => (await import("./swap.js")).openSwap({ cur, want: (st.quote.cap ?? st.listing.price) - st.quote.have, purpose: "buy", onClose: () => openItem(root, it) }));
+    on("#mk_get", async () => (await import("./swap.js")).openSwap({
+      cur, want: (st.quote.total ?? st.quote.cap) - st.quote.have, purpose: "buy",
+      onClose: () => openItem(root, it),
+    }));
     on("#mk_list", listIt);
     on("#mk_cancel", cancel);
     const ask = ov.querySelector("#mk_ask");
