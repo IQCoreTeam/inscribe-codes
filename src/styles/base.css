@@ -58,6 +58,7 @@ img { display: block; }
 .navbtn2:hover { border-color: var(--acc); color: var(--acc); }
 .navbrand { display: flex; }
 #nav_chain { container: chain-switch / inline-size; flex: 0 1 150px; width: 150px; min-width: 64px; }
+#nav_chain:empty { display: none; }
 #nav_chain .navbtn2 { width: 100%; box-sizing: border-box; }
 @container chain-switch (max-width: 130px) {
   .nav-chain-word { display: none; }
@@ -65,7 +66,7 @@ img { display: block; }
 .navlogo { height: 18px; filter: brightness(0) invert(0.75) sepia(1) hue-rotate(70deg) saturate(3); }
 .navlbl, #nav_mid { font: 400 16px "Jersey 15", monospace; color: var(--mut); white-space: nowrap; }
 .navstripwrap { flex: 1 1 0; min-width: 0; overflow: hidden; display: flex; justify-content: flex-end; }
-.navstrip { height: 45px; width: auto; max-width: 100%; object-fit: cover; object-position: right center; }
+.navstrip { height: 45px; width: auto; max-width: 100%; object-fit: contain; object-position: right center; }
 @media (max-width: 1280px) { .navlbl { display: none; } }
 @media (max-width: 1100px) { #nav_mid { display: none; } }
 @media (max-width: 860px) { .navstripwrap, .navbrand { display: none; } }
@@ -588,7 +589,6 @@ a.tk_link:hover > span:last-child { color: var(--acc); }
     display: flex; align-items: center; justify-content: center; box-sizing: border-box;
     min-width: 44px; min-height: 44px; font-size: clamp(12px, 3.6vw, 16px); padding: 4px; white-space: nowrap;
   }
-  #nav_chain:empty { display: none; }
   #nav_wallet { margin-left: auto; }
 
   /* home */
