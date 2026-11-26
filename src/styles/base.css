@@ -341,9 +341,8 @@ a.tk_link:hover > span:last-child { color: var(--acc); }
 .nf-colwin { flex: 1; }
 .nf-colpage { display: grid; grid-template-columns: minmax(0, 1.5fr) minmax(300px, 0.9fr); flex: 1; min-height: 0; }
 .nf-colleft { padding: 22px 24px; border-right: 1px solid var(--line); min-width: 0; display: flex; flex-direction: column; min-height: 0; }
-/* A banner keeps its own shape up to the cap; a taller one is centred and its
-   top and bottom are cropped, so no upload can push the page off screen. */
-.nf-colbanner { width: 100%; height: auto; max-height: min(320px, 34vh); flex: 0 0 auto; object-fit: cover; object-position: center; background: var(--panel); border-bottom: 1px solid var(--line); }
+/* Scale down banners that reach the cap so the full artwork stays visible. */
+.nf-colbanner { width: 100%; height: auto; max-height: min(320px, 34vh); flex: 0 0 auto; object-fit: contain; object-position: center; background: var(--panel); border-bottom: 1px solid var(--line); }
 .nf-colhead { display: flex; gap: 16px; align-items: flex-start; flex-wrap: wrap; }
 .nf-collogo { width: 120px; height: 120px; border: 1px solid var(--line); flex: 0 0 auto; overflow: hidden; background: var(--panel); }
 .nf-collogo img { width: 100%; height: 100%; object-fit: cover; }
