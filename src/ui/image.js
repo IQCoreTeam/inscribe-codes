@@ -21,14 +21,16 @@ export async function compressImage(imageData, { maxEdge = 512, quality = 80 } =
 
 export const fileToBitmap = (file) => createImageBitmap(file);
 
-export function bitmapToImageData(bitmap, edge = COMPOSITE_EDGE) {
-  const cv = document.createElement("canvas");
-  cv.width = edge; cv.height = edge;
-  const ctx = cv.getContext("2d");
+export function bitmapToImageData(bitmap, edge = COMPOSITE_EDGE, { pad = true } = {}) {
   const scale = Math.min(edge / bitmap.width, edge / bitmap.height);
-  const w = Math.round(bitmap.width * scale), h = Math.round(bitmap.height * scale);
-  ctx.drawImage(bitmap, Math.floor((edge - w) / 2), Math.floor((edge - h) / 2), w, h);
-  return ctx.getImageData(0, 0, edge, edge);
+  const w = Math.max(1, Math.round(bitmap.width * scale));
+  const h = Math.max(1, Math.round(bitmap.height * scale));
+  const cv = document.createElement("canvas");
+  cv.width = pad ? edge : w;
+  cv.height = pad ? edge : h;
+  const ctx = cv.getContext("2d");
+  ctx.drawImage(bitmap, Math.floor((cv.width - w) / 2), Math.floor((cv.height - h) / 2), w, h);
+  return ctx.getImageData(0, 0, cv.width, cv.height);
 }
 
 // Stack one picked trait bitmap per layer, bottom first.
