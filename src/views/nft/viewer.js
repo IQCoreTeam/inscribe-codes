@@ -1,5 +1,5 @@
-// Asset viewer (design/NFT Launchpad Flow v5): status | image | on-chain data,
-// with the metadata json as a section in the same window. Opens as a popup over
+// Asset viewer (design/NFT Launchpad Flow v5): status | image | on-chain data.
+// Opens as a popup over
 // whatever screen the item was clicked from (openModal); a direct ?asset= URL
 // renders it as a full page (render). Gateway-first for speed; "run it from
 // chain" re-reads everything from the chain alone and swaps in the bytes.
@@ -11,6 +11,21 @@ import { frame } from "./launchpad.js";
 import { addr, paintWalletPill } from "./session.js";
 
 const LEVEL = { common: 1, rare: 2, epic: 3, legendary: 4 };
+const CLOSE = '<button type="button" class="wh-right wh-x nf-vclose" aria-label="Close">✕</button>';
+
+function showViewerDialog(container, label, html) {
+  const dialog = document.createElement("dialog");
+  dialog.className = "nf-view-dialog";
+  dialog.setAttribute("aria-label", label);
+  dialog.innerHTML = html;
+  dialog.addEventListener("click", (event) => {
+    if (event.target === dialog || event.target.closest(".nf-vclose")) dialog.close();
+  });
+  dialog.addEventListener("close", () => dialog.remove(), { once: true });
+  container.append(dialog);
+  dialog.showModal();
+  return dialog;
+}
 
 async function load(assetAddress) {
   const connection = rpcConnect();
@@ -40,8 +55,7 @@ function marketHtml(a, listing) {
     <div class="nf-vmk">${nftMarkets.map((m) => `<a class="btn2" href="${esc(m.item(a.asset))}" target="_blank" rel="noopener">${esc(m.label)}</a>`).join("")}</div></div>`;
 }
 
-// One window: header (with headerRight = close X or back link), the 3-column
-// grid, then the details-json section below the same frame.
+// Shared layout for the collection popup and direct asset page.
 function viewerHtml(a, info, listing, headerRight) {
   const rarity = info?.rarity;
   const tier = Object.hasOwn(LEVEL, rarity?.tier) ? rarity.tier : "";
@@ -52,8 +66,12 @@ function viewerHtml(a, info, listing, headerRight) {
   const extra = ((a.metadata && a.metadata.attributes) || []).filter((x) => !["index", "inscription", "metadata", "std"].includes(x.trait_type));
   return `
 <div class="win nf-win nf-viewer ${tier}">
-  <div class="wh"><span>${esc(a.name)}</span>${tier && tier !== "common" ? `<span class="nf-vchip">${esc(tier)}</span>` : ""}${headerRight}</div>
+  <div class="wh"><span class="nf-vtitle">${esc(a.name)}</span>${tier && tier !== "common" ? `<span class="nf-vchip">${esc(tier)}</span>` : ""}${headerRight}</div>
   <div class="nf-vgrid">
+    <div class="nf-vcenter">
+      <div class="nf-vframe ${tier}" id="nv_frame">${a.imageUrl ? `<img src="${esc(a.imageUrl)}" alt="${esc(a.name)}">` : '<span class="cm">no image pointer</span>'}<span class="c tl"></span><span class="c tr"></span><span class="c bl"></span><span class="c br"></span></div>
+      <div class="nf-vcap"><span>${idx != null ? "#" + idx : ""}</span><span>/img/C.png</span></div>
+    </div>
     <div class="nf-vleft">
       <div><div class="lab nf-vlab">Name</div><div class="nf-vname">${esc(a.name)}</div><div class="cm" style="margin-top:2px">${esc(colName)}</div></div>
       ${tier ? `<div class="nf-vsec"><div class="lab nf-vlab">Rarity</div><div class="nf-vrar">${esc(tier)}${rarity.rank ? ` · rank ${rarity.rank} / ${rarity.total}` : ""}</div><div class="nf-vpips">${pips}</div></div>` : ""}
@@ -63,13 +81,9 @@ function viewerHtml(a, info, listing, headerRight) {
       <div class="nf-vsec" style="margin-top:auto"><div class="lab nf-vlab">Status</div>
         <div class="nf-vkv"><span>chain</span><b>solana</b><span>std</span><b>${esc(std)}</b><span>storage</span><b class="mint">inscribed</b><span>mutable</span><b>no</b></div></div>
     </div>
-    <div class="nf-vcenter">
-      <div class="nf-vframe ${tier}" id="nv_frame">${a.imageUrl ? `<img src="${esc(a.imageUrl)}" alt="">` : '<span class="cm">no image pointer</span>'}<span class="c tl"></span><span class="c tr"></span><span class="c bl"></span><span class="c br"></span></div>
-      <div class="nf-vcap"><span>${idx != null ? "#" + idx : ""}</span><span>/img/C.png</span></div>
-    </div>
     <div class="nf-vright">
       <div><div class="lab nf-vlab">On chain</div>
-        <div class="nf-vkv" style="word-break:break-all;gap:5px 10px">
+        <div class="nf-vkv">
           <span>asset</span><b>${esc(shortAddr(a.asset))}</b>
           <span>collection</span><b>${a.collection ? esc(shortAddr(a.collection)) : "-"}</b>
           <span>image</span><b class="mint">${a.C ? esc(shortAddr(a.C)) : "-"}</b>
@@ -90,7 +104,7 @@ function viewerHtml(a, info, listing, headerRight) {
 </div>`;
 }
 
-// The two right/left buttons each open a popup: the chain proof and the json.
+// The chain proof and JSON open in their own dialogs.
 function wire(scope, a, readAsset) {
   const prove = scope.querySelector("#nv_prove");
   if (prove) prove.onclick = () => openProve(a.asset, readAsset);
@@ -100,16 +114,10 @@ function wire(scope, a, readAsset) {
 
 // Small popup showing the on-chain metadata json, over the current screen.
 function openJson(metadata) {
-  const ov = document.createElement("div");
-  ov.className = "nf-overlay nf-proveov";
-  ov.innerHTML = `<div class="win nf-win nf-jsonwin">
-    <div class="wh"><span>details json</span><span class="wh-right wh-x nv-jclose" title="close" style="cursor:pointer">✕</span></div>
-    <pre class="nf-json">${esc(JSON.stringify(metadata, null, 2))}</pre>
-  </div>`;
-  document.body.appendChild(ov);
-  const close = () => ov.remove();
-  ov.onclick = (e) => { if (e.target === ov) close(); };
-  ov.querySelector(".nv-jclose").onclick = close;
+  showViewerDialog(document.body, "Details JSON", `<div class="win nf-win nf-jsonwin">
+    <div class="wh"><span>details json</span>${CLOSE}</div>
+    <pre class="nf-json" tabindex="0">${esc(JSON.stringify(metadata, null, 2))}</pre>
+  </div>`);
 }
 
 // Small popup that rebuilds the image from the chain alone, for fun and as
@@ -117,10 +125,8 @@ function openJson(metadata) {
 // in their browser (localStorage, via setRpc), never sent anywhere.
 function openProve(assetAddress, readAsset) {
   const own = hasOwnRpc();
-  const ov = document.createElement("div");
-  ov.className = "nf-overlay nf-proveov";
-  ov.innerHTML = `<div class="win nf-win nf-provewin">
-    <div class="wh"><span>run it from chain</span><span class="wh-right wh-x nv-pclose" title="close" style="cursor:pointer">✕</span></div>
+  const ov = showViewerDialog(document.body, "Read NFT from chain", `<div class="win nf-win nf-provewin">
+    <div class="wh"><span>run it from chain</span>${CLOSE}</div>
     <div class="nf-provebody">
       <div class="cm">No gateway, no server: read the image straight off Solana.</div>
       <label class="nf-prpc"><span class="lab nf-vlab">Your RPC${own ? "" : " (optional)"}</span>
@@ -131,11 +137,7 @@ function openProve(assetAddress, readAsset) {
       <div class="cm nf-pstat" id="nv_pstat"></div>
       <div class="nf-pimg" id="nv_pimg"></div>
     </div>
-  </div>`;
-  document.body.appendChild(ov);
-  const close = () => ov.remove();
-  ov.onclick = (e) => { if (e.target === ov) close(); };
-  ov.querySelector(".nv-pclose").onclick = close;
+  </div>`);
   const run = ov.querySelector("#nv_prun");
   const stat = ov.querySelector("#nv_pstat");
   run.onclick = async () => {
@@ -159,11 +161,12 @@ function openProve(assetAddress, readAsset) {
 // Full page, for a direct ?view=nft&asset= URL.
 export async function render(root, assetAddress) {
   const body = frame(root, '<div class="nf-note">reading the asset from chain...</div>');
+  body.closest(".nf-page").classList.add("nf-view-page");
   paintWalletPill(root.querySelector("#nav_wallet"));
   const { a, info, listing, readAsset } = await load(assetAddress);
   if (!body.isConnected) return;
   if (a.error) { body.innerHTML = '<div class="nf-note">could not read ' + esc(assetAddress) + ": " + esc(a.error.message) + "</div>"; return; }
-  const back = `<a class="wh-right wh-x" href="${info && info.slug ? "?view=nft&c=" + esc(info.slug) : "?view=nft"}">${info && info.slug ? "← collection" : "← launchpad"}</a>`;
+  const back = `<a class="wh-right wh-x nf-vback" href="${info && info.slug ? "?view=nft&c=" + esc(info.slug) : "?view=nft"}">${info && info.slug ? "← collection" : "← launchpad"}</a>`;
   body.innerHTML = `<div class="nf-stack">${viewerHtml(a, info, listing, back)}</div>`;
   wire(body, a, readAsset);
 }
@@ -173,18 +176,20 @@ export async function render(root, assetAddress) {
 export async function openModal(assetAddress) {
   const modal = document.querySelector("#nf_modal");
   if (!modal) return;
-  const close = () => { modal.innerHTML = ""; document.removeEventListener("keydown", onEsc); };
-  const onEsc = (e) => { if (e.key === "Escape") close(); };
-  modal.innerHTML = '<div class="nf-overlay" id="nv_overlay"><div class="nf-note">reading the asset from chain...</div></div>';
-  document.addEventListener("keydown", onEsc);
-  modal.querySelector("#nv_overlay").onclick = (e) => { if (e.target.id === "nv_overlay") close(); };
+  const overlay = showViewerDialog(modal, "NFT viewer", `<div class="win nf-win nf-viewer">
+    <div class="wh"><span>NFT</span>${CLOSE}</div>
+    <div class="nf-note" role="status">reading the asset from chain...</div>
+  </div>`);
 
   const { a, info, listing, readAsset } = await load(assetAddress);
-  const overlay = modal.querySelector("#nv_overlay");
-  if (!overlay) return; // closed while loading
-  if (a.error) { overlay.innerHTML = '<div class="nf-note">could not read ' + esc(assetAddress) + ": " + esc(a.error.message) + "</div>"; return; }
-  const x = `<span class="wh-right wh-x nv-close" title="close" style="cursor:pointer">✕</span>`;
-  overlay.innerHTML = viewerHtml(a, info, listing, x);
-  overlay.querySelector(".nv-close").onclick = close;
+  if (!overlay.open || !overlay.isConnected) return;
+  if (a.error) {
+    overlay.querySelector(".nf-note").textContent = "could not read " + assetAddress + ": " + a.error.message;
+    return;
+  }
+  overlay.setAttribute("aria-label", a.name);
+  overlay.innerHTML = viewerHtml(a, info, listing, CLOSE);
+  overlay.querySelector(".nf-vgrid").tabIndex = 0;
+  overlay.querySelector(".nf-vclose").focus({ preventScroll: true });
   wire(overlay, a, readAsset);
 }
