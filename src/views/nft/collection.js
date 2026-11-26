@@ -7,12 +7,15 @@ import * as nft from "../../services/nft-backend.js";
 import { imgUrl } from "../../services/gateway.js";
 import { nftMarkets } from "../../services/markets.js";
 import { skeleton } from "../../ui/skeleton.js";
+import { paintProgress } from "../../ui/tty.js";
 import { connect as rpcConnect, explorerTx } from "../../chain/rpc.js";
-import { frame, statusOf, chainOf, coverOf, priceOf, segsHtml } from "./launchpad.js";
+import { frame, statusOf, chainOf, segsHtml } from "./launchpad.js";
 import { session, addr, connectWallet, ensureBurner, paintWalletPill } from "./session.js";
+import { mint, pendingMint } from "../../chain/nft.js";
+import { mintPlatformFee, PLATFORM_FEE_BPS } from "../../chain/nft-fees.js";
 
 const PAGE = 500;
-const MINT_OVERHEAD = "~0.0135 SOL"; // image + metadata inscription + asset rent, measured on mainnet
+const formatMintAmount = (lamports) => (lamports / 1e9).toLocaleString("en-US", { maximumFractionDigits: 9 });
 const TIER_LABEL = { legendary: "Legendary", epic: "EPIC", rare: "RARE" };
 const st = { col: null, items: [], total: 0, hasRarity: false, filter: "all", mint: "idle", pct: 0, log: [], result: null, error: null, busy: false };
 
@@ -26,6 +29,9 @@ export async function render(root, slug) {
 
   const ch = chainOf(col);
   const status = statusOf(col);
+  const mintPrice = Number(col.priceLamports || 0);
+  const priceLabel = mintPrice ? formatMintAmount(mintPrice) : "FREE";
+  const platformFee = mintPlatformFee(mintPrice);
   const logo = col.logo || (col.coverSig ? imgUrl(col.coverSig) : "");
   body.innerHTML = `
 <div class="win nf-win nf-colwin">
@@ -39,7 +45,7 @@ export async function render(root, slug) {
           <div class="nf-coltitle"><div class="nf-colname">${esc(col.name)}</div><span class="chip ${status === "LIVE" ? "live" : status === "Upcoming" ? "soon" : "out"}">${status}</span><span class="chip">${ch.icon} ${esc(ch.name)}</span></div>
           <div class="cm" style="margin-top:6px">by ${esc(shortAddr(col.creator))} · ${col.maxSupply.toLocaleString("en-US")} items${col.symbol ? " · $" + esc(col.symbol) : ""}</div>
           <p class="nf-coldesc clamp" id="nc_desc">${esc(col.description || "")}</p>
-          <button type="button" class="nf-descmore" id="nc_descmore" hidden>see more</button>
+          <button type="button" class="nf-descmore" id="nc_descmore" aria-controls="nc_desc" aria-expanded="false" hidden>see more</button>
           <div class="nf-collinks lab">
             <a class="btn2" href="https://solscan.io/account/${esc(col.collection)}" target="_blank" rel="noopener">Collection on chain</a>
             ${ch.unit === "SOL" && col.collection ? nftMarkets.map((m) =>
@@ -59,8 +65,13 @@ export async function render(root, slug) {
       <div class="lab" style="letter-spacing:.2em;opacity:.7">Mint</div>
       <div class="nf-pricebox">
         <div class="nf-price"><span class="c tl"></span><span class="c tr"></span><span class="c bl"></span><span class="c br"></span>
-          <span class="nf-pricenum">${col.priceLamports ? String(+(col.priceLamports / 1e9).toFixed(4)) : "FREE"}</span>${col.priceLamports ? `<span class="nf-priceunit">${ch.unit}</span>` : ""}</div>
-        <div class="cm" style="margin-top:10px">+ ${MINT_OVERHEAD} to put your item on chain. Nothing hidden.</div>
+          <span class="nf-pricenum${priceLabel.length > 6 ? " nf-pricenum-long" : ""}">${priceLabel}</span>${mintPrice ? `<span class="nf-priceunit">${ch.unit}</span>` : ""}</div>
+        ${ch.unit === "SOL" && mintPrice ? `
+          <dl class="nf-mint-costs">
+            <div class="kv"><dt>Platform fee (${PLATFORM_FEE_BPS / 100}%)</dt><dd>${formatMintAmount(platformFee)} SOL</dd></div>
+            <div class="kv"><dt>Subtotal</dt><dd>${formatMintAmount(mintPrice + platformFee)} SOL</dd></div>
+          </dl>` : ""}
+        <div class="cm" style="margin-top:10px">${ch.unit === "SOL" ? "One approval funds your burner wallet for the mint, including a buffer for inscription, account rent and network fees. Unused SOL is sent back after minting." : "Network costs are additional."}</div>
       </div>
       <div>
         <div class="cc-segs" style="height:14px;margin:0" id="nc_segs">${segsHtml(col.minted, col.maxSupply)}</div>
@@ -81,10 +92,22 @@ export async function render(root, slug) {
 
 
   const desc = body.querySelector("#nc_desc"), dmore = body.querySelector("#nc_descmore");
-  if (desc.scrollHeight > desc.clientHeight + 2) {
-    dmore.hidden = false;
-    dmore.onclick = () => { dmore.textContent = desc.classList.toggle("clamp") ? "see more" : "see less"; };
+  function expandDescription(expanded) {
+    desc.classList.toggle("clamp", !expanded);
+    dmore.textContent = expanded ? "see less" : "see more";
+    dmore.setAttribute("aria-expanded", String(expanded));
   }
+  function syncDescription() {
+    if (!desc.isConnected) { descriptionObserver.disconnect(); return; }
+    const style = getComputedStyle(desc);
+    const collapsedHeight = parseFloat(style.lineHeight) * Number(style.getPropertyValue("--desc-lines"));
+    dmore.hidden = desc.scrollHeight <= Math.ceil(collapsedHeight);
+    if (dmore.hidden) expandDescription(false);
+  }
+  const descriptionObserver = new ResizeObserver(syncDescription);
+  descriptionObserver.observe(desc);
+  document.fonts.ready.then(syncDescription);
+  dmore.onclick = () => expandDescription(desc.classList.contains("clamp"));
 
   for (const t of body.querySelectorAll(".nf-tabs .tab")) t.onclick = () => {
     st.filter = t.dataset.f;
@@ -141,23 +164,27 @@ function cellHtml(it) {
 }
 
 // ── mint panel ──────────────────────────────────────────────────────────────
-const BAR_W = 28;
-const bar = (p) => { const n = Math.max(0, Math.min(BAR_W, Math.round((BAR_W * p) / 100))); return "[" + "█".repeat(n) + "░".repeat(BAR_W - n) + "] " + Math.round(p) + "%"; };
 
-async function paintMint(root) {
+function paintMint(root) {
   const el = root.querySelector("#nc_mint");
   if (!el || !st.col) return;
   const col = st.col;
   const you = root.querySelector("#nc_you");
   if (you) you.textContent = addr() ? "connected · " + shortAddr(addr()) : "not connected";
+  if (st.mint === "prepare") {
+    el.innerHTML = '<div class="ttyspin nf-approve">Preparing mint…</div>';
+    return;
+  }
   if (st.mint === "approve") {
-    el.innerHTML = '<div class="ttyspin nf-approve">Approve in your wallet…</div><div class="cm">One transfer funds the whole mint; whatever is left comes back to you.</div>';
+    el.innerHTML = `<div class="ttyspin nf-approve">Approve ${formatMintAmount(st.fundingLamports)} SOL in your wallet</div>
+      <div class="cm">This amount goes to your burner wallet to cover the mint. Any unused SOL comes back after minting. Your wallet may show a separate network fee for this transfer.</div>`;
     return;
   }
   if (st.mint === "confirm") {
-    el.innerHTML = `<div class="ttybar" id="nc_bar">${bar(st.pct)}</div><div class="ttyspin cm" style="margin-top:6px" id="nc_phase">${esc(st.log[st.log.length - 1] || "working…")}</div>
+    el.innerHTML = `<div class="ttybar" id="nc_bar"><progress max="100" aria-label="Mint progress"></progress><span aria-hidden="true"></span></div><div class="ttyspin cm" style="margin-top:6px" id="nc_phase">${esc(st.log[st.log.length - 1] || "working…")}</div>
       <div class="nf-log" id="nc_log">${st.log.map((l) => "<div>&gt; " + esc(l) + "</div>").join("")}</div>
       <div class="cm">Keep this tab open. If it stops, come back and press Resume: every step is checkpointed, nothing is paid twice.</div>`;
+    paintProgress(el.querySelector("#nc_bar"), st.pct);
     return;
   }
   if (st.mint === "done") {
@@ -165,6 +192,8 @@ async function paintMint(root) {
     el.innerHTML = `
       <div style="text-align:center;padding:6px 0 2px"><div data-tty class="nf-minted">Minted.</div><div class="cm" style="margin-top:10px">${esc(r.name || col.name + " #" + r.index)} · owner ${esc(shortAddr(addr()))}</div></div>
       <div>
+        ${r.refundLamports > 0 ? `<div class="kv"><span>unused SOL returned</span><span>${formatMintAmount(r.refundLamports)} SOL</span></div>`
+          : r.refundLamports === null ? '<div class="cm">Refund could not be confirmed. Any remaining SOL can be reused for your next mint.</div>' : ""}
         <div class="kv"><span>image on chain</span><span class="mint">${esc(shortAddr(r.C))}</span></div>
         <div class="kv"><span>details on chain</span><span class="mint">${esc(shortAddr(r.M))}</span></div>
         <div class="kv"><span>link</span><span>gateway.iqlabs.dev/token-meta/${esc(shortAddr(r.M))}</span></div>
@@ -180,7 +209,6 @@ async function paintMint(root) {
   }
   // idle (or paused with an error)
   const status = statusOf(col);
-  const { pendingMint } = await import("../../chain/nft.js");
   const resume = pendingMint(col.slug);
   const cannot = status === "Upcoming" ? "Not started yet" : status === "Sold out" ? "Sold out" : status === "Ended" ? "Mint ended" : null;
   el.innerHTML = `
@@ -209,21 +237,20 @@ const STAGE_LINE = {
 async function runMint(root) {
   if (st.busy) return;
   st.busy = true; st.error = null; st.log = []; st.pct = 0;
-  st.mint = "approve"; paintMint(root);
+  st.mint = "prepare"; paintMint(root);
   const live = () => {
     const b = root.querySelector("#nc_bar"), ph = root.querySelector("#nc_phase"), lg = root.querySelector("#nc_log");
-    if (b) b.textContent = bar(st.pct);
+    if (b) paintProgress(b, st.pct);
     if (ph) ph.textContent = st.log[st.log.length - 1] || "";
     if (lg) lg.innerHTML = st.log.map((l) => "<div>&gt; " + esc(l) + "</div>").join("");
   };
   try {
     const connection = rpcConnect();
     const burner = await ensureBurner();
-    const { mint } = await import("../../chain/nft.js");
     st.result = await mint({
       connection, wallet: session.wallet, burner, slug: st.col.slug, collection: st.col,
       onStage: (s, x) => {
-        if (s === "funding") { st.mint = "approve"; paintMint(root); return; }
+        if (s === "funding") { st.fundingLamports = x.lamports; st.mint = "approve"; paintMint(root); return; }
         if (st.mint !== "confirm") { st.mint = "confirm"; paintMint(root); }
         if (STAGE_PCT[s]) st.pct = Math.max(st.pct, STAGE_PCT[s]);
         if (STAGE_LINE[s]) { st.log.push(STAGE_LINE[s](x)); live(); }

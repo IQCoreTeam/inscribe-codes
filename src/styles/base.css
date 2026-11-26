@@ -161,7 +161,19 @@ img { display: block; }
 .navpill { font: 400 16px/1.2 "Jersey 15", monospace; display: flex; align-items: center; gap: 8px; padding: 7px 12px; color: var(--acc); border: 1px solid var(--acc); background-color: var(--panel2); background-image: linear-gradient(var(--bg), var(--bg)), radial-gradient(var(--acc) 1px, transparent 1.2px); background-size: calc(100% - 12px) calc(100% - 12px), 4px 4px; background-position: center, 0 0; background-repeat: no-repeat, repeat; cursor: pointer; }
 .navpill i { width: 7px; height: 7px; background: var(--acc); }
 .navconnect { font-size: 16px; line-height: 1.2; padding: 7px 12px; }
-.ttybar { font: 400 24px/1.2 "Jersey 15", monospace; letter-spacing: 0; white-space: pre; overflow: hidden; text-overflow: clip; }
+.ttybar { display: flex; align-items: center; gap: 8px; max-width: 28rem; font: 400 24px/1.2 "Jersey 15", monospace; }
+.ttybar progress {
+  flex: 1;
+  min-width: 0;
+  height: 0.65em;
+  appearance: none;
+  border: 0;
+  background: var(--panel);
+  mask-image: repeating-linear-gradient(to right, #000 0 calc(100% / 28 - 2px), transparent calc(100% / 28 - 2px) calc(100% / 28));
+}
+.ttybar progress::-webkit-progress-bar { background: var(--panel); }
+.ttybar progress::-webkit-progress-value { background: var(--acc); }
+.ttybar progress::-moz-progress-bar { background: var(--acc); }
 @keyframes ttyspin { 0% { content: "⠋"; } 12.5% { content: "⠙"; } 25% { content: "⠹"; } 37.5% { content: "⠸"; } 50% { content: "⠼"; } 62.5% { content: "⠴"; } 75% { content: "⠦"; } 87.5% { content: "⠧"; } 100% { content: "⠋"; } }
 .ttyspin::before { content: "⠋"; display: inline-block; width: 1.2em; animation: ttyspin 0.8s steps(1, end) infinite; }
 @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.35; } }
@@ -350,8 +362,8 @@ a.tk_link:hover > span:last-child { color: var(--acc); }
 .nf-colinfo { min-width: 0; flex: 1; }
 .nf-coltitle { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
 .nf-colname { font: 400 48px/1 "Terminal16", "Jersey 15", monospace; color: var(--ink); }
-.nf-coldesc { margin: 10px 0 0; font: 400 16px/1.8 "Jersey 15", monospace; opacity: 0.8; color: var(--ink2); }
-.nf-coldesc.clamp { display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 4; overflow: hidden; }
+.nf-coldesc { --desc-lines: 4; margin: 10px 0 0; font: 400 16px/1.8 "Jersey 15", monospace; opacity: 0.8; color: var(--ink2); }
+.nf-coldesc.clamp { display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: var(--desc-lines); overflow: hidden; }
 .nf-descmore { margin-top: 6px; padding: 0; background: none; border: 0; cursor: pointer; font: 400 16px "Jersey 15", monospace; letter-spacing: 0.04em; color: var(--acc); }
 .nf-descmore:hover { color: var(--mut); }
 .nf-collinks { display: flex; gap: 8px; margin-top: 12px; flex-wrap: wrap; }
@@ -397,7 +409,11 @@ a.tk_link:hover > span:last-child { color: var(--acc); }
 .c.bl { left: 0; bottom: 0; border-left-width: 1.5px; border-bottom-width: 1.5px; }
 .c.br { right: 0; bottom: 0; border-right-width: 1.5px; border-bottom-width: 1.5px; }
 .nf-pricenum { font: 400 64px/1 "Terminal16", "Jersey 15", monospace; color: var(--ink); }
+.nf-pricenum.nf-pricenum-long { font-size: 24px; overflow-wrap: anywhere; }
 .nf-priceunit { font: 400 16px "Jersey 15", monospace; color: #8dffa0; }
+.nf-mint-costs { max-width: 360px; margin: 8px auto 0; text-align: left; }
+.nf-mint-costs .kv { padding: 5px 0; }
+.nf-mint-costs dd { margin: 0; overflow-wrap: anywhere; }
 .nf-mintedline { display: flex; justify-content: space-between; align-items: baseline; margin-top: 7px; font: 400 16px "Jersey 15", monospace; color: var(--mut); }
 .nf-details summary { cursor: pointer; list-style: none; font: 400 16px "Jersey 15", monospace; letter-spacing: 0.1em; color: var(--mut); padding: 6px 0; }
 .nf-details summary::-webkit-details-marker { display: none; }
@@ -566,7 +582,7 @@ a.tk_link:hover > span:last-child { color: var(--acc); }
 .ah-assembled { font: 400 28px/1.1 "Terminal16", "Jersey 15", monospace; color: var(--cta); min-height: 1.1em; }
 
 @media (max-width: 980px) {
-  .nf-colpage { grid-template-columns: 1fr; }
+  .nf-colpage { grid-template-columns: minmax(0, 1fr); }
   .nf-colleft { border-right: none; }
   .nf-itemgrid { grid-template-columns: repeat(4, 1fr); }
   .nf-itemscroll { max-height: none; }
@@ -619,6 +635,7 @@ a.tk_link:hover > span:last-child { color: var(--acc); }
   .nf-pager { flex-wrap: wrap; }
 
   /* collection page: logo above the title, title wraps */
+  .nf-colright, .nf-wizbody { overflow-wrap: anywhere; }
   .nf-colleft, .nf-colright { padding: 16px 12px; }
   .nf-colhead { flex-direction: column; gap: 12px; }
   .nf-collogo { width: 96px; height: 96px; }
