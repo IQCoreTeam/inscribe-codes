@@ -8,7 +8,7 @@ import { typeLabels } from "../../ui/tty.js";
 import { call } from "../../services/nft-backend.js";
 import { connect as rpcConnect, explorerTx } from "../../chain/rpc.js";
 import { fileToBitmap, bitmapToImageData, compositeImageData, compositeDataUrl } from "../../ui/image.js";
-import { session, addr, connectWallet, ensureBurner, paintWalletPill } from "./session.js";
+import { wallet, addr, connectWallet, ensureBurner, paintWalletPill } from "./session.js";
 
 const st = {
   step: 0, producer: "generate",
@@ -387,7 +387,7 @@ function wire(root, modal) {
   const overlay = modal.querySelector("#ns_overlay");
   overlay.onclick = (e) => { if (e.target === overlay && !st.deploying) modal.innerHTML = ""; };
 
-  on("#ns_connect", (el) => { el.onclick = () => connectWallet().then(() => { paintWalletPill(root.querySelector("#nav_wallet")); paint(root); }).catch((e) => alert(e.message)); });
+  on("#ns_connect", (el) => { el.onclick = () => connectWallet().then((connected) => { if (!connected) return; paintWalletPill(root.querySelector("#nav_wallet")); paint(root); }).catch((e) => alert(e.message)); });
   all(".ns_pick", (el) => { el.onclick = () => { st.producer = el.dataset.p; go(1); }; });
   all(".ns_back", (el) => { el.onclick = back; });
   all(".ns_method", (el) => { el.onclick = () => go(0); });
@@ -616,7 +616,7 @@ async function runDeploy(root) {
       banner: st.bannerBitmap ? () => bitmapToImageData(st.bannerBitmap, 1024) : null,
     };
     const { deploy } = await import("../../chain/nft-deploy.js");
-    st.result = await deploy({ connection, wallet: session.wallet, burner, spec, items: its, onStage: live });
+    st.result = await deploy({ connection, wallet: wallet(), burner, spec, items: its, onStage: live });
   } catch (e) {
     st.error = String((e && e.message) || e) + " · Sign and pay again resumes where it stopped.";
     st.deploying = false;

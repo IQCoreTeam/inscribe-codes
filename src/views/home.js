@@ -6,6 +6,7 @@ import { esc, fmtSol, fmtUsd, fmtPct, fmtWhen, shortAddr } from "../ui/fmt.js";
 import * as nft from "../services/nft-backend.js";
 import { readBoard, readTokens } from "../services/gateway.js";
 import { marketRows } from "../services/markets.js";
+import { paintWalletPill } from "./nft/session.js";
 
 const HERO = "*inscribe.codes is an inscription-first launchpad. Every NFT and every token here starts as an inscription: the file itself written to the chain. No IPFS, no server, no takedown.";
 
@@ -24,14 +25,17 @@ export async function mount(root) {
   <div class="grid2" style="display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1.4fr);gap:24px;align-items:end">
     <div style="position:relative;aspect-ratio:1;background:var(--panel)"><img src="public/img/hero.webp" width="880" height="880" alt="" style="position:absolute;inset:0;width:100%;height:100%;object-fit:cover"></div>
     <div style="display:flex;flex-direction:column;gap:14px">
-      <div class="sm" data-tty>inscribe.codes · Solana · Robinhood chain:</div>
-      <div class="hero" style="min-height:3.6em"><span id="h_hero"></span><span class="ttycur"></span></div>
+      <div class="sm" data-tty data-tty-stable>inscribe.codes · Solana · Robinhood chain:</div>
+      <div class="hero home-hero tty-stable">
+        <span class="tty-stable-space">${esc(HERO)}<span class="ttycur" aria-hidden="true"></span></span>
+        <span class="tty-stable-content" aria-hidden="true"><span id="h_hero"></span><span class="ttycur"></span></span>
+      </div>
       <div class="cap" id="h_stat">*loading chain stats*</div>
     </div>
   </div>
 
   <div style="display:flex;flex-direction:column;gap:10px">
-    <div class="sm" data-tty>RECENT:</div>
+    <div class="sm" data-tty data-tty-stable>RECENT:</div>
     <div class="big ticker" id="h_recent">
       <span class="sm">reading the feed...</span>
     </div>
@@ -39,14 +43,14 @@ export async function mount(root) {
 
   <div class="grid2" style="display:grid;grid-template-columns:1fr 1fr;gap:24px">
     <div style="display:flex;flex-direction:column;gap:14px">
-      <div class="sm" style="font-size:15px">NFT.EXE · <span id="h_nftlive">...</span>:</div>
+      <div class="sm home-door-label">NFT.EXE · <span id="h_nftlive">...</span>:</div>
       <div class="h4band"><img src="public/img/banner_nft.webp" alt=""></div>
       <div class="big" style="font-size:26px">*Launch a collection or mint from one. Every item's image and metadata are inscriptions, the NFT just points at them.</div>
       <div class="cap">collections / market / my nfts / generate art</div>
       <a href="?view=nft" class="h4cta"><span>&rarr; Make an NFT</span></a>
     </div>
     <div style="display:flex;flex-direction:column;gap:14px">
-      <div class="sm" style="font-size:15px">TOKEN_LAUNCH.EXE · <span id="h_toklive">...</span>:</div>
+      <div class="sm home-door-label">TOKEN_LAUNCH.EXE · <span id="h_toklive">...</span>:</div>
       <div class="h4band"><img src="public/img/banner_token.webp" alt=""></div>
       <div class="big" style="font-size:26px">*Inscribe an image, text, anything, or pick one you already own. Name it, launch it. The coin page links back to the onchain original forever.</div>
       <div class="cap">inscribe / launch / markets / chart</div>
@@ -56,19 +60,19 @@ export async function mount(root) {
 
   <div class="grid2" style="display:grid;grid-template-columns:1fr 1fr;gap:24px">
     <div style="display:flex;flex-direction:column;gap:14px">
-      <div class="sm" data-tty>Top 3 collections · MINT VOLUME:</div>
-      <div id="h_topnft" style="display:flex;flex-direction:column;border-bottom:2px solid var(--acc)"><span class="sm" style="padding:12px 0">loading...</span></div>
+      <div class="sm" data-tty data-tty-stable>Top 3 collections · MINT VOLUME:</div>
+      <div id="h_topnft" class="home-featured"><span class="sm" style="padding:12px 0">loading...</span></div>
       <a href="?view=nft" class="big">All collections</a>
     </div>
     <div style="display:flex;flex-direction:column;gap:14px">
-      <div class="sm" data-tty>Top 3 tokens · MCAP:</div>
-      <div id="h_toptok" style="display:flex;flex-direction:column;border-bottom:2px solid var(--acc)"><span class="sm" style="padding:12px 0">loading...</span></div>
+      <div class="sm" data-tty data-tty-stable>Top 3 tokens · MCAP:</div>
+      <div id="h_toptok" class="home-featured"><span class="sm" style="padding:12px 0">loading...</span></div>
       <a href="?view=token" class="big">Open markets.exe</a>
     </div>
   </div>
 
   <div style="display:flex;flex-direction:column;gap:14px">
-    <div class="sm" data-tty>Related links:</div>
+    <div class="sm" data-tty data-tty-stable>Related links:</div>
     <div class="big" style="display:flex;flex-wrap:wrap;gap:0 14px">
       <a href="?view=nft">Launch a collection</a><span>/</span>
       <a href="https://iqlabs.mintlify.app/docs-typescript" target="_blank" rel="noopener">SDK / CLI docs</a><span>/</span>
@@ -84,7 +88,7 @@ export async function mount(root) {
 
   typeLabels(root);
   type(root.querySelector("#h_hero"), HERO);
-  wireWallet(root.querySelector("#h_wallet"));
+  paintWalletPill(root.querySelector("#h_wallet"));
 
   // Three independent loads; each section fills as its data lands.
   loadCollections(root).catch(() => fail(root, "#h_topnft"));
@@ -93,18 +97,6 @@ export async function mount(root) {
 }
 
 const fail = (root, sel) => { root.querySelector(sel).innerHTML = '<span class="sm">unavailable right now</span>'; };
-
-async function wireWallet(el) {
-  const { restore, connect, current } = await import("../chain/wallets.js");
-  const paint = () => {
-    const w = current();
-    el.innerHTML = w ? "<span>" + esc(shortAddr(w.publicKey.toBase58())) + "</span>"
-      : '<button type="button" class="sm lnk home-wallet-button">Connect wallet</button>';
-    if (!w) el.querySelector(".lnk").onclick = () => connect().then(paint).catch((e) => alert(e.message));
-  };
-  paint();
-  restore().then((w) => { if (w) paint(); });
-}
 
 async function loadCollections(root) {
   const collections = await nft.collections();

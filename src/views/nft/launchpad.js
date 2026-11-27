@@ -212,7 +212,8 @@ async function paintMarket(el) {
 const TIER = { legendary: "Legendary", epic: "EPIC", rare: "RARE" };
 
 async function paintMine(el) {
-  if (!addr()) {
+  const address = addr();
+  if (!address) {
     el.innerHTML = `<div class="nf-empty">
       <div class="t">Connect to see yours.</div>
       <div class="cm">Your NFTs appear here once your wallet is connected. Minted or bought here, they all show up.</div>
@@ -222,13 +223,13 @@ async function paintMine(el) {
     return;
   }
   el.innerHTML = `<div class="nf-scroll"><div class="nf-minegrid">${skeleton(6, "nftitem")}</div></div>`;
-  const [items, all] = await Promise.all([nft.held(addr()), allListings()]);
-  if (!el.isConnected || st.tab !== "mine") return;
-  const listed = all.filter((l) => l.seller === addr());
+  const [items, all] = await Promise.all([nft.held(address), allListings()]);
+  if (!el.isConnected || st.tab !== "mine" || addr() !== address) return;
+  const listed = all.filter((l) => l.seller === address);
   const strong = items.filter((it) => it.rarity && it.rarity.tier).length;
   const sub = (t) => `<div class="sm" style="padding:12px 2px 4px;letter-spacing:.1em">${t}</div>`;
   el.innerHTML = `
-  <div class="nf-minehead"><span><b>${items.length}</b>held by ${esc(shortAddr(addr()))}</span><span>${strong ? strong + " rare or better" : ""}</span></div>
+  <div class="nf-minehead"><span><b>${items.length}</b>held by ${esc(shortAddr(address))}</span><span>${strong ? strong + " rare or better" : ""}</span></div>
   ${listed.length ? sub("Listed by you · " + listed.length) + `<div class="nf-scroll"><div class="nf-minegrid ttyrows">${listed.map(listCardHtml).join("")}</div></div>` + sub("Held · " + items.length) : ""}
   <div class="nf-scroll"><div class="nf-minegrid ttyrows">${items.length ? items.map(mineCardHtml).join("") : ""}</div>
   ${items.length || listed.length ? "" : '<div class="nf-empty"><div class="t">Nothing here yet.</div><div class="cm">Mint from a collection and it lands here.</div></div>'}</div>`;

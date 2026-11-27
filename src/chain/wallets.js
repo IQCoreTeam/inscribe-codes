@@ -2,18 +2,23 @@
 // Phantom/solana providers, exposed as one adapter shape the rest of the site
 // uses (publicKey, connect, signMessage, signTransaction, signAndSendTransaction).
 import { PublicKey, Transaction, VersionedTransaction } from "@solana/web3.js";
+import { getWallets } from "@wallet-standard/app";
+import bs58 from "bs58";
+
+const CHAIN = "solana:mainnet";
 
 const REMEMBER = "ic_wallet";
-const registered = new Map();
+const registry = getWallets();
 let active = null;
+let generation = 0;
+let restoring = null;
+let burner = null;
 
-// Wallet Standard handshake: wallets announce themselves on register-wallet
-// and in response to app-ready.
-const api = { register: (...wallets) => { for (const w of wallets) if (hasSolana(w)) registered.set("std:" + w.name, w); } };
-window.addEventListener("wallet-standard:register-wallet", (e) => { try { e.detail(api); } catch (err) {} });
-try { window.dispatchEvent(new CustomEvent("wallet-standard:app-ready", { detail: api })); } catch (e) {}
-
-const hasSolana = (w) => w && w.features && (w.chains || []).some((c) => c.startsWith("solana:")) && w.features["standard:connect"];
+export function onWalletsChanged(listener) {
+  const offRegister = registry.on("register", listener);
+  const offUnregister = registry.on("unregister", listener);
+  return () => { offRegister(); offUnregister(); };
+}
 
 function stdAdapter(w) {
   const feat = w.features;
@@ -25,8 +30,8 @@ function stdAdapter(w) {
     account: null,
     async connect(opts) {
       const r = await feat["standard:connect"].connect(opts && opts.silent ? { silent: true } : undefined);
-      const acc = (r.accounts && r.accounts[0]) || w.accounts[0];
-      if (!acc) throw new Error("the wallet returned no account");
+      const acc = (r.accounts ?? w.accounts).find((account) => account.chains?.includes(CHAIN));
+      if (!acc) throw new Error("Select a Solana mainnet account in your wallet.");
       adapter.account = acc;
       adapter.publicKey = new PublicKey(acc.address);
       return adapter;
@@ -42,15 +47,15 @@ function stdAdapter(w) {
       if (!f) throw new Error(w.name + " cannot sign transactions");
       const versioned = typeof tx.serializeMessage !== "function";
       const bytes = versioned ? tx.serialize() : tx.serialize({ requireAllSignatures: false, verifySignatures: false });
-      const [out] = await f.signTransaction({ account: adapter.account, transaction: bytes, chain: adapter.account.chains && adapter.account.chains[0] });
+      const [out] = await f.signTransaction({ account: adapter.account, transaction: bytes, chain: CHAIN });
       return versioned ? VersionedTransaction.deserialize(out.signedTransaction) : Transaction.from(out.signedTransaction);
     },
     async signAndSendTransaction(tx) {
       const f = feat["solana:signAndSendTransaction"];
       if (f) {
-        const [out] = await f.signAndSendTransaction({ account: adapter.account, transaction: tx.serialize(), chain: adapter.account.chains && adapter.account.chains[0] });
+        const [out] = await f.signAndSendTransaction({ account: adapter.account, transaction: tx.serialize(), chain: CHAIN });
         const sig = out.signature; // bytes per the standard; some wallets return base58
-        return { signature: typeof sig === "string" ? sig : bs58ish(sig) };
+        return { signature: typeof sig === "string" ? sig : bs58.encode(sig) };
       }
       throw new Error(w.name + " cannot send transactions directly");
     },
@@ -58,9 +63,6 @@ function stdAdapter(w) {
   };
   return adapter;
 }
-
-// web3's PublicKey gives us base58 without pulling a codec in.
-const bs58ish = (bytes) => { try { return new PublicKey(bytes).toBase58(); } catch (e) { return Array.from(bytes).join(","); } };
 
 function injectedAdapter(provider, name) {
   return {
@@ -80,41 +82,76 @@ function injectedAdapter(provider, name) {
 }
 
 export function wallets() {
-  const out = [];
-  const phantom = window.phantom && window.phantom.solana;
-  if (phantom) out.push(injectedAdapter(phantom, "Phantom"));
-  for (const w of registered.values()) {
-    if (out.some((a) => a.name.toLowerCase() === w.name.toLowerCase())) continue;
-    out.push(stdAdapter(w));
+  const options = new Map();
+  for (const wallet of registry.get()) {
+    if (wallet.chains?.includes(CHAIN) && wallet.features?.["standard:connect"]) {
+      options.set(wallet.name.toLowerCase(), stdAdapter(wallet));
+    }
   }
-  if (!out.length && window.solana) out.push(injectedAdapter(window.solana, "Solana wallet"));
-  return out;
+  // Keep the legacy injected provider available when it hasn't registered.
+  const provider = window.phantom?.solana || window.solana;
+  if (typeof provider?.connect === "function") {
+    const name = window.phantom?.solana || provider.isPhantom ? "Phantom" : "Solana wallet";
+    if (!options.has(name.toLowerCase())) options.set(name.toLowerCase(), injectedAdapter(provider, name));
+  }
+  return [...options.values()].sort((a, b) => a.name.localeCompare(b.name));
 }
 
 export async function connect(id) {
-  const list = wallets();
-  if (!list.length) throw new Error("no Solana wallet found. install Phantom, Solflare or any Wallet Standard wallet.");
-  const pick = id ? list.find((w) => w.id === id) : list[0];
-  if (!pick) throw new Error("that wallet is no longer available");
-  active = await pick.connect();
+  const pick = wallets().find((wallet) => wallet.id === id);
+  if (!pick) throw new Error("Select an available wallet.");
+  const request = ++generation;
+  const connected = await pick.connect();
+  if (request !== generation) throw new Error("The wallet selection changed. Try again.");
+  if (!connected.publicKey) throw new Error("The wallet returned no account.");
+  active = connected;
+  burner = null;
   try { localStorage.setItem(REMEMBER, active.id); } catch (e) {}
   return active;
 }
 
 // Silent reconnect of the previously approved wallet; null when none sticks.
 export async function restore() {
+  if (current()) return current();
+  if (restoring) return restoring;
   let id = null;
   try { id = localStorage.getItem(REMEMBER); } catch (e) {}
   if (!id) return null;
-  const pick = wallets().find((w) => w.id === id);
+  const list = wallets();
+  // A saved Phantom connection may now be exposed through Wallet Standard.
+  const pick = list.find((wallet) => wallet.id === id)
+    || (id === "inj:Phantom" ? list.find((wallet) => wallet.id === "std:Phantom") : null);
   if (!pick) return null;
-  try { active = await pick.connect({ silent: true }); return active; } catch (e) { return null; }
+  const request = generation;
+  restoring = pick.connect({ silent: true }).then((connected) => {
+    if (request === generation) active = connected;
+    return current();
+  }).catch(() => null).finally(() => { restoring = null; });
+  return restoring;
 }
 
 export function current() { return active && active.publicKey ? active : null; }
 
 export async function disconnect() {
-  if (active) await active.disconnect();
+  const wallet = active;
+  generation++;
   active = null;
+  burner = null;
   try { localStorage.removeItem(REMEMBER); } catch (e) {}
+  try { await wallet?.disconnect(); } catch { /* app session is already clear */ }
+}
+
+
+export async function ensureBurner() {
+  const wallet = current();
+  if (!wallet) throw new Error("Connect your wallet first.");
+  const owner = wallet.publicKey.toBase58();
+  if (burner?.owner === owner) return burner.keypair;
+  const { deriveBurner } = await import("./burner.js");
+  const keypair = await deriveBurner((message) => wallet.signMessage(message));
+  if (current() !== wallet || wallet.publicKey?.toBase58() !== owner) {
+    throw new Error("The wallet changed while unlocking its inscription wallet.");
+  }
+  burner = { owner, keypair };
+  return keypair;
 }
