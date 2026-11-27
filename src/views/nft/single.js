@@ -43,7 +43,7 @@ function paint(root, body, C) {
       <div class="cm" id="ns_status" style="margin-top:8px"></div>
       <button class="btn nf-mintbtn" id="ns_mint" style="margin-top:10px">Mint as NFT</button>`}`);
   const conn = body.querySelector("#ns_conn");
-  if (conn) conn.onclick = () => connectWallet().then(() => { paintWalletPill(root.querySelector("#nav_wallet"), () => paint(root, body, C), () => st.busy); paint(root, body, C); }).catch((e) => alert(e.message));
+  if (conn) conn.onclick = () => connectWallet().then((connected) => { if (!connected) return; paintWalletPill(root.querySelector("#nav_wallet"), () => paint(root, body, C), () => st.busy); paint(root, body, C); }).catch((e) => alert(e.message));
   const name = body.querySelector("#ns_name");
   if (name) name.oninput = () => { st.name = name.value; };
   const btn = body.querySelector("#ns_mint");

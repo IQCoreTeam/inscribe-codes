@@ -181,6 +181,14 @@ img { display: block; }
 .wallet-menu button:hover { color: var(--acc); background: var(--panel2); }
 .wallet-menu button:focus-visible, .navpill:focus-visible, #h_wallet button:focus-visible { outline: 1px solid var(--acc); outline-offset: -2px; }
 #nav_wallet .wallet-menu button { box-sizing: border-box; }
+.wallet-picker { width: min(360px, calc(100vw - 32px)); max-height: calc(100dvh - 32px); padding: 0; box-sizing: border-box; color: var(--ink); }
+.wallet-picker::backdrop { background: #000a; }
+.wallet-picker .wh-x { min-width: 44px; min-height: 44px; text-align: center; background: var(--bg); color: var(--ink2); }
+.wallet-picker-body { padding: 12px; }
+.wallet-picker-options { display: grid; gap: 8px; }
+.wallet-picker-option { width: 100%; box-sizing: border-box; text-align: left; min-height: 44px; }
+.wallet-picker .wallet-message { padding: 8px 0 0; }
+.wallet-picker .wallet-message:empty { display: none; }
 .navconnect { font-size: 16px; line-height: 1.2; padding: 7px 12px; }
 .ttybar { font: 400 24px/1.2 "Jersey 15", monospace; letter-spacing: 0; white-space: pre; overflow: hidden; text-overflow: clip; }
 @keyframes ttyspin { 0% { content: "⠋"; } 12.5% { content: "⠙"; } 25% { content: "⠹"; } 37.5% { content: "⠸"; } 50% { content: "⠼"; } 62.5% { content: "⠴"; } 75% { content: "⠦"; } 87.5% { content: "⠧"; } 100% { content: "⠋"; } }

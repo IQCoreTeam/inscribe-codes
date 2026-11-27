@@ -387,7 +387,7 @@ function wire(root, modal) {
   const overlay = modal.querySelector("#ns_overlay");
   overlay.onclick = (e) => { if (e.target === overlay && !st.deploying) modal.innerHTML = ""; };
 
-  on("#ns_connect", (el) => { el.onclick = () => connectWallet().then(() => { paintWalletPill(root.querySelector("#nav_wallet")); paint(root); }).catch((e) => alert(e.message)); });
+  on("#ns_connect", (el) => { el.onclick = () => connectWallet().then((connected) => { if (!connected) return; paintWalletPill(root.querySelector("#nav_wallet")); paint(root); }).catch((e) => alert(e.message)); });
   all(".ns_pick", (el) => { el.onclick = () => { st.producer = el.dataset.p; go(1); }; });
   all(".ns_back", (el) => { el.onclick = back; });
   all(".ns_method", (el) => { el.onclick = () => go(0); });

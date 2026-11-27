@@ -45,6 +45,12 @@ export function evmWallets() {
   return eths.map((eth, i) => ({ id: "injected-" + i, name: eth.isPhantom ? "Phantom" : eth.isMetaMask ? "MetaMask" : "Browser wallet", provider: eth }));
 }
 
+export function onEvmWalletsChanged(listener) {
+  // Discovery records providers before this listener refreshes the picker.
+  window.addEventListener("eip6963:announceProvider", listener);
+  return () => window.removeEventListener("eip6963:announceProvider", listener);
+}
+
 export const evmSigner = () => signer;
 export const evmAddress = () => (signer ? signer.address : null);
 export const evmWalletId = () => evmWallets().find((wallet) => wallet.provider === injected)?.id;
@@ -55,8 +61,8 @@ export async function connectEvm({ silent = false, walletId } = {}) {
   if (silent && (disconnected || saved === "disconnected")) return null;
   if (silent && signer) return signer.address;
   const preferred = options.find((w) => w.id === (walletId || saved));
-  const choice = preferred || (!walletId && (!silent || (!saved && options.length === 1)) ? options[0] : null);
-  if (walletId && !choice) throw new Error("That wallet is no longer available.");
+  const choice = silent ? preferred || (!saved && options.length === 1 ? options[0] : null) : walletId ? preferred : null;
+  if (!silent && !choice) throw new Error("Select an available wallet.");
   if (!choice) { if (silent) return null; throw new Error("no EVM wallet found. install MetaMask or Phantom."); }
   const eth = choice.provider;
   const generation = ++walletGeneration;

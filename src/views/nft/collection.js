@@ -193,7 +193,7 @@ async function paintMint(root) {
     ${resume && !st.error ? '<div class="cm" style="color:#8dffa0">An unfinished mint was found; only the missing steps are redone.</div>' : ""}
     <div class="cm"><div>One signature. You pay, you own it.</div><div>The NFT points at its image and details stored on chain.</div></div>`;
   const c = el.querySelector("#nc_connect");
-  if (c) c.onclick = () => connectWallet().then(() => { paintWalletPill(root.querySelector("#nav_wallet"), () => paintMint(root), () => st.busy); paintMint(root); }).catch((e) => alert(e.message));
+  if (c) c.onclick = () => connectWallet().then((connected) => { if (!connected) return; paintWalletPill(root.querySelector("#nav_wallet"), () => paintMint(root), () => st.busy); paintMint(root); }).catch((e) => alert(e.message));
   const b = el.querySelector("#nc_mintbtn");
   if (b) b.onclick = () => runMint(root);
 }

@@ -14,6 +14,7 @@ import { connect as rpcConnect } from "../../chain/rpc.js";
 import { estimateCost } from "../../chain/burner.js";
 import { nav, paintWalletPill as paintNavWallet } from "../../ui/nav.js";
 import * as sol from "../../chain/wallets.js";
+import { chooseWallet } from "../../ui/wallet-picker.js";
 
 const hasMarketPrice = (row) => Number.isFinite(Number(row.priceUsd)) && Number(row.priceUsd) > 0;
 
@@ -135,11 +136,15 @@ function wireWallet(root) {
     }
     repaint(chain);
   };
-  st.connectWallet = async (id) => {
+  st.connectWallet = async () => {
     const chain = st.chain;
-    if (chain === "solana") await sol.connect(id);
-    else await (await loadEvm()).connectEvm({ walletId: id });
-    changed(chain);
+    const evm = chain === "hood" ? await loadEvm() : null;
+    if (!slot.isConnected || chain !== st.chain) return;
+    const options = evm
+      ? { list: evm.evmWallets, connect: (walletId) => evm.connectEvm({ walletId }),
+          activeId: evm.evmWalletId(), subscribe: evm.onEvmWalletsChanged }
+      : { list: sol.wallets, connect: sol.connect, activeId: sol.current()?.id, subscribe: sol.onWalletsChanged };
+    if (await chooseWallet(options)) changed(chain);
   };
   st.disconnectWallet = async () => {
     const chain = st.chain;
@@ -159,8 +164,6 @@ const walletAddr = () => st.chain === "solana" ? sol.current()?.publicKey.toBase
 const paintWalletPill = (root) => paintNavWallet(root.querySelector("#nav_wallet"), walletAddr(), {
   connect: st.connectWallet,
   disconnect: st.disconnectWallet,
-  list: st.chain === "solana" ? sol.wallets : async () => (await loadEvm()).evmWallets(),
-  activeId: st.chain === "solana" ? sol.current()?.id : evm?.evmWalletId(),
   blocked: () => st.open && (st.phase === "inscribing" || st.phase === "launching"),
 });
 

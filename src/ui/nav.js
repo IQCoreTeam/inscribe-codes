@@ -44,7 +44,7 @@ document.addEventListener("keydown", (event) => {
   }
 });
 
-export function paintWalletPill(el, address, { connect, disconnect, list, activeId, blocked } = {}) {
+export function paintWalletPill(el, address, { connect, disconnect, blocked } = {}) {
   if (!el?.isConnected || !connect) return;
   openWalletMenu?.close();
   const home = el.id === "h_wallet";
@@ -102,43 +102,10 @@ export function paintWalletPill(el, address, { connect, disconnect, list, active
     }
   }
 
-  async function pickWallet(initial = false) {
-    if (pending) return;
-    if (blocked?.()) return status("Finish the current wallet action first.");
-    status("");
-    pending = true;
-    try {
-      const wallets = await list();
-      if (!trigger.isConnected || (!initial && panel.hidden)) return;
-      if (initial && wallets.length === 1) {
-        pending = false;
-        return await change(() => connect(wallets[0].id));
-      }
-      options.innerHTML = '<div class="lab wallet-menu-title">Choose a wallet</div>';
-      for (const wallet of wallets) {
-        const button = document.createElement("button");
-        button.type = "button";
-        button.textContent = wallet.name + (wallet.id === activeId ? " · connected" : "");
-        button.onclick = () => change(() => connect(wallet.id));
-        options.append(button);
-      }
-      if (!wallets.length) status("No compatible wallet found in this browser.");
-      else if (address) status("To switch accounts, select the account in your wallet, then reconnect it here.");
-      if (panel.hidden) show();
-      options.querySelector("button")?.focus();
-    } catch (error) {
-      if (!trigger.isConnected) return;
-      if (panel.hidden) show();
-      status(error?.message || "Could not load wallets.");
-    } finally {
-      pending = false;
-    }
-  }
-
   trigger.onclick = () => {
     if (!panel.hidden) return close();
     if (pending) return;
-    if (!address) return pickWallet(true);
+    if (!address) return change(connect);
     status("");
     options.innerHTML = `<div class="lab wallet-menu-title">Connected wallet</div>
       <div class="wallet-full-address">${esc(address)}</div>
@@ -153,7 +120,11 @@ export function paintWalletPill(el, address, { connect, disconnect, list, active
         status("Select the address above to copy it.");
       }
     };
-    options.querySelector("[data-switch]").onclick = () => pickWallet();
+    options.querySelector("[data-switch]").onclick = () => {
+      if (blocked?.()) return status("Finish the current wallet action first.");
+      close();
+      change(connect);
+    };
     options.querySelector("[data-disconnect]").onclick = () => change(disconnect);
     show();
   };
