@@ -5,11 +5,11 @@ import { esc, shortAddr } from "../../ui/fmt.js";
 import { readRow } from "../../services/gateway.js";
 import { connect as rpcConnect, explorerTx } from "../../chain/rpc.js";
 import { frame } from "./launchpad.js";
-import { session, addr, connectWallet, ensureBurner, paintWalletPill } from "./session.js";
+import { wallet, addr, connectWallet, ensureBurner, paintWalletPill } from "./session.js";
 
 export async function render(root, C) {
   const body = frame(root, '<div class="nf-note">reading the inscription...</div>');
-  paintWalletPill(root.querySelector("#nav_wallet"), () => paint(root, body, C));
+  paintWalletPill(root.querySelector("#nav_wallet"), () => paint(root, body, C), () => st.busy);
   st.row = await readRow(C).catch(() => null);
   paint(root, body, C);
 }
@@ -43,7 +43,7 @@ function paint(root, body, C) {
       <div class="cm" id="ns_status" style="margin-top:8px"></div>
       <button class="btn nf-mintbtn" id="ns_mint" style="margin-top:10px">Mint as NFT</button>`}`);
   const conn = body.querySelector("#ns_conn");
-  if (conn) conn.onclick = () => connectWallet().then(() => { paintWalletPill(root.querySelector("#nav_wallet"), () => paint(root, body, C)); paint(root, body, C); }).catch((e) => alert(e.message));
+  if (conn) conn.onclick = () => connectWallet().then(() => { paintWalletPill(root.querySelector("#nav_wallet"), () => paint(root, body, C), () => st.busy); paint(root, body, C); }).catch((e) => alert(e.message));
   const name = body.querySelector("#ns_name");
   if (name) name.oninput = () => { st.name = name.value; };
   const btn = body.querySelector("#ns_mint");
@@ -64,7 +64,7 @@ async function run(root, body, C, row) {
     const burner = await ensureBurner();
     const { mintSingle } = await import("../../chain/nft.js");
     const result = await mintSingle({
-      connection, wallet: session.wallet, burner, C, name: st.name.trim(), kind: row.kind,
+      connection, wallet: wallet(), burner, C, name: st.name.trim(), kind: row.kind,
       onStage: (s) => { if (LINES[s]) status.textContent = LINES[s]; },
     });
     body.innerHTML = `<div class="win nf-win nf-single"><div class="wh"><span>Single 1 / 1</span></div><div class="nf-wizbody" style="text-align:center">

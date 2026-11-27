@@ -13,6 +13,7 @@ import { marketRows, tradeUrl, tradeLabel } from "../../services/markets.js";
 import { connect as rpcConnect } from "../../chain/rpc.js";
 import { estimateCost } from "../../chain/burner.js";
 import { nav, paintWalletPill as paintNavWallet } from "../../ui/nav.js";
+import * as sol from "../../chain/wallets.js";
 
 const hasMarketPrice = (row) => Number.isFinite(Number(row.priceUsd)) && Number(row.priceUsd) > 0;
 
@@ -31,8 +32,8 @@ const CHAINS = {
 
 const st = {
   chain: "solana",
-  sol: { wallet: null, burner: null, mine: null },
-  hood: { address: null, mine: null },
+  sol: { mine: null },
+  hood: { mine: null },
   open: false, tab: "text", phase: "menu",
   text: "", staged: null, picked: null,
   ascii: { dataUrl: null, font: 8, spacing: -2, out: "" },
@@ -116,26 +117,52 @@ function switchChain(root, chain) {
 }
 
 // ── wallets (per chain) ─────────────────────────────────────────────────────
-async function wireWallet(root) {
-  const sol = await import("../../chain/wallets.js");
-  st.connectWallet = async () => {
-    if (st.chain === "solana") st.sol.wallet = await sol.connect();
-    else { const { connectEvm } = await import("../../chain/evm.js"); st.hood.address = await connectEvm(); }
-    paintWalletPill(root); paintModal(root);
+let evm;
+function wireWallet(root) {
+  const slot = root.querySelector("#nav_wallet");
+  const repaint = (chain) => {
+    if (!slot.isConnected || st.chain !== chain) return;
+    paintWalletPill(root);
+    paintModal(root);
+  };
+  const changed = (chain) => {
+    st[chain === "solana" ? "sol" : "hood"].mine = null;
+    if (!slot.isConnected || st.chain !== chain) return;
+    if (st.picked || st.phase === "form") {
+      st.picked = null;
+      st.srcSig = null;
+      st.phase = "menu";
+    }
+    repaint(chain);
+  };
+  st.connectWallet = async (id) => {
+    const chain = st.chain;
+    if (chain === "solana") await sol.connect(id);
+    else await (await loadEvm()).connectEvm({ walletId: id });
+    changed(chain);
   };
   st.disconnectWallet = async () => {
-    if (st.chain === "solana") { await sol.disconnect(); st.sol.wallet = null; st.sol.burner = null; st.sol.mine = null; }
-    else { const { disconnectEvm } = await import("../../chain/evm.js"); disconnectEvm(); st.hood.address = null; st.hood.mine = null; }
-    paintWalletPill(root); paintModal(root);
+    const chain = st.chain;
+    if (chain === "solana") await sol.disconnect();
+    else (await loadEvm()).disconnectEvm();
+    changed(chain);
   };
   paintWalletPill(root);
-  sol.restore().then((w) => { if (w) { st.sol.wallet = w; paintWalletPill(root); paintModal(root); } });
-  import("../../chain/evm.js").then(({ connectEvm }) => connectEvm({ silent: true }).then((a) => { if (a) { st.hood.address = a; paintWalletPill(root); } }).catch(() => {}));
+  sol.restore().then((wallet) => { if (wallet) repaint("solana"); });
+  loadEvm().then((api) => api.connectEvm({ silent: true })).then((address) => {
+    if (address) repaint("hood");
+  }).catch(() => {});
 }
 
-const walletAddr = () => (st.chain === "solana" ? (st.sol.wallet ? st.sol.wallet.publicKey.toBase58() : null) : st.hood.address);
-
-const paintWalletPill = (root) => paintNavWallet(root.querySelector("#nav_wallet"), walletAddr(), st.connectWallet, st.disconnectWallet);
+const loadEvm = async () => (evm ||= await import("../../chain/evm.js"));
+const walletAddr = () => st.chain === "solana" ? sol.current()?.publicKey.toBase58() : evm?.evmAddress();
+const paintWalletPill = (root) => paintNavWallet(root.querySelector("#nav_wallet"), walletAddr(), {
+  connect: st.connectWallet,
+  disconnect: st.disconnectWallet,
+  list: st.chain === "solana" ? sol.wallets : async () => (await loadEvm()).evmWallets(),
+  activeId: st.chain === "solana" ? sol.current()?.id : evm?.evmWalletId(),
+  blocked: () => st.open && (st.phase === "inscribing" || st.phase === "launching"),
+});
 
 // ── markets ─────────────────────────────────────────────────────────────────
 async function loadCoins(root) {
@@ -602,14 +629,17 @@ async function loadMine(root) {
   const modal = root.querySelector("#tk_modal");
   const el = modal && modal.querySelector("#tk_minelist");
   if (!el) return;
-  const side = st.chain === "solana" ? st.sol : st.hood;
-  if (!side.mine) {
+  const chain = st.chain, address = walletAddr(), side = chain === "solana" ? st.sol : st.hood;
+  if (!address) return;
+  if (side.mine?.address !== address) {
     try {
-      if (st.chain === "solana") side.mine = (await readMine(walletAddr(), 30)).rows.filter((r) => r.kind !== "token");
-      else { const { readEvmMine } = await import("../../chain/evm.js"); side.mine = (await readEvmMine(walletAddr(), 30)).rows.filter((r) => r.kind !== "token"); }
+      const feed = chain === "solana" ? readMine : (await loadEvm()).readEvmMine;
+      const { rows } = await feed(address, 30);
+      if (!el.isConnected || chain !== st.chain || address !== walletAddr()) return;
+      side.mine = { address, rows: rows.filter((r) => r.kind !== "token") };
     } catch (e) { el.textContent = "could not load your inscriptions: " + e.message; return; }
   }
-  const mine = side.mine;
+  const mine = side.mine.rows;
   if (!mine.length) { el.innerHTML = '<div style="text-align:center;padding:16px 0"><div class="big">Nothing saved yet</div><p class="sm">Upload an image first. It is saved on chain, then you come straight back here to launch it.</p></div>'; return; }
   el.innerHTML = '<div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px;max-height:236px;overflow-y:auto">' + mine.map((r, i) => {
     const isImg = typeof r.body === "string" && r.body.startsWith("data:image/");
@@ -649,11 +679,11 @@ async function startInscribe(root) {
     if (st.chain === "solana") {
       liveProgress(root, 4, "deriving your burner key (one signature)");
       const connection = rpcConnect();
-      const burner = await ensureSolBurner();
+      const burner = await sol.ensureBurner();
       liveProgress(root, 10, "funding + writing to chain");
       const { inscribeRow } = await import("../../chain/feed.js");
       ({ sig } = await inscribeRow({
-        connection, wallet: st.sol.wallet, burner, kind, body, speed: "light",
+        connection, wallet: sol.current(), burner, kind, body, speed: "light",
         onProgress: (p) => liveProgress(root, 10 + Math.round(p * 0.85)),
         onRetry: () => liveProgress(root, st.progress, "paused, retrying (funds are safe in your burner)"),
       }));
@@ -677,13 +707,6 @@ async function startInscribe(root) {
   paintModal(root);
 }
 
-async function ensureSolBurner() {
-  if (st.sol.burner) return st.sol.burner;
-  const { deriveBurner } = await import("../../chain/burner.js");
-  st.sol.burner = await deriveBurner((m) => st.sol.wallet.signMessage(m));
-  return st.sol.burner;
-}
-
 async function startLaunch(root) {
   st.phase = "launching"; st.progress = 5; st.stepLabel = "preparing"; st.error = null;
   paintModal(root);
@@ -701,7 +724,7 @@ async function startLaunch(root) {
 
 async function launchSolana(root) {
   const connection = rpcConnect();
-  const burner = await ensureSolBurner();
+  const burner = await sol.ensureBurner();
   const who = walletAddr();
   const image = st.srcKind === "image" ? imgUrl(st.srcSig) : renderUrl(st.srcSig);
   const viewLink = "https://iqlabs.dev/?menu=codein&post=" + st.srcSig;
@@ -725,13 +748,13 @@ async function launchSolana(root) {
 
   liveProgress(root, 10, "inscribing the coin metadata");
   const { inscribeMeta, inscribeRow } = await import("../../chain/feed.js");
-  const { sig: metaSig } = await inscribeMeta({ connection, wallet: st.sol.wallet, burner, json: JSON.stringify(meta) });
+  const { sig: metaSig } = await inscribeMeta({ connection, wallet: sol.current(), burner, json: JSON.stringify(meta) });
   try { fetch(metaUrl(metaSig), { mode: "no-cors" }); } catch (e) {}
 
   liveProgress(root, 35, "creating the coin on pump.fun");
   const { launchOnPump } = await import("../../chain/launch/pumpfun.js");
   st.result = await launchOnPump({
-    connection, wallet: st.sol.wallet, name: st.name, symbol: st.symbol,
+    connection, wallet: sol.current(), name: st.name, symbol: st.symbol,
     uri: metaUrl(metaSig), devBuySol: st.devBuy,
     onStep: (label) => liveProgress(root, Math.min(90, st.progress + 18), label),
   });
@@ -740,7 +763,7 @@ async function launchSolana(root) {
   // The coin exists either way; a registry miss is reported, not fatal.
   try {
     const body = JSON.stringify({ mint: st.result.mint, name: st.name, symbol: st.symbol, src: st.srcSig, meta: metaSig });
-    const { sig } = await inscribeRow({ connection, wallet: st.sol.wallet, burner, kind: "token", body, speed: "light" });
+    const { sig } = await inscribeRow({ connection, wallet: sol.current(), burner, kind: "token", body, speed: "light" });
     notify(sig, { kind: "token", body, who });
   } catch (e) { console.warn("[launch] registry row failed, the coin is live anyway:", e.message); }
 }

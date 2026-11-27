@@ -47,16 +47,19 @@ export function evmWallets() {
 
 export const evmSigner = () => signer;
 export const evmAddress = () => (signer ? signer.address : null);
+export const evmWalletId = () => evmWallets().find((wallet) => wallet.provider === injected)?.id;
 
 export async function connectEvm({ silent = false, walletId } = {}) {
   const options = evmWallets();
   let saved; try { saved = localStorage.getItem(WALLET_KEY); } catch (e) {}
   if (silent && (disconnected || saved === "disconnected")) return null;
-  const choice = options.find((w) => w.id === (walletId || saved)) || (!walletId && !saved && options.length === 1 ? options[0] : null) || (!silent && options.length ? options[0] : null);
+  if (silent && signer) return signer.address;
+  const preferred = options.find((w) => w.id === (walletId || saved));
+  const choice = preferred || (!walletId && (!silent || (!saved && options.length === 1)) ? options[0] : null);
+  if (walletId && !choice) throw new Error("That wallet is no longer available.");
   if (!choice) { if (silent) return null; throw new Error("no EVM wallet found. install MetaMask or Phantom."); }
   const eth = choice.provider;
   const generation = ++walletGeneration;
-  signer = null; burnerWallet = null; inscribeCheckpoint = null; injected = eth;
   if (silent) {
     const accounts = await eth.request({ method: "eth_accounts" });
     if (generation !== walletGeneration) throw new Error(WALLET_CHANGED);
@@ -80,6 +83,7 @@ export async function connectEvm({ silent = false, walletId } = {}) {
   const s = await new BrowserProvider(eth).getSigner();
   if (generation !== walletGeneration) throw new Error(WALLET_CHANGED);
   signer = s;
+  injected = eth; burnerWallet = null; inscribeCheckpoint = null;
   disconnected = false;
   try { localStorage.setItem(WALLET_KEY, choice.id); } catch (e) {}
   return s.address;

@@ -21,6 +21,16 @@ export function typeLabels(container) {
     if (el.__tty) continue;
     el.__tty = 1;
     const full = el.textContent;
-    if (full.trim()) type(el, full);
+    if (!full.trim()) continue;
+    if (!el.hasAttribute("data-tty-stable")) { type(el, full); continue; }
+    el.classList.add("tty-stable");
+    const space = document.createElement("span");
+    space.className = "tty-stable-space";
+    space.textContent = full;
+    const reveal = document.createElement("span");
+    reveal.className = "tty-stable-content";
+    reveal.setAttribute("aria-hidden", "true");
+    el.replaceChildren(space, reveal);
+    type(reveal, full);
   }
 }

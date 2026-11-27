@@ -6,14 +6,16 @@ import { PublicKey, Transaction, VersionedTransaction } from "@solana/web3.js";
 const REMEMBER = "ic_wallet";
 const registered = new Map();
 let active = null;
+let generation = 0;
+let restoring = null;
+let burner = null;
 
 // Wallet Standard handshake: wallets announce themselves on register-wallet
 // and in response to app-ready.
+const hasSolana = (w) => w && w.features && (w.chains || []).some((c) => c.startsWith("solana:")) && w.features["standard:connect"];
 const api = { register: (...wallets) => { for (const w of wallets) if (hasSolana(w)) registered.set("std:" + w.name, w); } };
 window.addEventListener("wallet-standard:register-wallet", (e) => { try { e.detail(api); } catch (err) {} });
 try { window.dispatchEvent(new CustomEvent("wallet-standard:app-ready", { detail: api })); } catch (e) {}
-
-const hasSolana = (w) => w && w.features && (w.chains || []).some((c) => c.startsWith("solana:")) && w.features["standard:connect"];
 
 function stdAdapter(w) {
   const feat = w.features;
@@ -96,25 +98,55 @@ export async function connect(id) {
   if (!list.length) throw new Error("no Solana wallet found. install Phantom, Solflare or any Wallet Standard wallet.");
   const pick = id ? list.find((w) => w.id === id) : list[0];
   if (!pick) throw new Error("that wallet is no longer available");
-  active = await pick.connect();
+  const request = ++generation;
+  const connected = await pick.connect();
+  if (request !== generation) throw new Error("The wallet selection changed. Try again.");
+  if (!connected.publicKey) throw new Error("The wallet returned no account.");
+  active = connected;
+  burner = null;
   try { localStorage.setItem(REMEMBER, active.id); } catch (e) {}
   return active;
 }
 
 // Silent reconnect of the previously approved wallet; null when none sticks.
 export async function restore() {
+  if (current()) return current();
+  if (restoring) return restoring;
   let id = null;
   try { id = localStorage.getItem(REMEMBER); } catch (e) {}
   if (!id) return null;
   const pick = wallets().find((w) => w.id === id);
   if (!pick) return null;
-  try { active = await pick.connect({ silent: true }); return active; } catch (e) { return null; }
+  const request = generation;
+  restoring = pick.connect({ silent: true }).then((connected) => {
+    if (request === generation) active = connected;
+    return current();
+  }).catch(() => null).finally(() => { restoring = null; });
+  return restoring;
 }
 
 export function current() { return active && active.publicKey ? active : null; }
 
 export async function disconnect() {
-  if (active) await active.disconnect();
+  const wallet = active;
+  generation++;
   active = null;
+  burner = null;
   try { localStorage.removeItem(REMEMBER); } catch (e) {}
+  try { await wallet?.disconnect(); } catch { /* app session is already clear */ }
+}
+
+
+export async function ensureBurner() {
+  const wallet = current();
+  if (!wallet) throw new Error("Connect your wallet first.");
+  const owner = wallet.publicKey.toBase58();
+  if (burner?.owner === owner) return burner.keypair;
+  const { deriveBurner } = await import("./burner.js");
+  const keypair = await deriveBurner((message) => wallet.signMessage(message));
+  if (current() !== wallet || wallet.publicKey?.toBase58() !== owner) {
+    throw new Error("The wallet changed while unlocking its inscription wallet.");
+  }
+  burner = { owner, keypair };
+  return keypair;
 }

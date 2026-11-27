@@ -9,7 +9,7 @@ import { nftMarkets } from "../../services/markets.js";
 import { skeleton } from "../../ui/skeleton.js";
 import { connect as rpcConnect, explorerTx } from "../../chain/rpc.js";
 import { frame, statusOf, chainOf, coverOf, priceOf, segsHtml } from "./launchpad.js";
-import { session, addr, connectWallet, ensureBurner, paintWalletPill } from "./session.js";
+import { wallet, addr, connectWallet, ensureBurner, paintWalletPill } from "./session.js";
 
 const PAGE = 500;
 const MINT_OVERHEAD = "~0.0135 SOL"; // image + metadata inscription + asset rent, measured on mainnet
@@ -18,7 +18,7 @@ const st = { col: null, items: [], total: 0, hasRarity: false, filter: "all", mi
 
 export async function render(root, slug) {
   const body = frame(root, `<div class="win nf-win nf-colwin"><div class="wh"><span>Collection · ${esc(slug)}</span><a class="wh-right wh-x" href="?view=nft">← all collections</a></div><div class="nf-note">loading...</div></div>`);
-  paintWalletPill(root.querySelector("#nav_wallet"), () => paintMint(root));
+  paintWalletPill(root.querySelector("#nav_wallet"), () => { st.error = null; paintMint(root); }, () => st.busy);
   let col;
   try { col = await nft.collection(slug); }
   catch (e) { body.querySelector(".nf-note").textContent = 'could not load "' + slug + '": ' + e.message; return; }
@@ -163,7 +163,7 @@ async function paintMint(root) {
   if (st.mint === "done") {
     const r = st.result;
     el.innerHTML = `
-      <div style="text-align:center;padding:6px 0 2px"><div data-tty class="nf-minted">Minted.</div><div class="cm" style="margin-top:10px">${esc(r.name || col.name + " #" + r.index)} · owner ${esc(shortAddr(addr()))}</div></div>
+      <div style="text-align:center;padding:6px 0 2px"><div data-tty class="nf-minted">Minted.</div><div class="cm" style="margin-top:10px">${esc(r.name || col.name + " #" + r.index)} · owner ${esc(shortAddr(r.owner))}</div></div>
       <div>
         <div class="kv"><span>image on chain</span><span class="mint">${esc(shortAddr(r.C))}</span></div>
         <div class="kv"><span>details on chain</span><span class="mint">${esc(shortAddr(r.M))}</span></div>
@@ -181,8 +181,10 @@ async function paintMint(root) {
   // idle (or paused with an error)
   const status = statusOf(col);
   const { pendingMint } = await import("../../chain/nft.js");
-  const resume = pendingMint(col.slug);
-  const cannot = status === "Upcoming" ? "Not started yet" : status === "Sold out" ? "Sold out" : status === "Ended" ? "Mint ended" : null;
+  if (!el.isConnected || col !== st.col) return;
+  const checkpoint = pendingMint(col.slug);
+  const resume = checkpoint?.wallet === addr();
+  const cannot = checkpoint && !resume ? "Switch to the original wallet to resume this mint" : status === "Upcoming" ? "Not started yet" : status === "Sold out" ? "Sold out" : status === "Ended" ? "Mint ended" : null;
   el.innerHTML = `
     ${st.error ? `<div class="cm" style="color:var(--bad)">${esc(st.error)}</div>` : ""}
     ${!addr() ? '<div class="nf-connectmint" id="nc_connect">Connect wallet to mint</div>'
@@ -191,7 +193,7 @@ async function paintMint(root) {
     ${resume && !st.error ? '<div class="cm" style="color:#8dffa0">An unfinished mint was found; only the missing steps are redone.</div>' : ""}
     <div class="cm"><div>One signature. You pay, you own it.</div><div>The NFT points at its image and details stored on chain.</div></div>`;
   const c = el.querySelector("#nc_connect");
-  if (c) c.onclick = () => connectWallet().then(() => { paintWalletPill(root.querySelector("#nav_wallet"), () => paintMint(root)); paintMint(root); }).catch((e) => alert(e.message));
+  if (c) c.onclick = () => connectWallet().then(() => { paintWalletPill(root.querySelector("#nav_wallet"), () => paintMint(root), () => st.busy); paintMint(root); }).catch((e) => alert(e.message));
   const b = el.querySelector("#nc_mintbtn");
   if (b) b.onclick = () => runMint(root);
 }
@@ -220,8 +222,9 @@ async function runMint(root) {
     const connection = rpcConnect();
     const burner = await ensureBurner();
     const { mint } = await import("../../chain/nft.js");
+    const owner = addr();
     st.result = await mint({
-      connection, wallet: session.wallet, burner, slug: st.col.slug, collection: st.col,
+      connection, wallet: wallet(), burner, slug: st.col.slug, collection: st.col,
       onStage: (s, x) => {
         if (s === "funding") { st.mint = "approve"; paintMint(root); return; }
         if (st.mint !== "confirm") { st.mint = "confirm"; paintMint(root); }
@@ -230,6 +233,7 @@ async function runMint(root) {
       },
       onProgress: (p) => { st.pct = Math.max(st.pct, 25 + Math.round(p * 0.55)); live(); },
     });
+    st.result.owner = owner;
     st.mint = "done";
     paintMint(root);
     // the grid cell lights up and the counts move

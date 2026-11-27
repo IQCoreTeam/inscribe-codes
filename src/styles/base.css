@@ -90,6 +90,15 @@ img { display: block; }
 .row { display: grid; grid-template-columns: 36px minmax(0, 1fr) auto; gap: 16px; align-items: baseline; padding: 12px 0; border-top: 1px solid var(--line); text-decoration: none; }
 .home-header { display: flex; justify-content: space-between; align-items: center; gap: 24px; flex-wrap: wrap; }
 .home-links { display: flex; gap: 24px; flex-wrap: wrap; }
+.home-hero { min-height: 3.6em; }
+.home-door-label { font-size: 15px; }
+.tty-stable { position: relative; }
+.tty-stable-space { color: transparent; user-select: none; }
+.tty-stable-space .ttycur { visibility: hidden; }
+.tty-stable-content { position: absolute; inset: 0; }
+#h_hero[data-tty-on] + .ttycur { display: none; }
+.home-featured { display: flex; flex-direction: column; border-bottom: 2px solid var(--acc); }
+#h_recent { min-height: 1lh; }
 .home-wallet-button { padding: 0; border: 0; background: transparent; color: inherit; }
 .featured-collection, .featured-token { grid-template-columns: 24px 64px minmax(0, 1fr) auto; gap: 10px; align-items: center; }
 .featured-logo, .featured-token-art { width: 100%; aspect-ratio: 1; box-sizing: border-box; border: 1px solid var(--acc); }
@@ -160,6 +169,18 @@ img { display: block; }
 .seg > .on { background-color: var(--panel2); background-image: linear-gradient(var(--bg), var(--bg)), radial-gradient(var(--acc) 1px, transparent 1.2px); background-size: calc(100% - 12px) calc(100% - 14px), 4px 4px; background-position: center, 0 0; background-repeat: no-repeat, repeat; color: var(--acc); }
 .navpill { font: 400 16px/1.2 "Jersey 15", monospace; display: flex; align-items: center; gap: 8px; padding: 7px 12px; color: var(--acc); border: 1px solid var(--acc); background-color: var(--panel2); background-image: linear-gradient(var(--bg), var(--bg)), radial-gradient(var(--acc) 1px, transparent 1.2px); background-size: calc(100% - 12px) calc(100% - 12px), 4px 4px; background-position: center, 0 0; background-repeat: no-repeat, repeat; cursor: pointer; }
 .navpill i { width: 7px; height: 7px; background: var(--acc); }
+#nav_wallet, #h_wallet { position: relative; }
+#h_wallet .home-wallet-button { cursor: pointer; }
+.wallet-chevron { margin-left: 2px; }
+.wallet-menu { position: absolute; z-index: 25; top: calc(100% + 7px); right: 0; margin: 0; width: min(244px, calc(100vw - 32px)); box-sizing: border-box; background: var(--panel); border: 1px solid var(--acc); color: var(--ink); box-shadow: 0 4px 14px #0009; }
+.wallet-menu-title { padding: 9px 12px 3px; }
+.wallet-full-address, .wallet-message { padding: 5px 12px 10px; color: var(--ink2); font: 400 15px/1.3 "Jersey 15", monospace; overflow-wrap: anywhere; margin: 0; }
+.wallet-full-address { user-select: all; }
+.wallet-message { padding-top: 9px; color: var(--mut); }
+.wallet-menu button { display: block; width: 100%; box-sizing: border-box; min-height: 44px; padding: 8px 12px; border: 0; border-top: 1px solid var(--line); background: transparent; color: var(--ink); font: 400 16px/1.2 "Jersey 15", monospace; text-align: left; cursor: pointer; }
+.wallet-menu button:hover { color: var(--acc); background: var(--panel2); }
+.wallet-menu button:focus-visible, .navpill:focus-visible, #h_wallet button:focus-visible { outline: 1px solid var(--acc); outline-offset: -2px; }
+#nav_wallet .wallet-menu button { box-sizing: border-box; }
 .navconnect { font-size: 16px; line-height: 1.2; padding: 7px 12px; }
 .ttybar { font: 400 24px/1.2 "Jersey 15", monospace; letter-spacing: 0; white-space: pre; overflow: hidden; text-overflow: clip; }
 @keyframes ttyspin { 0% { content: "⠋"; } 12.5% { content: "⠙"; } 25% { content: "⠹"; } 37.5% { content: "⠸"; } 50% { content: "⠼"; } 62.5% { content: "⠴"; } 75% { content: "⠦"; } 87.5% { content: "⠧"; } 100% { content: "⠋"; } }
@@ -596,6 +617,10 @@ a.tk_link:hover > span:last-child { color: var(--acc); }
   .home-links { justify-content: center; gap: 8px clamp(10px, 3vw, 18px); }
   #h_wallet { justify-self: end; }
   .home-wallet-button { min-height: 44px; }
+  #h_stat { min-height: 2lh; }
+  .home-door-label { font-size: clamp(10px, 3.75vw, 15px); white-space: nowrap; }
+  .home-featured { min-height: 231px; }
+  .home-featured .row { min-height: 52px; }
   .featured-collection, .featured-token { grid-template-columns: 52px minmax(0, 1fr) auto; gap: 8px; }
   .featured-rank { display: none; }
   .hero { font-size: 24px; }
